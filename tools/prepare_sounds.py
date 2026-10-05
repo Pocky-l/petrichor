@@ -144,7 +144,8 @@ def footsteps(sound_id, count):
 def main():
     for old in os.listdir(os.path.join(OUT, "ambient")) if os.path.isdir(os.path.join(OUT, "ambient")) else []:
         os.remove(os.path.join(OUT, "ambient", old))
-    loops_from(673958, "ambient/ground_light", 24, -20)
+    # Drizzle: the softest recording, its highs rolled off further - a hush rather than a patter.
+    loops_from(673958, "ambient/ground_light", 24, -22, air_cut=3500.0, air_cut_amount=0.6)
     loops_from(160699, "ambient/ground_medium", 24, -20)
     loops_from(870823, "ambient/ground_heavy", 24, -19)
     loops_from(865323, "ambient/leaves", 24, -20)

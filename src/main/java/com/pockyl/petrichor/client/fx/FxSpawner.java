@@ -166,7 +166,7 @@ public final class FxSpawner {
             if (handled++ > 24 || fx.full()) {
                 break;
             }
-            if (entity == minecraft.player && firstPerson || entity.isInvisible() || random.nextFloat() > 0.35F * intensity) {
+            if (entity == minecraft.player && firstPerson || entity.isInvisible() || random.nextFloat() > 0.35F * intensity * Math.min(1.0F, ClientWeather.splash)) {
                 continue;
             }
             AABB box = entity.getBoundingBox();

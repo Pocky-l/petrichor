@@ -921,7 +921,8 @@ public final class Puddles implements AutoCloseable {
             puddle.safeGetUniform("SsrSteps").set(scene != null ? (float) steps : 0.0F);
             puddle.safeGetUniform("Wetness").set(wetness);
             puddle.safeGetUniform("Coverage").set((float) (double) ClientConfig.PUDDLE_COVERAGE.get());
-            puddle.safeGetUniform("RainAmount").set(Math.min(1.0F, intensity * (0.2F + ClientWeather.density * 0.4F)));
+            // Rings on puddles follow how hard the drops hit: a few in a drizzle, the whole surface in a downpour.
+            puddle.safeGetUniform("RainAmount").set(Math.min(1.0F, 0.04F + intensity * ClientWeather.splash / 2.6F * 0.95F));
             puddle.safeGetUniform("Flow").set(ClientConfig.RIVULETS.get() ? flow : 0.0F);
             puddle.safeGetUniform("PetrichorTime").set(time);
             puddle.safeGetUniform("SkyColor").set((float) sky.x, (float) sky.y, (float) sky.z);

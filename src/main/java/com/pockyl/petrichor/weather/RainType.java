@@ -10,10 +10,10 @@ import java.util.Locale;
  */
 public enum RainType {
     // density, fall, streak, width, alpha, wind, gust, fogDistance, splash, wetCap, wetRate, light, medium, heavy
-    DRIZZLE(0.9F, 0.16F, 0.09F, 0.006F, 0.2F, 0.05F, 0.1F, 170.0F, 0.12F, 0.45F, 0.5F, 1.0F, 0.0F, 0.0F),
-    RAIN(0.9F, 0.55F, 0.45F, 0.014F, 0.38F, 0.09F, 0.3F, 160.0F, 0.9F, 0.80F, 1.0F, 0.35F, 1.0F, 0.0F),
-    DOWNPOUR(2.6F, 0.95F, 1.1F, 0.024F, 0.55F, 0.18F, 0.6F, 70.0F, 2.6F, 1.0F, 2.2F, 0.0F, 0.45F, 1.0F),
-    THUNDERSTORM(2.2F, 1.0F, 1.1F, 0.024F, 0.55F, 0.34F, 0.9F, 90.0F, 2.2F, 1.0F, 1.8F, 0.0F, 0.55F, 0.9F);
+    DRIZZLE(1.1F, 0.2F, 0.2F, 0.01F, 0.42F, 0.05F, 0.1F, 170.0F, 0.0F, 0.45F, 0.5F, 0.35F, 0.0F, 0.0F),
+    RAIN(0.9F, 0.55F, 0.45F, 0.014F, 0.38F, 0.09F, 0.3F, 160.0F, 0.9F, 0.80F, 1.0F, 0.15F, 0.75F, 0.0F),
+    DOWNPOUR(2.6F, 0.95F, 1.1F, 0.024F, 0.55F, 0.18F, 0.6F, 70.0F, 2.6F, 1.0F, 2.2F, 0.0F, 0.35F, 1.0F),
+    THUNDERSTORM(2.2F, 1.0F, 1.1F, 0.024F, 0.55F, 0.34F, 0.9F, 90.0F, 2.2F, 1.0F, 1.8F, 0.0F, 0.45F, 0.9F);
 
     private static final RainType[] VALUES = values();
 
@@ -35,7 +35,7 @@ public enum RainType {
     public final float wetnessCap;
     /** How fast it soaks the ground, relative to normal rain. */
     public final float wetnessRate;
-    /** Volumes of the light, medium and heavy rain sound loops. */
+    /** Volumes of the light, medium and heavy rain sound loops; their sum is how loud this rain is. */
     public final float soundLight;
     public final float soundMedium;
     public final float soundHeavy;

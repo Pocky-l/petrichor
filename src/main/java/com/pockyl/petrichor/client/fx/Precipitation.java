@@ -166,8 +166,19 @@ public final class Precipitation {
                         float a = Math.min(0.9F, baseAlpha * 1.3F * sparkle * edgeFade * window * near * Mth.sqrt(width * 2.0F / w)
                                 * (1.0F - blur * 0.55F));
                         float tilt = 1.0F + (vary - 0.5F) * 0.2F;
-                        Streaks.streak(rain, hx, hy, hz, slantX * tilt, -1.0F, slantZ * tilt, len, w, FxAtlas.STREAK, a, a, light, dropR,
-                                dropG, dropB);
+                        // Slow, fine drops (drizzle) waver in the air instead of falling in straight lines.
+                        float floaty = Math.clamp((0.5F - fall) / 0.3F, 0.0F, 1.0F);
+                        float swayX = 0.0F;
+                        float swayZ = 0.0F;
+                        if (floaty > 0.0F) {
+                            float wave = (float) (time * 0.07 % Mth.TWO_PI) + phase * 37.0F;
+                            swayX = Mth.sin(wave) * 0.18F * floaty;
+                            swayZ = Mth.cos(wave * 0.8F) * 0.18F * floaty;
+                            hx += swayX;
+                            hz += swayZ;
+                        }
+                        Streaks.streak(rain, hx, hy, hz, slantX * tilt + swayX * 0.6F, -1.0F, slantZ * tilt + swayZ * 0.6F, len, w,
+                                FxAtlas.STREAK, a, a, light, dropR, dropG, dropB);
                     }
                     drops++;
                 }
