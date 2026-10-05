@@ -1,0 +1,302 @@
+package com.pockyl.petrichor.client.fx;
+
+import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
+
+import com.pockyl.petrichor.ClientConfig;
+import com.pockyl.petrichor.client.ClientWeather;
+import com.pockyl.petrichor.client.Columns;
+import com.pockyl.petrichor.client.render.Puddles;
+import com.pockyl.petrichor.client.sound.RainSounds;
+import com.pockyl.petrichor.world.SurfaceKind;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Decides every tick where rain effects appear: splashes on whatever the rain hits (crowns on the ground, rings on
+ * water, sizzle on lava, spray off leaves and mobs), mist in downpours, water pouring off edges and dripping from
+ * leaves (also for a while after the rain) and splashes under feet in puddles.
+ */
+public final class FxSpawner {
+    private static final int SPLASH_RANGE = 16;
+    private static final int DRIP_RANGE = 24;
+    private static final int LEAF_RANGE = 12;
+    /** In {@code walkDist} units (0.6 per block walked). */
+    private static final float STEP_LENGTH = 0.9F;
+
+    private final RandomSource random = RandomSource.create();
+    private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+    private final List<Puddles.Emitter> emitters = new ArrayList<>();
+    private final Int2FloatOpenHashMap lastStep = new Int2FloatOpenHashMap();
+
+    public void tick(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, Vec3 cam) {
+        float intensity = ClientWeather.intensity();
+        float rain = ClientWeather.rain();
+        float wetness = ClientWeather.wetness();
+        if (rain > 0.0F && ClientConfig.SPLASHES.get()) {
+            groundSplashes(level, columns, puddles, fx, cam, intensity);
+            mist(columns, fx, cam, intensity);
+            entitySplashes(level, fx, cam, intensity);
+        }
+        if (ClientConfig.DRIPS.get()) {
+            // Edges keep dripping while the ground is wet, long after the rain stopped.
+            float after = Math.clamp((wetness - 0.1F) * 0.4F, 0.0F, 0.25F) * (1.0F - Math.min(1.0F, rain * 2.0F));
+            edgeDrips(puddles, fx, cam, intensity, after);
+            leafDrips(level, columns, puddles, fx, cam, intensity, after);
+        }
+        if (ClientConfig.FOOTSTEPS.get() && wetness > 0.05F) {
+            footsteps(level, puddles, fx, cam);
+        }
+    }
+
+    private static int stochastic(RandomSource random, float expected) {
+        int n = (int) expected;
+        return random.nextFloat() < expected - n ? n + 1 : n;
+    }
+
+    private void groundSplashes(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, Vec3 cam, float intensity) {
+        float expected = ClientConfig.quality().splashBudget * (float) (double) ClientConfig.SPLASH_DENSITY.get()
+                * ClientWeather.splash / 2.4F * Math.min(intensity, 1.5F);
+        int n = stochastic(random, expected);
+        float scale = 0.55F + ClientWeather.density * 0.25F;
+        for (int s = 0; s < n && !fx.full(); s++) {
+            float r = 1.0F + SPLASH_RANGE * (float) Math.pow(random.nextFloat(), 0.8);
+            float angle = random.nextFloat() * Mth.TWO_PI;
+            double x = cam.x + Mth.cos(angle) * r;
+            double z = cam.z + Mth.sin(angle) * r;
+            int bx = Mth.floor(x);
+            int bz = Mth.floor(z);
+            if (columns.precipitation(bx, bz) != Columns.RAIN) {
+                continue;
+            }
+            int h = columns.height(bx, bz);
+            if (Math.abs(h - cam.y) > 20) {
+                continue;
+            }
+            pos.set(bx, h - 1, bz);
+            BlockState state = level.getBlockState(pos);
+            SurfaceKind.Shape shape = SurfaceKind.classify(state);
+            int light = columns.light(bx, bz);
+            switch (shape.kind()) {
+                case WATER -> {
+                    FluidState fluid = state.getFluidState();
+                    double y = h - 1 + fluid.getHeight(level, pos);
+                    fx.ripple(x, y, z, scale, light);
+                    if (random.nextInt(4) == 0) {
+                        fx.splash(x, y, z, scale * 0.6F, RainFx.LAND_WATER, light, 1);
+                    }
+                }
+                case HOT -> {
+                    if (random.nextInt(4) == 0) {
+                        level.addParticle(ParticleTypes.SMOKE, x, h + 0.05, z, 0.0, 0.03, 0.0);
+                    }
+                }
+                case LEAVES -> {
+                    fx.add(RainFx.DROPLET, x, h, z, (random.nextFloat() - 0.5F) * 0.06F, 0.05F + random.nextFloat() * 0.06F,
+                            (random.nextFloat() - 0.5F) * 0.06F, 0.8F, 0.5F, 10, light);
+                }
+                default -> {
+                    double y = h - 1 + shape.top();
+                    float cover = puddles.coverAt(x, y, z);
+                    byte surface = cover > 0.5F ? RainFx.LAND_PUDDLE : RainFx.LAND_GROUND;
+                    fx.splash(x, y, z, scale * (surface == RainFx.LAND_PUDDLE ? 0.8F : 1.0F), surface, light, random.nextInt(3));
+                }
+            }
+        }
+    }
+
+    private void mist(Columns columns, RainFx fx, Vec3 cam, float intensity) {
+        float chance = (ClientWeather.density - 1.4F) * 1.5F * Math.min(intensity, 1.5F);
+        int n = stochastic(random, chance);
+        for (int s = 0; s < n && !fx.full(); s++) {
+            float r = 3.0F + random.nextFloat() * 18.0F;
+            float angle = random.nextFloat() * Mth.TWO_PI;
+            double x = cam.x + Mth.cos(angle) * r;
+            double z = cam.z + Mth.sin(angle) * r;
+            int bx = Mth.floor(x);
+            int bz = Mth.floor(z);
+            if (columns.precipitation(bx, bz) != Columns.RAIN) {
+                continue;
+            }
+            int h = columns.height(bx, bz);
+            fx.add(RainFx.MIST, x, h + 0.4, z, 0.0F, 0.004F, 0.0F, 1.0F + random.nextFloat() * 0.9F, 0.07F, 40 + random.nextInt(20),
+                    columns.light(bx, bz));
+        }
+    }
+
+    private void entitySplashes(ClientLevel level, RainFx fx, Vec3 cam, float intensity) {
+        Minecraft minecraft = Minecraft.getInstance();
+        boolean firstPerson = minecraft.options.getCameraType().isFirstPerson();
+        AABB area = new AABB(cam.x - 12, cam.y - 8, cam.z - 12, cam.x + 12, cam.y + 8, cam.z + 12);
+        List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, area);
+        int handled = 0;
+        for (LivingEntity entity : entities) {
+            if (handled++ > 24 || fx.full()) {
+                break;
+            }
+            if (entity == minecraft.player && firstPerson || entity.isInvisible() || random.nextFloat() > 0.35F * intensity) {
+                continue;
+            }
+            AABB box = entity.getBoundingBox();
+            pos.set(entity.getX(), box.maxY, entity.getZ());
+            if (!level.isRainingAt(pos)) {
+                continue;
+            }
+            double x = Mth.lerp(random.nextDouble(), box.minX, box.maxX);
+            double z = Mth.lerp(random.nextDouble(), box.minZ, box.maxZ);
+            int light = LevelRenderer.getLightColor(level, pos);
+            fx.splash(x, box.maxY, z, 0.45F, RainFx.LAND_GROUND, light, 1 + random.nextInt(2));
+        }
+    }
+
+    private void edgeDrips(Puddles puddles, RainFx fx, Vec3 cam, float intensity, float after) {
+        if (intensity <= 0.0F && after <= 0.0F) {
+            return;
+        }
+        emitters.clear();
+        puddles.emittersNear(cam.x, cam.z, DRIP_RANGE, emitters);
+        float density = (float) (double) ClientConfig.DRIP_DENSITY.get();
+        for (Puddles.Emitter emitter : emitters) {
+            double dx = emitter.x() - cam.x;
+            double dz = emitter.z() - cam.z;
+            if (dx * dx + dz * dz > DRIP_RANGE * DRIP_RANGE || Math.abs(emitter.y() - cam.y) > 24) {
+                continue;
+            }
+            float flow = (float) Math.pow(emitter.flow(), 0.85);
+            float expected = Math.min(3.0F, 0.012F * flow * intensity) + Math.min(0.06F, 0.004F * flow * after);
+            int n = stochastic(random, expected * density);
+            for (int s = 0; s < n && !fx.full(); s++) {
+                // Spread along the edge the water pours over.
+                float along = random.nextFloat() - 0.5F;
+                double x = emitter.x() + emitter.dirZ() * along * 0.9;
+                double z = emitter.z() + emitter.dirX() * along * 0.9;
+                byte surface = emitter.surface();
+                if (surface == RainFx.LAND_GROUND && puddles.coverAt(x + emitter.dirX() * 0.3, emitter.groundY(), z + emitter.dirZ() * 0.3)
+                        > 0.5F) {
+                    surface = RainFx.LAND_PUDDLE;
+                }
+                fx.addDrip(x, emitter.y() - 0.02, z, emitter.dirX() * 0.03F, emitter.dirZ() * 0.03F, emitter.groundY(), surface,
+                        0.8F + random.nextFloat() * 0.5F, lightAbove(emitter));
+            }
+        }
+    }
+
+    private static int lightAbove(Puddles.Emitter emitter) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) {
+            return 0xF000F0;
+        }
+        return LevelRenderer.getLightColor(minecraft.level, BlockPos.containing(emitter.x(), emitter.y() + 0.5, emitter.z()));
+    }
+
+    private void leafDrips(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, Vec3 cam, float intensity, float after) {
+        float chance = (0.45F * intensity + after) * (float) (double) ClientConfig.DRIP_DENSITY.get();
+        if (chance <= 0.0F) {
+            return;
+        }
+        for (int s = 0; s < 10 && !fx.full(); s++) {
+            if (random.nextFloat() > chance) {
+                continue;
+            }
+            double x = cam.x + (random.nextFloat() * 2.0F - 1.0F) * LEAF_RANGE;
+            double z = cam.z + (random.nextFloat() * 2.0F - 1.0F) * LEAF_RANGE;
+            int bx = Mth.floor(x);
+            int bz = Mth.floor(z);
+            if (columns.precipitation(bx, bz) != Columns.RAIN) {
+                continue;
+            }
+            int y = columns.height(bx, bz) - 1;
+            pos.set(bx, y, bz);
+            if (SurfaceKind.classify(level.getBlockState(pos)).kind() != SurfaceKind.LEAVES) {
+                continue;
+            }
+            // Down through the canopy to its underside.
+            int bottom = y;
+            while (bottom > y - 10) {
+                pos.set(bx, bottom - 1, bz);
+                if (SurfaceKind.classify(level.getBlockState(pos)).kind() != SurfaceKind.LEAVES) {
+                    break;
+                }
+                bottom--;
+            }
+            pos.set(bx, bottom - 1, bz);
+            if (!level.getBlockState(pos).isAir()) {
+                continue;
+            }
+            int floor = bottom - 1;
+            BlockState below = null;
+            while (floor > bottom - 32) {
+                pos.set(bx, floor, bz);
+                below = level.getBlockState(pos);
+                if (!below.isAir()) {
+                    break;
+                }
+                floor--;
+            }
+            if (below == null || below.isAir()) {
+                continue;
+            }
+            double groundY;
+            byte surface;
+            if (below.getFluidState().is(FluidTags.WATER)) {
+                groundY = floor + below.getFluidState().getHeight(level, pos);
+                surface = RainFx.LAND_WATER;
+            } else {
+                VoxelShape shape = below.getCollisionShape(level, pos);
+                double top = shape.isEmpty() ? 0.0 : shape.max(Direction.Axis.Y);
+                groundY = floor + top;
+                surface = puddles.coverAt(x, groundY, z) > 0.5F ? RainFx.LAND_PUDDLE : RainFx.LAND_GROUND;
+            }
+            pos.set(bx, bottom - 1, bz);
+            fx.addDrip(x, bottom - 0.05, z, 0.0F, 0.0F, groundY, surface, 1.0F + random.nextFloat() * 0.4F,
+                    LevelRenderer.getLightColor(level, pos));
+        }
+    }
+
+    private void footsteps(ClientLevel level, Puddles puddles, RainFx fx, Vec3 cam) {
+        AABB area = new AABB(cam.x - 16, cam.y - 8, cam.z - 16, cam.x + 16, cam.y + 8, cam.z + 16);
+        List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, area);
+        if (lastStep.size() > 256) {
+            lastStep.clear();
+        }
+        for (LivingEntity entity : entities) {
+            if (!entity.onGround() || entity.isSpectator() || entity.isInWater()) {
+                continue;
+            }
+            float walked = entity.walkDist;
+            int id = entity.getId();
+            if (!lastStep.containsKey(id) || walked < lastStep.get(id)) {
+                lastStep.put(id, walked);
+                continue;
+            }
+            if (walked - lastStep.get(id) < STEP_LENGTH) {
+                continue;
+            }
+            lastStep.put(id, walked);
+            float cover = puddles.coverAt(entity.getX(), entity.getY(), entity.getZ());
+            if (cover < 0.4F) {
+                continue;
+            }
+            pos.set(entity.getX(), entity.getY() + 0.2, entity.getZ());
+            int light = LevelRenderer.getLightColor(level, pos);
+            float size = Math.min(1.6F, entity.getBbWidth() * 1.6F + 0.4F);
+            fx.splash(entity.getX(), entity.getY(), entity.getZ(), size, RainFx.LAND_PUDDLE, light, 3 + random.nextInt(4));
+            RainSounds.puddleStep(entity, cover * Math.min(1.0F, size));
+        }
+    }
+}

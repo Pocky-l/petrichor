@@ -1,0 +1,22 @@
+{
+  "ambient.rain.light": {
+    "sounds": [{"name": "petrichor:ambient/rain_light", "stream": true}],
+    "subtitle": "subtitles.petrichor.rain"
+  },
+  "ambient.rain.medium": {
+    "sounds": [{"name": "petrichor:ambient/rain_medium", "stream": true}],
+    "subtitle": "subtitles.petrichor.rain"
+  },
+  "ambient.rain.heavy": {
+    "sounds": [{"name": "petrichor:ambient/rain_heavy", "stream": true}],
+    "subtitle": "subtitles.petrichor.rain_heavy"
+  },
+  "ambient.rain.roof": {
+    "sounds": [{"name": "petrichor:ambient/rain_roof", "stream": true}],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "step.puddle": {
+    "sounds": ["petrichor:step/puddle1", "petrichor:step/puddle2", "petrichor:step/puddle3"],
+    "subtitle": "subtitles.petrichor.puddle_step"
+  }
+}
