@@ -23,6 +23,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -40,6 +41,7 @@ import com.pockyl.petrichor.world.SurfaceGrid;
 import com.pockyl.petrichor.world.SurfaceKind;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -58,8 +60,18 @@ public final class Puddles implements AutoCloseable {
     private static final int MIN_FLOW = 4;
     /** Water visibly runs only this close to the next step down; on wide flats it just soaks in and pools. */
     private static final int MAX_EDGE_DISTANCE = 4;
+    /** Seconds a new surface takes to soak in heavy rain (longer in light rain). */
+    private static final float SOAK_SECONDS = 30.0F;
+    /** Sheltered ground fainter than this is not drawn. */
+    private static final float MIN_EXPOSURE = 0.02F;
+    /** How much openness a sheltered block keeps from its more open neighbour. */
+    private static final float SHELTER_FALLOFF = 0.66F;
+    /** Blocks the wet ground reaches in under a shelter. */
+    private static final int SHELTER_REACH = 6;
+    /** How far below a roof or crown the sheltered ground is looked for. */
+    private static final int SHELTER_DEPTH = 14;
     /** Extra puddle field under the edge water pours off. */
-    private static final float DRIP_LINE_BONUS = 0.35F;
+    private static final float DRIP_LINE_BONUS = 0.2F;
     private static final int[] CORNER_X = {0, 0, 1, 1};
     private static final int[] CORNER_Z = {0, 1, 1, 0};
     private static final int BUILDS_PER_TICK = 2;
@@ -93,12 +105,20 @@ public final class Puddles implements AutoCloseable {
         final float[] field = new float[256];
         final float[] top = new float[256];
         final boolean[] ground = new boolean[256];
+        /** Surface height and openness of each column at the last build, to notice new and uncovered surfaces. */
+        final float[] lastTop = new float[256];
+        final float[] lastExposure = new float[256];
+        /** 1 for a surface that just appeared and is still dry, falling to 0 as it soaks. */
+        final float[] fresh = new float[256];
+        boolean builtOnce;
+        boolean soaking;
         List<Emitter> emitters = List.of();
         int signature;
 
         ChunkPuddles(int chunkX, int chunkZ) {
             this.chunkX = chunkX;
             this.chunkZ = chunkZ;
+            Arrays.fill(lastTop, Float.NaN);
         }
 
         void close() {
@@ -203,6 +223,7 @@ public final class Puddles implements AutoCloseable {
         if (built == 0 && !chunks.isEmpty()) {
             checkChanged(level);
         }
+        soak(level, ClientWeather.intensity());
     }
 
     private static boolean neighbourhoodLoaded(ClientLevel level, int cx, int cz) {
@@ -276,7 +297,7 @@ public final class Puddles implements AutoCloseable {
             return;
         }
         chunk.bounds = new AABB(originX, minY - 1.0, originZ, originX + 16, maxY + 1.0, originZ + 16);
-        buildPuddles(level, chunk, grid, runoff, field);
+        buildPuddles(level, chunk, grid, runoff, field, rains);
         buildSheets(level, chunk, grid, runoff, rains);
         chunk.emitters = findEmitters(level, chunk, grid, runoff, rains);
     }
@@ -296,12 +317,13 @@ public final class Puddles implements AutoCloseable {
         }
     }
 
-    private void buildPuddles(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, float[] field) {
+    private void buildPuddles(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, float[] field, boolean[] rains) {
         int originX = chunk.chunkX << 4;
         int originZ = chunk.chunkZ << 4;
-        float[] flowX = new float[grid.size * grid.size];
-        float[] flowZ = new float[grid.size * grid.size];
-        for (int i = 0; i < flowX.length; i++) {
+        int n = grid.size * grid.size;
+        float[] flowX = new float[n];
+        float[] flowZ = new float[n];
+        for (int i = 0; i < n; i++) {
             float strength = flowStrength(grid, runoff, i);
             if (strength > 0.0F) {
                 int j = runoff.downstream[i];
@@ -309,51 +331,246 @@ public final class Puddles implements AutoCloseable {
                 flowZ[i] = ((j / grid.size) - (i / grid.size)) * strength;
             }
         }
+        Surfaces surfaces = surfaces(level, grid, field);
         BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
         int quads = 0;
         float[] cornerFlow = new float[3];
+        float minY = Float.MAX_VALUE;
+        float maxY = -Float.MAX_VALUE;
         for (int lz = 0; lz < 16; lz++) {
             for (int lx = 0; lx < 16; lx++) {
-                int c = lz * 16 + lx;
-                if (!chunk.ground[c]) {
+                if (!rains[lz * 16 + lx]) {
                     continue;
                 }
                 int gx = lx + MARGIN;
                 int gz = lz + MARGIN;
                 int i = grid.index(gx, gz);
-                float top = grid.top[i];
-                pos.set(originX + lx, grid.height[i], originZ + lz);
-                int light = LevelRenderer.getLightColor(level, pos);
-                float r;
-                float g;
-                float b;
-                // The colour water takes over this ground: brown over soil, dark grey over stone and wood.
-                if (grid.soil[i]) {
-                    r = 0.36F;
-                    g = 0.29F;
-                    b = 0.21F;
-                } else {
-                    r = 0.27F;
-                    g = 0.29F;
-                    b = 0.31F;
+                float top = surfaces.top[i];
+                if (Float.isNaN(top) || surfaces.exposure[i] < MIN_EXPOSURE) {
+                    continue;
                 }
+                minY = Math.min(minY, top);
+                maxY = Math.max(maxY, top);
+                int c = lz * 16 + lx;
+                noteChange(chunk, c, top, surfaces.exposure[i]);
+                pos.set(originX + lx, Mth.floor(top) + (top % 1.0F == 0.0F ? 0 : 1), originZ + lz);
+                int light = LevelRenderer.getLightColor(level, pos);
                 float y = top + LIFT;
                 int wx = Math.floorMod(originX + lx, 256);
                 int wz = Math.floorMod(originZ + lz, 256);
+                boolean open = grid.kind[i] == SurfaceKind.GROUND;
                 for (int k = 0; k < 4; k++) {
                     int cornerX = gx + CORNER_X[k];
                     int cornerZ = gz + CORNER_Z[k];
-                    float cornerValue = cornerField(grid, field, cornerX, cornerZ, top);
-                    cornerFlow(grid, flowX, flowZ, cornerX, cornerZ, top, cornerFlow);
-                    builder.addVertex(lx + CORNER_X[k], y, lz + CORNER_Z[k]).setColor(r, g, b, cornerValue)
+                    float cornerField = surfaces.corner(surfaces.field, cornerX, cornerZ, top);
+                    float cornerExposure = surfaces.corner(surfaces.exposure, cornerX, cornerZ, top);
+                    if (open) {
+                        cornerFlow(grid, flowX, flowZ, cornerX, cornerZ, top, cornerFlow);
+                    } else {
+                        cornerFlow[0] = 0.0F;
+                        cornerFlow[1] = 0.0F;
+                        cornerFlow[2] = 0.0F;
+                    }
+                    // Colour: r = how muddy (soil) the water is, g = how open the spot is to the rain, b = still dry (new).
+                    builder.addVertex(lx + CORNER_X[k], y, lz + CORNER_Z[k])
+                            .setColor(surfaces.soil[i] ? 1.0F : 0.0F, cornerExposure, chunk.fresh[c], cornerField)
                             .setUv(wx + CORNER_X[k], wz + CORNER_Z[k]).setLight(light)
                             .setNormal(cornerFlow[0], cornerFlow[1], cornerFlow[2]);
                 }
                 quads++;
             }
         }
+        if (minY <= maxY && chunk.bounds != null) {
+            chunk.bounds = chunk.bounds.minmax(new AABB(originX, minY - 1.0, originZ, originX + 16, maxY + 1.0, originZ + 16));
+        }
+        chunk.builtOnce = true;
         chunk.puddleQuads = quads;
         chunk.puddles = upload(chunk.puddles, builder.build());
+    }
+
+    /**
+     * A surface that was not there at the last build (a block placed, a roof broken) starts dry and soaks over the next
+     * half minute instead of being wet at once.
+     */
+    private static void noteChange(ChunkPuddles chunk, int c, float top, float exposure) {
+        if (chunk.builtOnce) {
+            float last = chunk.lastTop[c];
+            if (Float.isNaN(last) || Math.abs(last - top) > 0.01F) {
+                chunk.fresh[c] = 1.0F;
+            } else if (exposure > chunk.lastExposure[c] + 0.2F) {
+                chunk.fresh[c] = Math.max(chunk.fresh[c], exposure - chunk.lastExposure[c]);
+            }
+            if (chunk.fresh[c] > 0.0F) {
+                chunk.soaking = true;
+            }
+        }
+        chunk.lastTop[c] = top;
+        chunk.lastExposure[c] = exposure;
+    }
+
+    /** New surfaces soak up; their meshes are rebuilt once a second while they do. */
+    private void soak(ClientLevel level, float intensity) {
+        float rate = intensity > 0.05F ? (0.4F + intensity) / (20.0F * SOAK_SECONDS) : 0.0F;
+        int rebuilt = 0;
+        for (ChunkPuddles chunk : chunks.values()) {
+            if (!chunk.soaking) {
+                continue;
+            }
+            boolean any = false;
+            for (int c = 0; c < 256; c++) {
+                if (chunk.fresh[c] > 0.0F) {
+                    chunk.fresh[c] = Math.max(0.0F, chunk.fresh[c] - rate);
+                    any |= chunk.fresh[c] > 0.0F;
+                }
+            }
+            chunk.soaking = any;
+            if (rate > 0.0F && rebuilt < BUILDS_PER_TICK && (level.getGameTime() + chunk.chunkX * 7L + chunk.chunkZ * 13L) % 20 == 0) {
+                build(level, chunk);
+                rebuilt++;
+            }
+        }
+    }
+
+    /**
+     * The surfaces that can get wet: open ground in the rain, and ground sheltered under a roof or a tree crown. How open
+     * a sheltered spot is falls off with its distance from the open ground beside it, so the wet ground fades out a block or
+     * two under the eaves instead of ending in a straight line.
+     */
+    private Surfaces surfaces(ClientLevel level, SurfaceGrid grid, float[] field) {
+        int n = grid.size * grid.size;
+        Surfaces surfaces = new Surfaces(grid.size);
+        for (int i = 0; i < n; i++) {
+            SurfaceKind kind = grid.kind[i];
+            if (kind == SurfaceKind.GROUND) {
+                surfaces.top[i] = grid.top[i];
+                surfaces.soil[i] = grid.soil[i];
+                surfaces.field[i] = field[i];
+                surfaces.exposure[i] = 1.0F;
+            } else if (kind == SurfaceKind.OTHER || kind == SurfaceKind.LEAVES) {
+                shelteredFloor(level, grid, i, surfaces);
+            }
+        }
+        // Spread openness from the open ground in under the shelter, one block per pass.
+        float[] next = new float[n];
+        for (int pass = 0; pass < SHELTER_REACH; pass++) {
+            System.arraycopy(surfaces.exposure, 0, next, 0, n);
+            for (int i = 0; i < n; i++) {
+                if (Float.isNaN(surfaces.top[i]) || surfaces.exposure[i] >= 1.0F) {
+                    continue;
+                }
+                int lx = i % grid.size;
+                int lz = i / grid.size;
+                for (int d = 0; d < 4; d++) {
+                    int nx = lx + (d == 0 ? 1 : d == 1 ? -1 : 0);
+                    int nz = lz + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                    if (nx < 0 || nz < 0 || nx >= grid.size || nz >= grid.size) {
+                        continue;
+                    }
+                    int j = grid.index(nx, nz);
+                    if (!Float.isNaN(surfaces.top[j]) && Math.abs(surfaces.top[j] - surfaces.top[i]) <= 1.1F) {
+                        next[i] = Math.max(next[i], surfaces.exposure[j] * SHELTER_FALLOFF);
+                    }
+                }
+            }
+            System.arraycopy(next, 0, surfaces.exposure, 0, n);
+        }
+        // The fade also starts a little outside: open ground right next to a shelter is a touch less wet, so the change
+        // is spread over a few blocks instead of happening at the eave.
+        for (int i = 0; i < n; i++) {
+            if (Float.isNaN(surfaces.top[i]) || surfaces.exposure[i] < 1.0F) {
+                continue;
+            }
+            int lx = i % grid.size;
+            int lz = i / grid.size;
+            float nearest = 3.0F;
+            for (int dz = -2; dz <= 2; dz++) {
+                for (int dx = -2; dx <= 2; dx++) {
+                    int nx = lx + dx;
+                    int nz = lz + dz;
+                    if (nx < 0 || nz < 0 || nx >= grid.size || nz >= grid.size) {
+                        continue;
+                    }
+                    int j = grid.index(nx, nz);
+                    if (!Float.isNaN(surfaces.top[j]) && surfaces.exposure[j] < 1.0F && Math.abs(surfaces.top[j] - surfaces.top[i]) <= 1.1F) {
+                        nearest = Math.min(nearest, Math.max(Math.abs(dx), Math.abs(dz)));
+                    }
+                }
+            }
+            if (nearest < 3.0F) {
+                next[i] = 0.78F + 0.07F * nearest;
+            } else {
+                next[i] = 1.0F;
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            if (!Float.isNaN(surfaces.top[i]) && surfaces.exposure[i] >= 1.0F) {
+                surfaces.exposure[i] = next[i];
+            }
+        }
+        return surfaces;
+    }
+
+    /** The ground under the roof or crown at the top of column {@code i}, if there is some within reach. */
+    private void shelteredFloor(ClientLevel level, SurfaceGrid grid, int i, Surfaces surfaces) {
+        int x = grid.x0 + i % grid.size;
+        int z = grid.z0 + i / grid.size;
+        int top = grid.height[i] - 1;
+        boolean below = false;
+        for (int y = top - 1; y > top - SHELTER_DEPTH; y--) {
+            pos.set(x, y, z);
+            BlockState state = level.getBlockState(pos);
+            if (state.isAir() || state.canBeReplaced() && state.getFluidState().isEmpty()) {
+                below = true;
+                continue;
+            }
+            SurfaceKind.Shape shape = SurfaceKind.classify(state);
+            if (below && shape.kind() == SurfaceKind.GROUND) {
+                surfaces.top[i] = y + shape.top();
+                surfaces.soil[i] = shape.soil();
+            }
+            return;
+        }
+    }
+
+    /** Wettable surfaces of a grid: height of the surface (NaN for none), soil, puddle field and openness to the rain. */
+    private static final class Surfaces {
+        final int size;
+        final float[] top;
+        final boolean[] soil;
+        final float[] field;
+        final float[] exposure;
+
+        Surfaces(int size) {
+            this.size = size;
+            int n = size * size;
+            top = new float[n];
+            soil = new boolean[n];
+            field = new float[n];
+            exposure = new float[n];
+            Arrays.fill(top, Float.NaN);
+        }
+
+        /**
+         * The mean of a value over the four cells sharing a block corner; cells without a surface on the same level count
+         * as zero, so values fade out towards steps and walls.
+         */
+        float corner(float[] values, int cornerX, int cornerZ, float level) {
+            float sum = 0.0F;
+            for (int dz = -1; dz <= 0; dz++) {
+                for (int dx = -1; dx <= 0; dx++) {
+                    int x = cornerX + dx;
+                    int z = cornerZ + dz;
+                    if (x < 0 || z < 0 || x >= size || z >= size) {
+                        continue;
+                    }
+                    int j = z * size + x;
+                    if (!Float.isNaN(top[j]) && Math.abs(top[j] - level) < 0.01F) {
+                        sum += values[j];
+                    }
+                }
+            }
+            return sum * 0.25F;
+        }
     }
 
     /** How much water runs over this cell, 0..1: visible runoff only near the next step down. */
@@ -396,28 +613,6 @@ public final class Puddles implements AutoCloseable {
         out[0] = sx / strength;
         out[1] = Math.min(1.0F, strength);
         out[2] = sz / strength;
-    }
-
-    /**
-     * The field at a block corner: the mean over the four blocks sharing it, where blocks that are not flat ground at the
-     * same height count as dry, so puddles end before steps and walls instead of hanging over them.
-     */
-    private static float cornerField(SurfaceGrid grid, float[] field, int cornerX, int cornerZ, float top) {
-        float sum = 0.0F;
-        for (int dz = -1; dz <= 0; dz++) {
-            for (int dx = -1; dx <= 0; dx++) {
-                int x = cornerX + dx;
-                int z = cornerZ + dz;
-                if (x < 0 || z < 0 || x >= grid.size || z >= grid.size) {
-                    continue;
-                }
-                int j = grid.index(x, z);
-                if (grid.kind[j] == SurfaceKind.GROUND && Math.abs(grid.top[j] - top) < 0.01F) {
-                    sum += field[j];
-                }
-            }
-        }
-        return sum * 0.25F;
     }
 
     private static float log2(int value) {
@@ -566,7 +761,8 @@ public final class Puddles implements AutoCloseable {
             return "no puddle data";
         }
         int c = (z & 15) * 16 + (x & 15);
-        return String.format("ground %s, field %.2f, top %.2f", chunk.ground[c], chunk.field[c], chunk.top[c]);
+        return String.format("ground %s, field %.2f, top %.2f, fresh %.2f, soaking %s", chunk.ground[c], chunk.field[c], chunk.top[c],
+                chunk.fresh[c], chunk.soaking);
     }
 
     /** Emitters of the chunks within {@code radius} blocks. */

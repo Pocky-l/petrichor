@@ -24,10 +24,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
-import org.joml.Vector3f;
 
 import com.pockyl.petrichor.ClientConfig;
-import com.pockyl.petrichor.client.fx.FxAtlas;
 import com.pockyl.petrichor.client.fx.RainFx;
 
 import java.util.ArrayList;
@@ -233,7 +231,7 @@ public final class Lightning {
     // Rendering
     // ------------------------------------------------------------------------------------------------------------
 
-    /** Bolts and the glow they put into the clouds, after the weather so they shine through the rain. */
+    /** Bolts, after the weather so they shine through the rain. Their light reaches the world through the light map and fog. */
     public void renderBolts(Matrix4f modelView, Camera camera, float partialTick) {
         if (strikes.isEmpty() || !ClientConfig.BOLTS.get()) {
             return;
@@ -258,27 +256,6 @@ public final class Lightning {
         }
         draw(builder.build());
 
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        RenderSystem.setShaderTexture(0, FxAtlas.TEXTURE);
-        builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        Vector3f left = camera.getLeftVector();
-        Vector3f up = camera.getUpVector();
-        float strength = (float) (double) ClientConfig.FLASH.get();
-        if (Minecraft.getInstance().options.hideLightningFlash().get()) {
-            strength *= 0.3F;
-        }
-        for (Strike strike : strikes) {
-            float t = strike.age + partialTick;
-            float f = strike.flash(t) * strength;
-            if (f < 0.01F) {
-                continue;
-            }
-            glow(builder, strike.glowX - cam.x, strike.glowY - cam.y, strike.glowZ - cam.z, strike.glowRadius, f * 0.55F, left, up);
-            if (strike.kind == Strike.Kind.GROUND && t >= strike.leaderTicks) {
-                glow(builder, strike.x - cam.x, strike.y + 0.5 - cam.y, strike.z - cam.z, 3.5F, strike.mainBrightness(t) * 0.8F, left, up);
-            }
-        }
-        draw(builder.build());
 
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
@@ -371,28 +348,7 @@ public final class Lightning {
         out.addVertex(x1, y1, z1).setColor(r, g, b, a);
     }
 
-    private static void glow(BufferBuilder out, double cx, double cy, double cz, float radius, float a, Vector3f left, Vector3f up) {
-        float x = (float) cx;
-        float y = (float) cy;
-        float z = (float) cz;
-        float lx = left.x() * radius;
-        float ly = left.y() * radius;
-        float lz = left.z() * radius;
-        float ux = up.x() * radius;
-        float uy = up.y() * radius;
-        float uz = up.z() * radius;
-        float u0 = FxAtlas.u0(FxAtlas.GLOW);
-        float v0 = FxAtlas.v0(FxAtlas.GLOW);
-        float u1 = FxAtlas.u1(FxAtlas.GLOW);
-        float v1 = FxAtlas.v1(FxAtlas.GLOW);
-        float alpha = Math.min(1.0F, a);
-        out.addVertex(x + lx - ux, y + ly - uy, z + lz - uz).setUv(u0, v1).setColor(0.75F, 0.8F, 1.0F, alpha);
-        out.addVertex(x - lx - ux, y - ly - uy, z - lz - uz).setUv(u1, v1).setColor(0.75F, 0.8F, 1.0F, alpha);
-        out.addVertex(x - lx + ux, y - ly + uy, z - lz + uz).setUv(u1, v0).setColor(0.75F, 0.8F, 1.0F, alpha);
-        out.addVertex(x + lx + ux, y + ly + uy, z + lz + uz).setUv(u0, v0).setColor(0.75F, 0.8F, 1.0F, alpha);
-    }
-
-    /** The whole sky brightens with a flash, most of all towards it; drawn right after the sky so terrain covers it. */
+    /** The whole sky brightens evenly with a flash; drawn right after the sky so terrain covers it. */
     public void renderSky(Matrix4f modelView, Camera camera, float partialTick) {
         float total = flash(partialTick);
         if (total < 0.004F) {
@@ -421,35 +377,11 @@ public final class Lightning {
         };
         for (float[] f : faces) {
             for (int v = 0; v < 4; v++) {
-                float shade = f[v * 3 + 1] > 0 ? 1.0F : 0.6F;
-                builder.addVertex(f[v * 3], f[v * 3 + 1], f[v * 3 + 2]).setColor(0.7F, 0.75F, 1.0F, a * shade);
+                builder.addVertex(f[v * 3], f[v * 3 + 1], f[v * 3 + 2]).setColor(0.7F, 0.75F, 1.0F, a);
             }
         }
         draw(builder.build());
 
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        RenderSystem.setShaderTexture(0, FxAtlas.TEXTURE);
-        builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        Vector3f left = camera.getLeftVector();
-        Vector3f up = camera.getUpVector();
-        float strength = (float) (double) ClientConfig.FLASH.get();
-        for (Strike strike : strikes) {
-            float f = strike.flash(strike.age + partialTick) * strength;
-            if (f < 0.01F) {
-                continue;
-            }
-            double dx = strike.glowX - cam.x;
-            double dy = strike.glowY - cam.y;
-            double dz = strike.glowZ - cam.z;
-            double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (len < 1.0) {
-                continue;
-            }
-            double k = 80.0 / len;
-            float radius = (float) Math.min(70.0, strike.glowRadius * 2.5 * k + 18.0);
-            glow(builder, dx * k, dy * k, dz * k, radius, f * 0.5F, left, up);
-        }
-        draw(builder.build());
 
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);

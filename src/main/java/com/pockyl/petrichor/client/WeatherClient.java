@@ -16,7 +16,10 @@ import net.minecraft.client.renderer.FogRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -83,6 +86,19 @@ public final class WeatherClient {
 
     public static float flash(float partialTick) {
         return LIGHTNING.flash(partialTick);
+    }
+
+    /**
+     * Vanilla leaves in the rain drip water particles; with drips enabled the mod's own drop falls from there instead.
+     *
+     * @return whether the drop was handled (false: let vanilla spawn its particle)
+     */
+    public static boolean leafDrip(Level level, BlockPos pos, RandomSource random) {
+        if (!(level instanceof ClientLevel clientLevel) || !ourSky(clientLevel) || !ClientConfig.DRIPS.get()) {
+            return false;
+        }
+        SPAWNER.dropFrom(clientLevel, puddles(), FX, pos.getX() + random.nextDouble(), pos.getY(), pos.getZ() + random.nextDouble());
+        return true;
     }
 
     /** How overcast the light is: follows the rain, heavier rain is gloomier. */

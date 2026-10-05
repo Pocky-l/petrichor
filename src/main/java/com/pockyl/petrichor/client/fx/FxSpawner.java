@@ -285,38 +285,50 @@ public final class FxSpawner {
                 }
                 bottom--;
             }
-            pos.set(bx, bottom - 1, bz);
-            if (!level.getBlockState(pos).isAir()) {
-                continue;
-            }
-            int floor = bottom - 1;
-            BlockState below = null;
-            while (floor > bottom - 32) {
-                pos.set(bx, floor, bz);
-                below = level.getBlockState(pos);
-                if (!below.isAir()) {
-                    break;
-                }
-                floor--;
-            }
-            if (below == null || below.isAir()) {
-                continue;
-            }
-            double groundY;
-            byte surface;
-            if (below.getFluidState().is(FluidTags.WATER)) {
-                groundY = floor + below.getFluidState().getHeight(level, pos);
-                surface = RainFx.LAND_WATER;
-            } else {
-                VoxelShape shape = below.getCollisionShape(level, pos);
-                double top = shape.isEmpty() ? 0.0 : shape.max(Direction.Axis.Y);
-                groundY = floor + top;
-                surface = puddles.coverAt(x, groundY, z) > 0.5F ? RainFx.LAND_PUDDLE : RainFx.LAND_GROUND;
-            }
-            pos.set(bx, bottom - 1, bz);
-            fx.addDrip(x, bottom - 0.05, z, 0.0F, 0.0F, groundY, surface, 1.2F + random.nextFloat() * 0.6F,
-                    LevelRenderer.getLightColor(level, pos));
+            dropFrom(level, puddles, fx, x, bottom, z);
         }
+    }
+
+    /**
+     * A drop falling from the underside of the block at {@code blockBottom} down to whatever is below.
+     *
+     * @return false when the block below is not open air or there is no ground within reach
+     */
+    public boolean dropFrom(ClientLevel level, Puddles puddles, RainFx fx, double x, int blockBottom, double z) {
+        int bx = Mth.floor(x);
+        int bz = Mth.floor(z);
+        pos.set(bx, blockBottom - 1, bz);
+        if (!level.getBlockState(pos).isAir() || fx.busy(0.8F)) {
+            return false;
+        }
+        int floor = blockBottom - 1;
+        BlockState below = null;
+        while (floor > blockBottom - 32) {
+            pos.set(bx, floor, bz);
+            below = level.getBlockState(pos);
+            if (!below.isAir()) {
+                break;
+            }
+            floor--;
+        }
+        if (below == null || below.isAir()) {
+            return false;
+        }
+        double groundY;
+        byte surface;
+        if (below.getFluidState().is(FluidTags.WATER)) {
+            groundY = floor + below.getFluidState().getHeight(level, pos);
+            surface = RainFx.LAND_WATER;
+        } else {
+            VoxelShape shape = below.getCollisionShape(level, pos);
+            double top = shape.isEmpty() ? 0.0 : shape.max(Direction.Axis.Y);
+            groundY = floor + top;
+            surface = puddles.coverAt(x, groundY, z) > 0.5F ? RainFx.LAND_PUDDLE : RainFx.LAND_GROUND;
+        }
+        pos.set(bx, blockBottom - 1, bz);
+        fx.addDrip(x, blockBottom - 0.05, z, 0.0F, 0.0F, groundY, surface, 1.2F + random.nextFloat() * 0.6F,
+                LevelRenderer.getLightColor(level, pos));
+        return true;
     }
 
     private void footsteps(ClientLevel level, Puddles puddles, RainFx fx, Vec3 cam) {

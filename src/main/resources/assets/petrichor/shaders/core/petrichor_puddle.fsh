@@ -137,9 +137,18 @@ void main() {
     float field = vertexColor.a + (detail - 0.5) * 0.34;
     float threshold = 1.05 - Wetness * 0.62 * Coverage;
     float aa = max(fwidth(field) * 1.2, 0.004);
-    float puddle = smoothstep(threshold - aa, threshold + aa, field);
+    // Under eaves and crowns the ground is less and less wet; the edge of the dry patch is ragged, never a straight line.
+    float edgeNoise = petrichor_noise(worldUv * 2.0 + 17.0, 512.0) * 0.6 + petrichor_noise(worldUv * 6.0, 1536.0) * 0.4;
+    float exposure = vertexColor.g;
+    float ragged = exposure + (edgeNoise - 0.5) * 0.7 * (1.0 - exposure * exposure);
+    float open = smoothstep(0.0, 0.9, ragged);
+    open = open * open * (3.0 - 2.0 * open);
+    // A surface that just appeared soaks in patches: the dry part shrinks as vertexColor.b falls from 1 to 0.
+    float fresh = vertexColor.b;
+    float soaked = fresh <= 0.0 ? 1.0 : smoothstep(fresh - 0.12, fresh + 0.12, edgeNoise * 0.85 + 0.075);
+    float puddle = smoothstep(threshold - aa, threshold + aa, field) * smoothstep(0.55, 0.95, exposure) * soaked * soaked;
     float margin = smoothstep(threshold - 0.16, threshold, field) * (1.0 - puddle);
-    float wet = clamp(Wetness * 1.5, 0.0, 1.0);
+    float wet = clamp(Wetness * 1.5, 0.0, 1.0) * open * soaked;
 
     // Surface normal: rain rings on puddles, running water on slopes, fine grain on wet ground.
     vec2 slope = vec2(0.0);
@@ -174,12 +183,12 @@ void main() {
     // Puddles: shallow water over the ground. The ground shows through, darkened and tinted by the water, and the
     // reflection lies on top, strongest at grazing angles.
     float transmit = (1.0 - fresnel) * 0.5;
-    vec3 tint = vertexColor.rgb * lightColor.rgb * 0.12;
+    vec3 tint = mix(vec3(0.27, 0.29, 0.31), vec3(0.36, 0.29, 0.21), vertexColor.r) * lightColor.rgb * 0.12;
     float puddleAlpha = 1.0 - transmit;
     vec3 puddleColor = (mirror * fresnel + tint * (1.0 - fresnel) * 0.5) / max(puddleAlpha, 0.001);
 
     // Wet ground: darker, with a soft sheen of the same reflection at grazing angles.
-    float darken = wet * (0.26 + 0.14 * margin) + flowAmount * 0.1;
+    float darken = wet * (0.22 + 0.14 * margin) + flowAmount * 0.1;
     float gloss = fresnel * wet * (0.35 + 0.4 * margin + 0.4 * flowAmount);
     float wetAlpha = 1.0 - (1.0 - darken) * (1.0 - gloss);
     vec3 wetColor = mirror * gloss / max(wetAlpha, 0.001);
