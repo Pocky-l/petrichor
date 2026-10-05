@@ -22,6 +22,7 @@ import com.pockyl.petrichor.client.ClientWeather;
 import com.pockyl.petrichor.client.Columns;
 import com.pockyl.petrichor.client.render.Puddles;
 import com.pockyl.petrichor.client.sound.RainSounds;
+import com.pockyl.petrichor.weather.Noise;
 import com.pockyl.petrichor.world.SurfaceKind;
 
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ public final class FxSpawner {
     private static final int LEAF_RANGE = 12;
     /** In {@code walkDist} units (0.6 per block walked). */
     private static final float STEP_LENGTH = 0.9F;
+    private static final int DRIP_POINT_SEED = 0x0D21_0001;
 
     private final RandomSource random = RandomSource.create();
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -45,6 +47,7 @@ public final class FxSpawner {
     private final Int2FloatOpenHashMap lastStep = new Int2FloatOpenHashMap();
 
     public void tick(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, Vec3 cam) {
+        fx.clearBeads();
         float intensity = ClientWeather.intensity();
         float rain = ClientWeather.rain();
         float wetness = ClientWeather.wetness();
@@ -56,7 +59,7 @@ public final class FxSpawner {
         if (ClientConfig.DRIPS.get()) {
             // Edges keep dripping while the ground is wet, long after the rain stopped.
             float after = Math.clamp((wetness - 0.1F) * 0.4F, 0.0F, 0.25F) * (1.0F - Math.min(1.0F, rain * 2.0F));
-            edgeDrips(puddles, fx, cam, intensity, after);
+            edgeDrips(level, puddles, fx, cam, intensity, after);
             leafDrips(level, columns, puddles, fx, cam, intensity, after);
         }
         if (ClientConfig.FOOTSTEPS.get() && wetness > 0.05F) {
@@ -164,34 +167,55 @@ public final class FxSpawner {
         }
     }
 
-    private void edgeDrips(Puddles puddles, RainFx fx, Vec3 cam, float intensity, float after) {
+    /**
+     * Water off edges: every edge block has two fixed drip points (real water keeps dripping from the same spots). At
+     * each a drop swells, hangs and falls in a steady rhythm set by how much water reaches the edge; with a lot of
+     * water the rhythm becomes a string of drops. After the rain the points keep dripping slowly.
+     */
+    private void edgeDrips(ClientLevel level, Puddles puddles, RainFx fx, Vec3 cam, float intensity, float after) {
         if (intensity <= 0.0F && after <= 0.0F) {
             return;
         }
         emitters.clear();
         puddles.emittersNear(cam.x, cam.z, DRIP_RANGE, emitters);
         float density = (float) (double) ClientConfig.DRIP_DENSITY.get();
+        long time = level.getGameTime();
         for (Puddles.Emitter emitter : emitters) {
             double dx = emitter.x() - cam.x;
             double dz = emitter.z() - cam.z;
-            if (dx * dx + dz * dz > DRIP_RANGE * DRIP_RANGE || Math.abs(emitter.y() - cam.y) > 24) {
+            if (dx * dx + dz * dz > DRIP_RANGE * DRIP_RANGE || Math.abs(emitter.hangY() - cam.y) > 24) {
                 continue;
             }
-            float flow = (float) Math.pow(emitter.flow(), 0.85);
-            float expected = Math.min(4.0F, 0.13F * flow * intensity) + Math.min(0.08F, 0.006F * flow * after);
-            int n = stochastic(random, expected * density);
-            for (int s = 0; s < n && !fx.busy(0.9F); s++) {
-                // Spread along the edge the water pours over.
-                float along = random.nextFloat() - 0.5F;
-                double x = emitter.x() + emitter.dirZ() * along * 0.9;
-                double z = emitter.z() + emitter.dirX() * along * 0.9;
-                byte surface = emitter.surface();
-                if (surface == RainFx.LAND_GROUND && puddles.coverAt(x + emitter.dirX() * 0.3, emitter.groundY(), z + emitter.dirZ() * 0.3)
-                        > 0.5F) {
-                    surface = RainFx.LAND_PUDDLE;
+            float flow = (float) Math.pow(emitter.flow(), 0.8);
+            float rate = (Math.min(0.5F, 0.03F * flow * intensity) + Math.min(0.025F, 0.004F * flow * after)) * density;
+            if (rate < 0.0005F) {
+                continue;
+            }
+            int light = lightAbove(emitter);
+            int keyX = Mth.floor(emitter.x() * 4.0F);
+            int keyZ = Mth.floor(emitter.z() * 4.0F);
+            for (int k = 0; k < 2; k++) {
+                float along = (Noise.unit(keyX, keyZ, k, DRIP_POINT_SEED) - 0.5F) * 0.8F;
+                float pace = rate * (0.75F + Noise.unit(keyX, keyZ, k + 2, DRIP_POINT_SEED) * 0.5F);
+                double offset = Noise.unit(keyX, keyZ, k + 4, DRIP_POINT_SEED);
+                double x = emitter.x() - emitter.dirZ() * along;
+                double z = emitter.z() + emitter.dirX() * along;
+                double before = time * (double) pace + offset;
+                double now = (time + 1) * (double) pace + offset;
+                float swell = (float) (now - Math.floor(now));
+                int falling = (int) (Math.floor(now) - Math.floor(before));
+                if (falling > 0 && !fx.busy(0.92F)) {
+                    byte surface = emitter.surface();
+                    if (surface == RainFx.LAND_GROUND
+                            && puddles.coverAt(x + emitter.dirX() * 0.3, emitter.groundY(), z + emitter.dirZ() * 0.3) > 0.5F) {
+                        surface = RainFx.LAND_PUDDLE;
+                    }
+                    fx.addDrip(x, emitter.hangY() - 0.04, z, emitter.dirX() * 0.008F, emitter.dirZ() * 0.008F, emitter.groundY(), surface,
+                            1.0F + Noise.unit(keyX, keyZ, k + 6, DRIP_POINT_SEED) * 0.6F, light);
                 }
-                fx.addDrip(x, emitter.y() - 0.02, z, emitter.dirX() * 0.03F, emitter.dirZ() * 0.03F, emitter.groundY(), surface,
-                        1.2F + random.nextFloat() * 0.8F, lightAbove(emitter));
+                // The drop hanging at the point: swelling between falls, or a constant bead where water streams.
+                float bead = pace > 0.25F ? 0.6F : swell;
+                fx.addBead(x, emitter.hangY() - 0.012 - bead * 0.025, z, 0.012F + bead * 0.03F, light);
             }
         }
     }
@@ -201,7 +225,7 @@ public final class FxSpawner {
         if (minecraft.level == null) {
             return 0xF000F0;
         }
-        return LevelRenderer.getLightColor(minecraft.level, BlockPos.containing(emitter.x(), emitter.y() + 0.5, emitter.z()));
+        return LevelRenderer.getLightColor(minecraft.level, BlockPos.containing(emitter.x(), emitter.hangY() - 0.5, emitter.z()));
     }
 
     private void leafDrips(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, Vec3 cam, float intensity, float after) {

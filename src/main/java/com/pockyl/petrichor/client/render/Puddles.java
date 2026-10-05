@@ -58,6 +58,8 @@ public final class Puddles implements AutoCloseable {
     private static final int MIN_FLOW = 4;
     /** Water visibly runs only this close to the next step down; on wide flats it just soaks in and pools. */
     private static final int MAX_EDGE_DISTANCE = 4;
+    /** Extra puddle field under the edge water pours off. */
+    private static final float DRIP_LINE_BONUS = 0.35F;
     private static final int[] CORNER_X = {0, 0, 1, 1};
     private static final int[] CORNER_Z = {0, 1, 1, 0};
     private static final int BUILDS_PER_TICK = 2;
@@ -73,8 +75,11 @@ public final class Puddles implements AutoCloseable {
     private int checkCursor;
     private int lastQuads;
 
-    /** One emitter of falling water: a roof edge, a cliff edge, the rim of a canopy. */
-    public record Emitter(float x, float y, float z, float dirX, float dirZ, float groundY, int flow, byte surface) {
+    /**
+     * One edge water falls from: the lip of a roof or a cliff. Drops hang at ({@code x}, {@code hangY}, {@code z}) - under
+     * the lip of an overhang, or at the top edge of a wall the water runs down - and land at {@code groundY}.
+     */
+    public record Emitter(float x, float hangY, float z, float dirX, float dirZ, float groundY, int flow, byte surface) {
     }
 
     private static final class ChunkPuddles {
@@ -241,6 +246,7 @@ public final class Puddles implements AutoCloseable {
         SurfaceGrid grid = SurfaceGrid.sample(level, originX - MARGIN, originZ - MARGIN, GRID);
         RunoffSolver runoff = RunoffSolver.solve(grid);
         float[] field = PuddleField.compute(grid, runoff);
+        wetDripLines(grid, runoff, field);
 
         boolean[] rains = new boolean[256];
         float minY = Float.MAX_VALUE;
@@ -272,7 +278,22 @@ public final class Puddles implements AutoCloseable {
         chunk.bounds = new AABB(originX, minY - 1.0, originZ, originX + 16, maxY + 1.0, originZ + 16);
         buildPuddles(level, chunk, grid, runoff, field);
         buildSheets(level, chunk, grid, runoff, rains);
-        chunk.emitters = findEmitters(chunk, grid, runoff, rains);
+        chunk.emitters = findEmitters(level, chunk, grid, runoff, rains);
+    }
+
+    /** Where water pours off roofs and cliffs the ground below gets soaked: a drip line of puddles along the eaves. */
+    private static void wetDripLines(SurfaceGrid grid, RunoffSolver runoff, float[] field) {
+        for (int i = 0; i < field.length; i++) {
+            int j = runoff.downstream[i];
+            if (j < 0 || runoff.drop[i] < 2 || runoff.accumulation[i] < 3 || grid.kind[j] != SurfaceKind.GROUND) {
+                continue;
+            }
+            SurfaceKind kind = grid.kind[i];
+            if (kind == SurfaceKind.LEAVES || kind == SurfaceKind.WATER || kind == SurfaceKind.HOT) {
+                continue;
+            }
+            field[j] = Math.min(1.0F, field[j] + DRIP_LINE_BONUS);
+        }
     }
 
     private void buildPuddles(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, float[] field) {
@@ -464,7 +485,7 @@ public final class Puddles implements AutoCloseable {
         out.addVertex(x, y, z).setColor(0.5F, 0.55F, 0.6F, strength).setUv(u, v).setLight(light).setNormal(dirX, 0.0F, dirZ);
     }
 
-    private static List<Emitter> findEmitters(ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, boolean[] rains) {
+    private List<Emitter> findEmitters(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, boolean[] rains) {
         List<Emitter> emitters = new ArrayList<>();
         int originX = chunk.chunkX << 4;
         int originZ = chunk.chunkZ << 4;
@@ -485,7 +506,12 @@ public final class Puddles implements AutoCloseable {
                 float dirX = (j % grid.size) - gx;
                 float dirZ = (j / grid.size) - gz;
                 byte surface = grid.kind[j] == SurfaceKind.WATER ? RainFx.LAND_WATER : RainFx.LAND_GROUND;
-                emitters.add(new Emitter(originX + lx + 0.5F + dirX * 0.52F, grid.top[i], originZ + lz + 0.5F + dirZ * 0.52F, dirX, dirZ,
+                // Under an overhang water creeps round the lip and drips from its underside; off a wall it falls from the top.
+                pos.set(originX + lx + (int) dirX, grid.height[i] - 2, originZ + lz + (int) dirZ);
+                boolean overhang = level.getBlockState(pos).isAir();
+                float out = overhang ? 0.47F : 0.53F;
+                float hangY = overhang ? grid.height[i] - 1.0F : grid.top[i];
+                emitters.add(new Emitter(originX + lx + 0.5F + dirX * out, hangY, originZ + lz + 0.5F + dirZ * out, dirX, dirZ,
                         grid.top[j], runoff.accumulation[i], surface));
             }
         }

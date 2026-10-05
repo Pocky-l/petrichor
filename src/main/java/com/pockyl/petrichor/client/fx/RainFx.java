@@ -53,6 +53,13 @@ public final class RainFx {
     private int count;
     private double originX;
     private double originZ;
+    private static final int MAX_BEADS = 768;
+    private final float[] beadX = new float[MAX_BEADS];
+    private final float[] beadY = new float[MAX_BEADS];
+    private final float[] beadZ = new float[MAX_BEADS];
+    private final float[] beadSize = new float[MAX_BEADS];
+    private final int[] beadLight = new int[MAX_BEADS];
+    private int beads;
 
     /** Positions are stored relative to an origin near the camera, which moves only when the camera gets far from it. */
     public void setCapacity(int capacity) {
@@ -82,6 +89,24 @@ public final class RainFx {
 
     public void clear() {
         count = 0;
+        beads = 0;
+    }
+
+    public void clearBeads() {
+        beads = 0;
+    }
+
+    /** A drop hanging from an edge for this tick. */
+    public void addBead(double wx, double wy, double wz, float radius, int packedLight) {
+        if (beads >= MAX_BEADS) {
+            return;
+        }
+        beadX[beads] = (float) (wx - originX);
+        beadY[beads] = (float) wy;
+        beadZ[beads] = (float) (wz - originZ);
+        beadSize[beads] = radius;
+        beadLight[beads] = packedLight;
+        beads++;
     }
 
     public int count() {
@@ -104,6 +129,10 @@ public final class RainFx {
         }
         float dx = (float) (originX - Math.floor(camX));
         float dz = (float) (originZ - Math.floor(camZ));
+        for (int i = 0; i < beads; i++) {
+            beadX[i] += dx;
+            beadZ[i] += dz;
+        }
         for (int i = 0; i < count; i++) {
             x[i] += dx;
             px[i] += dx;
@@ -139,7 +168,7 @@ public final class RainFx {
 
     /** A falling drop that splashes when it reaches {@code groundY}. */
     public void addDrip(double wx, double wy, double wz, float velX, float velZ, double groundY, byte surface, float scale, int packedLight) {
-        int i = add(DRIP, wx, wy, wz, velX, -0.02F, velZ, scale, 0.75F, 200, packedLight);
+        int i = add(DRIP, wx, wy, wz, velX, -0.01F, velZ, scale, 0.8F, 200, packedLight);
         if (i >= 0) {
             ground[i] = (float) groundY;
             landing[i] = surface;
@@ -268,10 +297,13 @@ public final class RainFx {
     /**
      * Writes every effect as quads in the particle vertex format, positions relative to the camera.
      *
+     * @param out  splashes, ripples, spray: normal blending
+     * @param glow falling and hanging drops and sparks: additive blending, they glint like the rain
      * @param left camera left vector
      * @param up   camera up vector
      */
-    public void render(VertexConsumer out, double camX, double camY, double camZ, float partialTick, Vector3f left, Vector3f up) {
+    public void render(VertexConsumer out, VertexConsumer glow, double camX, double camY, double camZ, float partialTick, Vector3f left,
+            Vector3f up) {
         float ox = (float) (originX - camX);
         float oz = (float) (originZ - camZ);
         for (int i = 0; i < count; i++) {
@@ -291,20 +323,35 @@ public final class RainFx {
                     flat(out, cx, cy + 0.012F, cz, r, FxAtlas.RIPPLE, a, light[i]);
                 }
                 case DROPLET -> billboard(out, cx, cy, cz, 0.016F * size[i], FxAtlas.DROPLET, alpha[i] * 0.7F, light[i], left, up);
-                case SPARK -> billboard(out, cx, cy, cz, 0.04F * size[i] * (1.0F - t * 0.7F), FxAtlas.SPARK, alpha[i] * (1.0F - t * t),
+                case SPARK -> billboard(glow, cx, cy, cz, 0.04F * size[i] * (1.0F - t * 0.7F), FxAtlas.SPARK, alpha[i] * (1.0F - t * t),
                         light[i], left, up);
                 case MIST -> {
                     float a = alpha[i] * Mth.sin(t * Mth.PI);
                     billboard(out, cx, cy, cz, size[i] * (0.7F + t * 0.6F), FxAtlas.MIST, a, light[i], left, up);
                 }
                 case DRIP -> {
-                    float len = Math.max(0.12F, -vy[i] * 1.4F);
-                    Streaks.streak(out, cx, cy, cz, vx[i], vy[i], vz[i], len, 0.045F * size[i], FxAtlas.DRIP, alpha[i], alpha[i] * 0.5F,
-                            light[i], 0.8F, 0.85F, 0.92F);
+                    // A falling drop: round while slow, then drawn out by its speed, with a bright head.
+                    float speed = -Mth.lerp(partialTick, vy[i] + DRIP_GRAVITY, vy[i]);
+                    float len = Math.max(0.07F, speed * 1.5F);
+                    float width = 0.05F * size[i] * (1.0F - Math.min(0.35F, speed * 0.4F));
+                    Streaks.streak(glow, cx, cy, cz, vx[i], -Math.max(speed, 0.05F), vz[i], len, width, FxAtlas.STREAK, alpha[i] * 0.85F,
+                            alpha[i] * 0.85F, light[i], 0.82F, 0.86F, 0.92F);
                 }
                 default -> {
                 }
             }
+        }
+        renderBeads(glow, ox, oz, camY, left, up);
+    }
+
+    private void renderBeads(VertexConsumer glow, float ox, float oz, double camY, Vector3f left, Vector3f up) {
+        for (int b = 0; b < beads; b++) {
+            float cx = beadX[b] + ox;
+            float cy = (float) (beadY[b] - camY);
+            float cz = beadZ[b] + oz;
+            billboard(glow, cx, cy, cz, beadSize[b], FxAtlas.DROPLET, 0.55F, beadLight[b], left, up);
+            // The glint on the drop.
+            billboard(glow, cx, cy + beadSize[b] * 0.3F, cz, beadSize[b] * 0.35F, FxAtlas.SPARK, 0.5F, beadLight[b], left, up);
         }
     }
 

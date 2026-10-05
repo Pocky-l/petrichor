@@ -206,7 +206,7 @@ public final class WeatherClient {
         BufferBuilder drops = new BufferBuilder(rainBytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         PRECIPITATION.render(drops, builder, COLUMNS, camX, camY, camZ, time, left, up, fog);
-        FX.render(builder, camX, camY, camZ, partialTick, left, up);
+        FX.render(builder, drops, camX, camY, camZ, partialTick, left, up);
         MeshData mesh = builder.build();
         if (mesh != null) {
             BufferUploader.drawWithShader(mesh);

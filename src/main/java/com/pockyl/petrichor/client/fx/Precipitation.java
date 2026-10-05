@@ -161,7 +161,7 @@ public final class Precipitation {
                         float w = Math.max(width * 2.0F * size * (1.0F + close * 0.8F + blur * 2.5F), d * 0.004F);
                         float len = length * (0.6F + vary * 0.8F) * (1.0F + close * 0.4F + blur * 0.6F);
                         float sparkle = 0.55F + jz * 0.45F;
-                        float a = Math.min(0.85F, baseAlpha * 1.05F * sparkle * edgeFade * window * near * Mth.sqrt(width * 2.0F / w)
+                        float a = Math.min(0.9F, baseAlpha * 1.3F * sparkle * edgeFade * window * near * Mth.sqrt(width * 2.0F / w)
                                 * (1.0F - blur * 0.55F));
                         float tilt = 1.0F + (vary - 0.5F) * 0.2F;
                         Streaks.streak(rain, hx, hy, hz, slantX * tilt, -1.0F, slantZ * tilt, len, w, FxAtlas.STREAK, a, a, light, dropR,

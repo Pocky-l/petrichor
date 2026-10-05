@@ -16,7 +16,7 @@ import com.pockyl.petrichor.client.Columns;
  */
 public final class RainVeils {
     public static final ResourceLocation TEXTURE = Petrichor.id("textures/fx/rain_sheet.png");
-    private static final float[] RADII = {12.0F, 19.0F, 29.0F, 44.0F, 66.0F, 96.0F};
+    private static final float[] RADII = {18.0F, 28.0F, 42.0F, 64.0F, 96.0F};
     private static final int SEGMENTS = 48;
     /** Blocks covered by one width / height of the texture. */
     private static final float TILE_WIDTH = 7.0F;
@@ -58,7 +58,7 @@ public final class RainVeils {
                 break;
             }
             // Near curtains are thin, far ones overlap with everything behind them.
-            float ringAlpha = strength * (ring == 0 ? 0.14F : 0.24F);
+            float ringAlpha = strength * 0.09F;
             float scroll = seconds * fall / TILE_HEIGHT * (0.9F + ring * 0.04F) + ring * 0.37F;
             float circumference = Mth.TWO_PI * radius;
             for (int s = 0; s < SEGMENTS; s++) {
