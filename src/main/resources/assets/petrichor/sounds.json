@@ -15,8 +15,13 @@
     "sounds": [{"name": "petrichor:ambient/rain_roof", "stream": true}],
     "subtitle": "subtitles.petrichor.rain_roof"
   },
+  "ambient.rain.leaves": {
+    "sounds": [{"name": "petrichor:ambient/rain_leaves", "stream": true}],
+    "subtitle": "subtitles.petrichor.rain_leaves"
+  },
   "step.puddle": {
-    "sounds": ["petrichor:step/puddle1", "petrichor:step/puddle2", "petrichor:step/puddle3"],
+    "sounds": ["petrichor:step/puddle1", "petrichor:step/puddle2", "petrichor:step/puddle3", "petrichor:step/puddle4",
+      "petrichor:step/puddle5", "petrichor:step/puddle6"],
     "subtitle": "subtitles.petrichor.puddle_step"
   }
 }

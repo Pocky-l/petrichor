@@ -16,6 +16,7 @@
   "subtitles.petrichor.rain": "Rain falls",
   "subtitles.petrichor.rain_heavy": "Rain pours",
   "subtitles.petrichor.rain_roof": "Rain drums on the roof",
+  "subtitles.petrichor.rain_leaves": "Rain patters on leaves",
   "subtitles.petrichor.puddle_step": "Splashing through a puddle",
   "petrichor.configuration.title": "Petrichor",
   "petrichor.configuration.section.petrichor.common.toml": "Weather rules",

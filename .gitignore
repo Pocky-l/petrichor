@@ -37,3 +37,6 @@ run-server/
 repo/
 !**/src/**/repo/
 logs/
+
+# Downloaded sound sources
+tools/.cache/

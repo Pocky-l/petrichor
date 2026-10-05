@@ -1,20 +1,16 @@
-"""Generates the procedural assets of Petrichor: the effects texture atlas and the synthesized sounds.
+"""Generates the effects texture atlas of Petrichor. The sounds come from tools/prepare_sounds.py.
 
-Usage: python tools/generate_assets.py   (from the mod folder; needs numpy, scipy, pillow, soundfile)
+Usage: python tools/generate_assets.py   (from the mod folder; needs numpy and pillow)
 
-Everything is synthesized from noise and simple shapes, so the assets carry no third-party rights.
+The shapes are drawn procedurally, so the texture carries no third-party rights.
 """
 import math
 import os
 
 import numpy as np
-import soundfile as sf
 from PIL import Image
-from scipy import signal
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "src", "main", "resources", "assets", "petrichor")
-RATE = 44100
-rng = np.random.default_rng(20261005)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -141,164 +137,8 @@ def build_atlas():
     Image.fromarray(rgba, "RGBA").save(os.path.join(path, "rain_fx.png"))
 
 
-# ---------------------------------------------------------------------------------------------------------------------
-# Sounds
-# ---------------------------------------------------------------------------------------------------------------------
-
-def band(x, lo, hi, order=4):
-    sos = signal.butter(order, [lo, hi], btype="band", fs=RATE, output="sos")
-    return signal.sosfilt(sos, x)
-
-
-def low(x, cut, order=4):
-    sos = signal.butter(order, cut, btype="low", fs=RATE, output="sos")
-    return signal.sosfilt(sos, x)
-
-
-def high(x, cut, order=2):
-    sos = signal.butter(order, cut, btype="high", fs=RATE, output="sos")
-    return signal.sosfilt(sos, x)
-
-
-def pink(n):
-    white = rng.standard_normal(n)
-    spectrum = np.fft.rfft(white)
-    f = np.fft.rfftfreq(n, 1 / RATE)
-    f[0] = 1
-    spectrum /= np.sqrt(f)
-    return np.fft.irfft(spectrum, n)
-
-
-def slow_wobble(n, period, depth):
-    points = int(n / (period * RATE)) + 3
-    knots = 1 + rng.uniform(-depth, depth, points)
-    xs = np.linspace(0, n, points)
-    return np.interp(np.arange(n), xs, knots)
-
-
-def drop_kernel(kind):
-    """One drop hitting something: a short decaying tick with a random pitch."""
-    if kind == "roof":
-        length = int(RATE * 0.06)
-        t = np.arange(length) / RATE
-        f = rng.uniform(140, 420)
-        tone = np.sin(2 * math.pi * f * t + rng.uniform(0, 6.28)) * np.exp(-t / rng.uniform(0.012, 0.03))
-        click = rng.standard_normal(length) * np.exp(-t / 0.002) * 0.4
-        return low(tone + click, 1400, 2)
-    length = int(RATE * 0.02)
-    t = np.arange(length) / RATE
-    f = rng.uniform(1200, 6500)
-    tone = np.sin(2 * math.pi * f * t + rng.uniform(0, 6.28)) * np.exp(-t / rng.uniform(0.0015, 0.006))
-    click = rng.standard_normal(length) * np.exp(-t / rng.uniform(0.0006, 0.002))
-    mix = rng.uniform(0.2, 0.8)
-    return tone * mix + click * (1 - mix)
-
-
-def impacts(n, rate_per_second, kind, loudness_sigma=0.9):
-    out = np.zeros((n, 2))
-    count = int(rate_per_second * n / RATE)
-    bank = [drop_kernel(kind) for _ in range(96)]
-    for _ in range(count):
-        k = bank[rng.integers(len(bank))]
-        start = rng.integers(0, n - len(k))
-        amp = rng.lognormal(0, loudness_sigma)
-        pan = rng.uniform(0.15, 0.85)
-        out[start:start + len(k), 0] += k * amp * math.sqrt(1 - pan)
-        out[start:start + len(k), 1] += k * amp * math.sqrt(pan)
-    return out
-
-
-def hiss(n, lo, hi):
-    out = np.zeros((n, 2))
-    for ch in range(2):
-        out[:, ch] = band(pink(n), lo, hi) * slow_wobble(n, 2.5, 0.18)
-    return out
-
-
-def rumble(n, cut):
-    out = np.zeros((n, 2))
-    common = low(pink(n), cut)
-    for ch in range(2):
-        out[:, ch] = (common * 0.7 + low(pink(n), cut) * 0.3) * slow_wobble(n, 4.0, 0.25)
-    return out
-
-
-def normalize(x, rms_db):
-    rms = np.sqrt(np.mean(x ** 2))
-    x = x * (10 ** (rms_db / 20) / (rms + 1e-12))
-    peak = np.max(np.abs(x))
-    if peak > 0.97:
-        x *= 0.97 / peak
-    return x
-
-
-def loop(x, seconds, fade):
-    """Cuts a seamless loop of {seconds} from a longer take by crossfading its tail into its start."""
-    n = int(seconds * RATE)
-    f = int(fade * RATE)
-    out = x[:n].copy()
-    t = np.linspace(0, math.pi / 2, f)[:, None]
-    out[:f] = x[:f] * np.sin(t) + x[n:n + f] * np.cos(t)
-    return out
-
-
-def write(name, data):
-    path = os.path.join(ROOT, "sounds", name + ".ogg")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    data = data.astype(np.float32)
-    channels = 1 if data.ndim == 1 else data.shape[1]
-    # libsndfile crashes on large single Vorbis writes; feed it in blocks.
-    with sf.SoundFile(path, "w", RATE, channels, format="OGG", subtype="VORBIS") as out:
-        for start in range(0, len(data), 8192):
-            out.write(data[start:start + 8192])
-
-
-def rain_loop(name, seconds, drops_per_second, hiss_gain, rumble_gain, rms_db, hiss_band=(500, 9000)):
-    n = int((seconds + 1.5) * RATE)
-    x = impacts(n, drops_per_second, "ground") * 0.5
-    x += hiss(n, *hiss_band) * hiss_gain
-    if rumble_gain > 0:
-        x += rumble(n, 320) * rumble_gain
-    x = high(x.T, 60).T
-    write(name, normalize(loop(x, seconds, 1.5), rms_db))
-
-
-def roof_loop(seconds):
-    n = int((seconds + 1.5) * RATE)
-    x = impacts(n, 700, "roof", 0.7) * 0.6
-    x += low(hiss(n, 200, 4000).T, 900).T * 0.6
-    x += rumble(n, 200) * 0.35
-    x = high(x.T, 45).T
-    write("ambient/rain_roof", normalize(loop(x, seconds, 1.5), -20))
-
-
-def puddle_step(index):
-    n = int(0.42 * RATE)
-    t = np.arange(n) / RATE
-    attack = np.minimum(1, t / 0.004)
-    slosh = low(rng.standard_normal(n), 700) * np.exp(-t / 0.09) * 1.4
-    spray = band(rng.standard_normal(n), 900, 5000) * np.exp(-t / 0.05) * 0.7
-    bubbles = np.zeros(n)
-    for _ in range(rng.integers(3, 7)):
-        start = rng.uniform(0.01, 0.2)
-        f0 = rng.uniform(700, 1800)
-        length = rng.uniform(0.015, 0.04)
-        mask = (t >= start) & (t < start + length)
-        tt = t[mask] - start
-        bubbles[mask] += np.sin(2 * math.pi * (f0 + 9000 * tt) * tt) * np.exp(-tt / (length / 3)) * rng.uniform(0.2, 0.5)
-    x = (slosh + spray + bubbles) * attack
-    x = high(x, 80)
-    write("step/puddle" + str(index), normalize(x, -16))
-
-
 def main():
     build_atlas()
-    rain_loop("ambient/rain_light", 14, 70, 0.55, 0.0, -24, (900, 10000))
-    rain_loop("ambient/rain_medium", 14, 900, 0.75, 0.15, -20)
-    rain_loop("ambient/rain_heavy", 14, 4500, 1.0, 0.45, -17, (350, 9000))
-    roof_loop(14)
-    for i in range(1, 4):
-        puddle_step(i)
 
 
 if __name__ == "__main__":

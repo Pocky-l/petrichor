@@ -16,6 +16,7 @@
   "subtitles.petrichor.rain": "Идёт дождь",
   "subtitles.petrichor.rain_heavy": "Льёт ливень",
   "subtitles.petrichor.rain_roof": "Дождь стучит по крыше",
+  "subtitles.petrichor.rain_leaves": "Дождь шуршит по листве",
   "subtitles.petrichor.puddle_step": "Шлёпанье по луже",
   "petrichor.configuration.title": "Petrichor",
   "petrichor.configuration.section.petrichor.common.toml": "Правила погоды",
