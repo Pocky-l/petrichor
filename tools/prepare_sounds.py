@@ -25,7 +25,7 @@ RATE = 44100
 
 # Freesound id -> (author, title). All CC0.
 SOURCES = {
-    673958: ("felix.blume", "Rain in a village behind a hut with drops on soil ground"),
+    768872: ("Gustavo_C", "soft_rain_outside"),
     160699: ("klangfabrik", "mediumrain"),
     870823: ("CHallSmith", "Rain, Heavy in Woods"),
     865323: ("newlocknew", "RAINVege_Forest. Drops On Grass, Bushes, Ferns And Leaves"),
@@ -117,7 +117,15 @@ def write(name, data):
 def loops_from(sound_id, name, seconds, rms_db, **soften_args):
     """Two mono loops, {name}_a and {name}_b, from different stretches of the recording."""
     x = soften(source(sound_id), **soften_args).mean(axis=1)
-    seconds = min(seconds, (len(x) / RATE - 8.0) / 2)
+    length = len(x) / RATE
+    if (length - 8.0) / 2 < seconds * 0.75:
+        # A short recording: one loop as long as it allows, the second variant is the same loop started half way.
+        seconds = min(seconds, length - 4.0)
+        loop = normalize(make_loop(x, seconds, 3.0, steadiest(x, seconds + 3.0)), rms_db)
+        write(f"{name}_a", loop)
+        write(f"{name}_b", np.roll(loop, len(loop) // 2))
+        return
+    seconds = min(seconds, (length - 8.0) / 2)
     first = steadiest(x, seconds + 3.0)
     second = steadiest(x, seconds + 3.0, avoid=first)
     for suffix, start in (("a", first), ("b", second)):
@@ -144,8 +152,8 @@ def footsteps(sound_id, count):
 def main():
     for old in os.listdir(os.path.join(OUT, "ambient")) if os.path.isdir(os.path.join(OUT, "ambient")) else []:
         os.remove(os.path.join(OUT, "ambient", old))
-    # Drizzle: the softest recording, its highs rolled off further - a hush rather than a patter.
-    loops_from(673958, "ambient/ground_light", 24, -22, air_cut=3500.0, air_cut_amount=0.6)
+    # Drizzle: a soft, even hush of fine rain, not a patter of drops.
+    loops_from(768872, "ambient/ground_light", 24, -24, air_cut=6000.0, air_cut_amount=0.4)
     loops_from(160699, "ambient/ground_medium", 24, -20)
     loops_from(870823, "ambient/ground_heavy", 24, -19)
     loops_from(865323, "ambient/leaves", 24, -20)

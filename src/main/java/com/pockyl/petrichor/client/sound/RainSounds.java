@@ -97,6 +97,8 @@ public final class RainSounds {
             measureRoof(level, columns, eye);
         }
         float loudness = Math.min(1.0F, ClientWeather.intensity()) * (float) (double) ClientConfig.RAIN_VOLUME.get();
+        // How loud this kind of rain is on leaves and roofs too: a drizzle whispers, a downpour drums.
+        float heaviness = Math.min(1.0F, (ClientWeather.soundLight + ClientWeather.soundMedium + ClientWeather.soundHeavy) / 1.35F);
         for (int s = 0; s < SECTORS; s++) {
             Spot spot = GROUND[s];
             float base = spot.amount * loudness * GROUND_GAIN;
@@ -106,9 +108,9 @@ public final class RainSounds {
             loops[2] = drive(loops[2], GROUND_HEAVY, base * ClientWeather.soundHeavy, spot);
         }
         for (int c = 0; c < LEAF_SOURCES; c++) {
-            LEAF_LOOPS[c] = drive(LEAF_LOOPS[c], LEAVES, CANOPY[c].amount * loudness * LEAF_GAIN, CANOPY[c]);
+            LEAF_LOOPS[c] = drive(LEAF_LOOPS[c], LEAVES, CANOPY[c].amount * loudness * LEAF_GAIN * heaviness * heaviness, CANOPY[c]);
         }
-        float roofVolume = ClientConfig.ROOF.get() ? OVERHEAD.amount * loudness * ROOF_GAIN * (0.6F + 0.2F * ClientWeather.density) : 0.0F;
+        float roofVolume = ClientConfig.ROOF.get() ? OVERHEAD.amount * loudness * ROOF_GAIN * heaviness : 0.0F;
         roofLoop = drive(roofLoop, ROOF, roofVolume, OVERHEAD);
     }
 
