@@ -322,7 +322,7 @@ public final class RainFx {
                     float a = alpha[i] * (1.0F - t) * (1.0F - t);
                     flat(out, cx, cy + 0.012F, cz, r, FxAtlas.RIPPLE, a, light[i]);
                 }
-                case DROPLET -> billboard(out, cx, cy, cz, 0.016F * size[i], FxAtlas.DROPLET, alpha[i] * 0.7F, light[i], left, up);
+                case DROPLET -> billboard(glow, cx, cy, cz, 0.016F * size[i], FxAtlas.DROPLET, alpha[i] * 0.7F, light[i], left, up);
                 case SPARK -> billboard(glow, cx, cy, cz, 0.04F * size[i] * (1.0F - t * 0.7F), FxAtlas.SPARK, alpha[i] * (1.0F - t * t),
                         light[i], left, up);
                 case MIST -> {

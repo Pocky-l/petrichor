@@ -36,7 +36,7 @@ import java.util.List;
 public final class FxSpawner {
     private static final int SPLASH_RANGE = 16;
     private static final int DRIP_RANGE = 24;
-    private static final int LEAF_RANGE = 12;
+    private static final int LEAF_RANGE = 14;
     /** In {@code walkDist} units (0.6 per block walked). */
     private static final float STEP_LENGTH = 0.9F;
     private static final int DRIP_POINT_SEED = 0x0D21_0001;
@@ -53,7 +53,7 @@ public final class FxSpawner {
         float wetness = ClientWeather.wetness();
         if (rain > 0.0F && ClientConfig.SPLASHES.get()) {
             groundSplashes(level, columns, puddles, fx, cam, intensity);
-            mist(columns, fx, cam, intensity);
+            mist(level, columns, fx, cam, intensity);
             entitySplashes(level, fx, cam, intensity);
         }
         if (ClientConfig.DRIPS.get()) {
@@ -110,8 +110,18 @@ public final class FxSpawner {
                     }
                 }
                 case LEAVES -> {
-                    fx.add(RainFx.DROPLET, x, h, z, (random.nextFloat() - 0.5F) * 0.06F, 0.05F + random.nextFloat() * 0.06F,
-                            (random.nextFloat() - 0.5F) * 0.06F, 0.8F, 0.5F, 10, light);
+                    // A drop shatters on the leaves: fine droplets thrown out and down, now and then a breath of spray.
+                    int bits = 1 + random.nextInt(3);
+                    for (int b = 0; b < bits; b++) {
+                        float throwAngle = random.nextFloat() * Mth.TWO_PI;
+                        float speed = 0.025F + random.nextFloat() * 0.05F;
+                        fx.add(RainFx.DROPLET, x, h + 0.02, z, Mth.cos(throwAngle) * speed, 0.02F + random.nextFloat() * 0.06F,
+                                Mth.sin(throwAngle) * speed, 0.55F + random.nextFloat() * 0.4F, 0.6F, 9 + random.nextInt(6), light);
+                    }
+                    if (random.nextFloat() < 0.08F * ClientWeather.density) {
+                        fx.add(RainFx.MIST, x, h + 0.15, z, 0.0F, 0.006F, 0.0F, 0.45F + random.nextFloat() * 0.3F, 0.05F,
+                                18 + random.nextInt(10), light);
+                    }
                 }
                 default -> {
                     double y = h - 1 + shape.top();
@@ -123,7 +133,7 @@ public final class FxSpawner {
         }
     }
 
-    private void mist(Columns columns, RainFx fx, Vec3 cam, float intensity) {
+    private void mist(ClientLevel level, Columns columns, RainFx fx, Vec3 cam, float intensity) {
         float chance = (ClientWeather.density - 1.4F) * 1.5F * Math.min(intensity, 1.5F);
         int n = stochastic(random, chance);
         for (int s = 0; s < n && !fx.full(); s++) {
@@ -137,8 +147,12 @@ public final class FxSpawner {
                 continue;
             }
             int h = columns.height(bx, bz);
-            fx.add(RainFx.MIST, x, h + 0.4, z, 0.0F, 0.004F, 0.0F, 1.0F + random.nextFloat() * 0.9F, 0.07F, 40 + random.nextInt(20),
-                    columns.light(bx, bz));
+            // Heavy rain beating on a forest raises a haze over the crowns: denser and higher there.
+            pos.set(bx, h - 1, bz);
+            boolean canopy = SurfaceKind.classify(level.getBlockState(pos)).kind() == SurfaceKind.LEAVES;
+            float size = canopy ? 1.6F + random.nextFloat() * 1.2F : 1.0F + random.nextFloat() * 0.9F;
+            fx.add(RainFx.MIST, x, h + (canopy ? 0.8 : 0.4), z, 0.0F, canopy ? 0.008F : 0.004F, 0.0F, size, canopy ? 0.09F : 0.07F,
+                    40 + random.nextInt(20), columns.light(bx, bz));
         }
     }
 
@@ -228,15 +242,16 @@ public final class FxSpawner {
         return LevelRenderer.getLightColor(minecraft.level, BlockPos.containing(emitter.x(), emitter.hangY() - 0.5, emitter.z()));
     }
 
+    /**
+     * Under trees the rain turns into fewer, bigger drops that gather on the leaves and fall through the crown - most of
+     * them along its outer edge (the drip line), few near the trunk - and keep falling for a while after the rain.
+     */
     private void leafDrips(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, Vec3 cam, float intensity, float after) {
-        float chance = (0.45F * intensity + after) * (float) (double) ClientConfig.DRIP_DENSITY.get();
+        float chance = (0.35F * intensity + after) * (float) (double) ClientConfig.DRIP_DENSITY.get();
         if (chance <= 0.0F) {
             return;
         }
-        for (int s = 0; s < 10 && !fx.busy(0.7F); s++) {
-            if (random.nextFloat() > chance) {
-                continue;
-            }
+        for (int s = 0; s < 24 && !fx.busy(0.7F); s++) {
             double x = cam.x + (random.nextFloat() * 2.0F - 1.0F) * LEAF_RANGE;
             double z = cam.z + (random.nextFloat() * 2.0F - 1.0F) * LEAF_RANGE;
             int bx = Mth.floor(x);
@@ -247,6 +262,18 @@ public final class FxSpawner {
             int y = columns.height(bx, bz) - 1;
             pos.set(bx, y, bz);
             if (SurfaceKind.classify(level.getBlockState(pos)).kind() != SurfaceKind.LEAVES) {
+                continue;
+            }
+            int open = 0;
+            for (int d = 0; d < 4; d++) {
+                int nx = bx + (d == 0 ? 1 : d == 1 ? -1 : 0);
+                int nz = bz + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                pos.set(nx, columns.height(nx, nz) - 1, nz);
+                if (SurfaceKind.classify(level.getBlockState(pos)).kind() != SurfaceKind.LEAVES) {
+                    open++;
+                }
+            }
+            if (random.nextFloat() > chance * (0.3F + 0.45F * open)) {
                 continue;
             }
             // Down through the canopy to its underside.
@@ -287,7 +314,7 @@ public final class FxSpawner {
                 surface = puddles.coverAt(x, groundY, z) > 0.5F ? RainFx.LAND_PUDDLE : RainFx.LAND_GROUND;
             }
             pos.set(bx, bottom - 1, bz);
-            fx.addDrip(x, bottom - 0.05, z, 0.0F, 0.0F, groundY, surface, 1.0F + random.nextFloat() * 0.4F,
+            fx.addDrip(x, bottom - 0.05, z, 0.0F, 0.0F, groundY, surface, 1.2F + random.nextFloat() * 0.6F,
                     LevelRenderer.getLightColor(level, pos));
         }
     }
