@@ -16,6 +16,8 @@ import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.level.material.FogType;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -35,6 +37,7 @@ import com.pockyl.petrichor.client.fx.FxAtlas;
 import com.pockyl.petrichor.client.fx.FxSpawner;
 import com.pockyl.petrichor.client.fx.Precipitation;
 import com.pockyl.petrichor.client.fx.RainFx;
+import com.pockyl.petrichor.client.fx.RainVeils;
 import com.pockyl.petrichor.client.lightning.Lightning;
 import com.pockyl.petrichor.client.render.PetrichorEffects;
 import com.pockyl.petrichor.client.render.PetrichorShaders;
@@ -70,6 +73,23 @@ public final class WeatherClient {
 
     public static float flash(float partialTick) {
         return LIGHTNING.flash(partialTick);
+    }
+
+    /** How overcast the light is: follows the rain, heavier rain is gloomier. */
+    public static float gloom() {
+        return ClientWeather.rain() * Math.min(1.0F, 0.45F + ClientWeather.density * 0.25F) * (float) Math.min(1.0, ClientConfig.FOG.get());
+    }
+
+    /** Debug description of the puddle data at a column. */
+    public static String describePuddle(int x, int z) {
+        return puddles == null ? "no puddles" : puddles.describe(x, z);
+    }
+
+    /** Throws away the puddle meshes so they are built again from the current terrain. */
+    public static void rebuildSurfaces() {
+        if (puddles != null) {
+            puddles.clear();
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -169,12 +189,27 @@ public final class WeatherClient {
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
 
+        float[] fog = RenderSystem.getShaderFogColor();
+        double time = level.getGameTime() + (double) partialTick;
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        PRECIPITATION.render(builder, COLUMNS, camX, camY, camZ, level.getGameTime() + (double) partialTick, left, up);
+        PRECIPITATION.render(builder, COLUMNS, camX, camY, camZ, time, left, up, fog);
         FX.render(builder, camX, camY, camZ, partialTick, left, up);
         MeshData mesh = builder.build();
         if (mesh != null) {
             BufferUploader.drawWithShader(mesh);
+        }
+
+        ShaderInstance veil = PetrichorShaders.veil();
+        if (veil != null) {
+            RenderSystem.setShader(() -> veil);
+            RenderSystem.setShaderTexture(0, RainVeils.TEXTURE);
+            Minecraft.getInstance().getTextureManager().getTexture(RainVeils.TEXTURE).setFilter(true, false);
+            builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+            RainVeils.render(builder, COLUMNS, camX, camY, camZ, time, fog, RenderSystem.getShaderFogEnd());
+            mesh = builder.build();
+            if (mesh != null) {
+                BufferUploader.drawWithShader(mesh);
+            }
         }
 
         RenderSystem.enableCull();
@@ -194,7 +229,7 @@ public final class WeatherClient {
         RenderLevelStageEvent.Stage stage = event.getStage();
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY) {
             LIGHTNING.renderSky(event.getModelViewMatrix(), event.getCamera(), partialTick);
-        } else if (stage == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
+        } else if (stage == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
             if (puddles != null) {
                 puddles.render(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum(),
                         partialTick);
@@ -227,8 +262,8 @@ public final class WeatherClient {
         float k = (float) Math.min(1.0, rain * Math.sqrt(Math.max(ClientWeather.intensity(), 0.0F)) * strength);
         float newFar = far + (target - far) * k;
         float near = event.getNearPlaneDistance();
-        // The haze starts close to the camera in heavy rain instead of a clear zone with a wall of fog.
-        float newNear = Math.min(near, newFar * (0.75F - 0.6F * k));
+        // The haze starts a little in front of the camera instead of a clear zone with a wall of fog.
+        float newNear = Math.min(near, newFar * (0.4F - 0.25F * k));
         event.setFarPlaneDistance(newFar);
         event.setNearPlaneDistance(Math.max(0.0F, newNear));
         event.setCanceled(true);
@@ -245,12 +280,12 @@ public final class WeatherClient {
         float b = event.getBlue();
         float rain = ClientWeather.rain() * (float) Math.min(1.0, ClientConfig.FOG.get());
         if (rain > 0.0F) {
-            // Rain washes the colour out towards a cool grey.
+            // Rain washes the colour out towards a deep, neutral grey.
             float luma = r * 0.3F + g * 0.59F + b * 0.11F;
-            float k = rain * 0.45F;
-            r += (luma * 0.94F - r) * k;
-            g += (luma * 0.99F - g) * k;
-            b += (luma * 1.08F - b) * k;
+            float k = rain * 0.55F;
+            r += (luma * 0.84F - r) * k;
+            g += (luma * 0.9F - g) * k;
+            b += (luma * 0.97F - b) * k;
         }
         float flash = LIGHTNING.flash((float) event.getPartialTick());
         if (flash > 0.0F) {
@@ -280,7 +315,11 @@ public final class WeatherClient {
         event.getRight().add(String.format("Drops %d, effects %d, puddle chunks %d (%d quads), strikes %d",
                 PRECIPITATION.lastDrops(), FX.count(), puddles == null ? 0 : puddles.chunkCount(),
                 puddles == null ? 0 : puddles.lastQuads(), LIGHTNING.strikeCount()));
-        event.getRight().add(String.format("Wind %.2f, %.2f; open %.2f, roof %.2f", ClientWeather.windX(), ClientWeather.windZ(),
-                RainSounds.open(), RainSounds.roof()));
+        event.getRight().add(String.format("Wind %.2f, %.2f, drip sources %d", ClientWeather.windX(), ClientWeather.windZ(),
+                puddles == null ? 0 : puddles.emitterCount()));
+        event.getRight().add("Rain sound: " + RainSounds.debugSummary());
+        if (puddles != null && minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
+            event.getRight().add("Puddle: " + puddles.describe(hit.getBlockPos().getX(), hit.getBlockPos().getZ()));
+        }
     }
 }

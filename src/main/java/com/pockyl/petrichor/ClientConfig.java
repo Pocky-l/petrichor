@@ -8,11 +8,11 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public final class ClientConfig {
     /** Budgets that scale with the hardware. Individual options below multiply on top of these. */
     public enum Quality {
-        // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets
-        LOW(14, 2200, 32, 600, 25, false),
-        MEDIUM(20, 5000, 48, 1200, 50, true),
-        HIGH(28, 9000, 64, 2000, 90, true),
-        ULTRA(36, 15000, 96, 3200, 140, true);
+        // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets, reflectionSteps
+        LOW(14, 2200, 32, 1000, 25, false, 0),
+        MEDIUM(20, 5000, 48, 2000, 50, true, 16),
+        HIGH(28, 9000, 64, 3500, 90, true, 28),
+        ULTRA(36, 15000, 96, 5000, 140, true, 48);
 
         public final int rainRadius;
         public final int maxDrops;
@@ -20,14 +20,18 @@ public final class ClientConfig {
         public final int maxEffects;
         public final int splashBudget;
         public final boolean rivulets;
+        /** Ray-march steps of the puddle reflections; 0 reflects only the sky. */
+        public final int reflectionSteps;
 
-        Quality(int rainRadius, int maxDrops, int puddleRadius, int maxEffects, int splashBudget, boolean rivulets) {
+        Quality(int rainRadius, int maxDrops, int puddleRadius, int maxEffects, int splashBudget, boolean rivulets,
+                int reflectionSteps) {
             this.rainRadius = rainRadius;
             this.maxDrops = maxDrops;
             this.puddleRadius = puddleRadius;
             this.maxEffects = maxEffects;
             this.splashBudget = splashBudget;
             this.rivulets = rivulets;
+            this.reflectionSteps = reflectionSteps;
         }
     }
 
@@ -91,7 +95,7 @@ public final class ClientConfig {
     }
 
     public static final ModConfigSpec.BooleanValue RIVULETS = BUILDER
-            .comment("Rivulets of rain water running down slopes and steps (needs quality MEDIUM or higher).")
+            .comment("Rain water running over the ground towards edges and spilling down steps (sheets need quality MEDIUM or higher).")
             .translation(key("rivulets"))
             .define("rivulets", true);
     public static final ModConfigSpec.BooleanValue DRIPS = BUILDER

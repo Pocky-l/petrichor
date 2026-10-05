@@ -35,7 +35,8 @@ public final class Precipitation {
     /**
      * @param time game ticks with the partial tick
      */
-    public void render(VertexConsumer out, Columns columns, double camX, double camY, double camZ, double time, Vector3f left, Vector3f up) {
+    public void render(VertexConsumer out, Columns columns, double camX, double camY, double camZ, double time, Vector3f left, Vector3f up,
+            float[] fog) {
         ClientConfig.Quality quality = ClientConfig.quality();
         int radius = quality.rainRadius;
         float rain = ClientWeather.rain();
@@ -65,6 +66,10 @@ public final class Precipitation {
         float width = ClientWeather.streakWidth;
         float baseAlpha = ClientWeather.alpha * Math.min(1.0F, 0.35F + rain * 0.65F);
         double anchor = Math.floor(camY / 16.0) * 16.0 - 16.0;
+        // Drops take the colour of the light around them: a little brighter than the haze.
+        float dropR = Math.min(1.0F, fog[0] * 0.6F + 0.42F);
+        float dropG = Math.min(1.0F, fog[1] * 0.6F + 0.45F);
+        float dropB = Math.min(1.0F, fog[2] * 0.6F + 0.5F);
         double rainShift = time * fall;
         double snowShift = time * SNOW_SPEED;
         int ccx = Mth.floor(camX);
@@ -93,12 +98,17 @@ public final class Precipitation {
                     float wave = Mth.sin(((cx * bandX + cz * bandZ) / 22.0F - bandPhase / 22.0F) * Mth.TWO_PI);
                     expected = rainExpected * (1.0F + bands * wave);
                 }
+                float columnDistance = Mth.sqrt(dist2);
+                float edgeFade = 1.0F - Math.clamp((columnDistance - fadeStart) / (radius - fadeStart), 0.0F, 1.0F);
+                // Most drops close to the eye, where they can be seen; the distance is the curtains' job.
+                if (!snow) {
+                    expected *= Math.clamp(1.9F - columnDistance / 12.0F, 0.3F, 1.9F);
+                }
                 int n = (int) expected;
                 if (Noise.unit(cx, cz, SEED_COUNT) < expected - n) {
                     n++;
                 }
-                n = Math.min(n, 10);
-                float edgeFade = 1.0F - Math.clamp((Mth.sqrt(dist2) - fadeStart) / (radius - fadeStart), 0.0F, 1.0F);
+                n = Math.min(n, 12);
                 for (int i = 0; i < n; i++) {
                     float phase = Noise.unit(cx, cz, i, SEED_PHASE);
                     double shift = snow ? snowShift : rainShift;
@@ -137,10 +147,12 @@ public final class Precipitation {
                         float half = 0.035F + jx * 0.03F;
                         snowflake(out, hx, hy, hz, half, a, light, left, up);
                     } else {
-                        float w = Math.max(width, d * 0.0016F);
-                        float a = baseAlpha * edgeFade * window * near * Mth.sqrt(width / w);
-                        Streaks.streak(out, hx, hy, hz, slantX, -1.0F, slantZ, length * (0.8F + jz * 0.4F), w, FxAtlas.STREAK, a, 0.0F,
-                                light, 0.72F, 0.78F, 0.88F);
+                        // Drops close to the eye are seen larger and blurred; far ones keep at least a pixel of width.
+                        float close = Math.clamp(1.0F - (d - 1.5F) / 5.0F, 0.0F, 1.0F);
+                        float w = Math.max(width * 2.2F * (1.0F + close * 1.2F), d * 0.0045F);
+                        float a = Math.min(0.9F, baseAlpha * 1.6F * edgeFade * window * near * Mth.sqrt(width / w) * (1.0F + close * 0.6F));
+                        Streaks.streak(out, hx, hy, hz, slantX, -1.0F, slantZ, length * (0.8F + jz * 0.4F) * (1.0F + close * 0.5F), w,
+                                FxAtlas.STREAK, a, 0.0F, light, dropR, dropG, dropB);
                     }
                     drops++;
                 }

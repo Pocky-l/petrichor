@@ -74,7 +74,7 @@ public final class FxSpawner {
                 * ClientWeather.splash / 2.4F * Math.min(intensity, 1.5F);
         int n = stochastic(random, expected);
         float scale = 0.55F + ClientWeather.density * 0.25F;
-        for (int s = 0; s < n && !fx.full(); s++) {
+        for (int s = 0; s < n && !fx.busy(0.55F); s++) {
             float r = 1.0F + SPLASH_RANGE * (float) Math.pow(random.nextFloat(), 0.8);
             float angle = random.nextFloat() * Mth.TWO_PI;
             double x = cam.x + Mth.cos(angle) * r;
@@ -178,9 +178,9 @@ public final class FxSpawner {
                 continue;
             }
             float flow = (float) Math.pow(emitter.flow(), 0.85);
-            float expected = Math.min(3.0F, 0.012F * flow * intensity) + Math.min(0.06F, 0.004F * flow * after);
+            float expected = Math.min(4.0F, 0.13F * flow * intensity) + Math.min(0.08F, 0.006F * flow * after);
             int n = stochastic(random, expected * density);
-            for (int s = 0; s < n && !fx.full(); s++) {
+            for (int s = 0; s < n && !fx.busy(0.9F); s++) {
                 // Spread along the edge the water pours over.
                 float along = random.nextFloat() - 0.5F;
                 double x = emitter.x() + emitter.dirZ() * along * 0.9;
@@ -191,7 +191,7 @@ public final class FxSpawner {
                     surface = RainFx.LAND_PUDDLE;
                 }
                 fx.addDrip(x, emitter.y() - 0.02, z, emitter.dirX() * 0.03F, emitter.dirZ() * 0.03F, emitter.groundY(), surface,
-                        0.8F + random.nextFloat() * 0.5F, lightAbove(emitter));
+                        1.2F + random.nextFloat() * 0.8F, lightAbove(emitter));
             }
         }
     }
@@ -209,7 +209,7 @@ public final class FxSpawner {
         if (chance <= 0.0F) {
             return;
         }
-        for (int s = 0; s < 10 && !fx.full(); s++) {
+        for (int s = 0; s < 10 && !fx.busy(0.7F); s++) {
             if (random.nextFloat() > chance) {
                 continue;
             }

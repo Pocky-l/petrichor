@@ -8,11 +8,12 @@ import com.pockyl.petrichor.Petrichor;
 
 import java.io.IOException;
 
-/** The mod's core shaders: drops and effects, puddles and wet ground, rivulets. */
+/** The mod's core shaders: drops and effects, puddles and wet ground, water spilling over steps. */
 public final class PetrichorShaders {
     private static ShaderInstance rain;
     private static ShaderInstance puddle;
-    private static ShaderInstance rivulet;
+    private static ShaderInstance sheet;
+    private static ShaderInstance veil;
 
     private PetrichorShaders() {
     }
@@ -22,9 +23,11 @@ public final class PetrichorShaders {
             event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_rain"),
                     DefaultVertexFormat.PARTICLE), shader -> rain = shader);
             event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_puddle"),
-                    DefaultVertexFormat.PARTICLE), shader -> puddle = shader);
-            event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_rivulet"),
-                    DefaultVertexFormat.PARTICLE), shader -> rivulet = shader);
+                    DefaultVertexFormat.BLOCK), shader -> puddle = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_sheet"),
+                    DefaultVertexFormat.BLOCK), shader -> sheet = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_veil"),
+                    DefaultVertexFormat.PARTICLE), shader -> veil = shader);
         } catch (IOException e) {
             Petrichor.LOGGER.error("Failed to load Petrichor shaders", e);
         }
@@ -38,7 +41,11 @@ public final class PetrichorShaders {
         return puddle;
     }
 
-    public static ShaderInstance rivulet() {
-        return rivulet;
+    public static ShaderInstance sheet() {
+        return sheet;
+    }
+
+    public static ShaderInstance veil() {
+        return veil;
     }
 }

@@ -4,6 +4,7 @@ import com.pockyl.petrichor.weather.Noise;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.PriorityQueue;
 
 /**
  * Where rain water goes once it hits a {@link SurfaceGrid}: a small hydrology model on the block grid.
@@ -12,7 +13,9 @@ import java.util.Arrays;
  *   <li>every column drains into its lowest lower neighbour (four directions);</li>
  *   <li>flat areas drain towards their nearest edge (a breadth-first search from the cells that have a way down), so
  *   a flat roof or a terrace sends its water to the rim like real ones do;</li>
- *   <li>flat areas without any way down are closed hollows: water collects there and puddles are deeper;</li>
+ *   <li>flat areas without any way down are closed hollows;</li>
+ *   <li>every hollow fills up to the height where water would spill out of it ({@link #depth}, a priority flood), so
+ *   a dug pit becomes a pool even when its floor is uneven;</li>
  *   <li>flow accumulates downstream: a cell carries the rain of every cell that drains through it, which is what makes
  *   a trickle at the top of a hill a stream at its foot.</li>
  * </ul>
@@ -32,6 +35,8 @@ public final class RunoffSolver {
     public final int[] distanceToEdge;
     /** Part of a flat hollow with no way out. */
     public final boolean[] closed;
+    /** How deep water would stand here if every hollow filled to its brim, in blocks. */
+    public final int[] depth;
 
     private RunoffSolver(SurfaceGrid grid) {
         this.grid = grid;
@@ -41,12 +46,14 @@ public final class RunoffSolver {
         accumulation = new int[n];
         distanceToEdge = new int[n];
         closed = new boolean[n];
+        depth = new int[n];
     }
 
     public static RunoffSolver solve(SurfaceGrid grid) {
         RunoffSolver solver = new RunoffSolver(grid);
         solver.route();
         solver.accumulate();
+        solver.fillHollows();
         return solver;
     }
 
@@ -163,6 +170,58 @@ public final class RunoffSolver {
                     closed[members[m]] = true;
                 }
             }
+        }
+    }
+
+    /**
+     * Priority flood from the edges of the known area inwards: a cell's spill level is the lowest height water must
+     * rise to before it can run off the grid; cells below their spill level are under water once the hollow is full.
+     */
+    private void fillHollows() {
+        int size = grid.size;
+        int n = size * size;
+        int[] spill = new int[n];
+        boolean[] done = new boolean[n];
+        PriorityQueue<int[]> queue = new PriorityQueue<>((a, b) -> Integer.compare(a[1], b[1]));
+        for (int i = 0; i < n; i++) {
+            if (!drains(i)) {
+                continue;
+            }
+            int lx = i % size;
+            int lz = i / size;
+            boolean edge = lx == 0 || lz == 0 || lx == size - 1 || lz == size - 1;
+            for (int d = 0; d < 4 && !edge; d++) {
+                int j = grid.index(lx + DX[d], lz + DZ[d]);
+                edge = !grid.known(j) || grid.kind[j] == SurfaceKind.WATER;
+            }
+            if (edge) {
+                spill[i] = grid.height[i];
+                done[i] = true;
+                queue.add(new int[] {i, spill[i]});
+            }
+        }
+        while (!queue.isEmpty()) {
+            int[] entry = queue.poll();
+            int i = entry[0];
+            int lx = i % size;
+            int lz = i / size;
+            for (int d = 0; d < 4; d++) {
+                int nx = lx + DX[d];
+                int nz = lz + DZ[d];
+                if (nx < 0 || nz < 0 || nx >= size || nz >= size) {
+                    continue;
+                }
+                int j = grid.index(nx, nz);
+                if (done[j] || !drains(j)) {
+                    continue;
+                }
+                done[j] = true;
+                spill[j] = Math.max(grid.height[j], spill[i]);
+                queue.add(new int[] {j, spill[j]});
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            depth[i] = done[i] ? spill[i] - grid.height[i] : 0;
         }
     }
 

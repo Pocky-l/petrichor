@@ -137,8 +137,36 @@ def build_atlas():
     Image.fromarray(rgba, "RGBA").save(os.path.join(path, "rain_fx.png"))
 
 
+def rain_sheet():
+    """A seamlessly tiling sheet of falling rain streaks for the distant rain curtains."""
+    w, h = 256, 512
+    a = np.zeros((h, w))
+    local = np.random.default_rng(11)
+    ys = np.arange(h)[:, None]
+    for _ in range(900):
+        x = local.uniform(0, w)
+        y0 = local.uniform(0, h)
+        length = local.uniform(20, 90)
+        width = local.uniform(0.5, 1.3)
+        strength = local.uniform(0.15, 1.0) ** 2
+        xs = np.arange(w)[None, :]
+        dx = np.minimum(np.abs(xs - x), w - np.abs(xs - x))
+        across = np.exp(-(dx ** 2) / (2 * width ** 2))
+        dy = (ys - y0) % h
+        along = np.clip(dy / length, 0, 1)
+        profile = np.where(dy < length, np.sin(along * math.pi) ** 0.7, 0.0)
+        a += across * profile * strength
+    a = np.clip(a / np.percentile(a, 99.7), 0, 1)
+    rgba = np.zeros((h, w, 4), dtype=np.uint8)
+    rgba[..., 0:3] = 255
+    rgba[..., 3] = (a * 255).astype(np.uint8)
+    path = os.path.join(ROOT, "textures", "fx")
+    Image.fromarray(rgba, "RGBA").save(os.path.join(path, "rain_sheet.png"))
+
+
 def main():
     build_atlas()
+    rain_sheet()
 
 
 if __name__ == "__main__":

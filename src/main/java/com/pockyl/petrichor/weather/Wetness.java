@@ -26,10 +26,12 @@ public final class Wetness {
      */
     public static float step(float wetness, float rain, RainType type, boolean day, double fill, double drying) {
         if (type != null && rain > 0.2F) {
-            float cap = type.wetnessCap * rain;
+            // Soaks towards the cap of this rain; ground wetter than that (after a downpour) stays as it is.
+            float cap = type.wetnessCap;
             if (wetness < cap) {
                 return Math.min(cap, wetness + (float) (rain * type.wetnessRate * fill / FILL_TICKS));
             }
+            return wetness;
         }
         float dry = (float) (drying / (day ? DRY_TICKS_DAY : DRY_TICKS_NIGHT));
         return Math.max(0.0F, wetness - dry);

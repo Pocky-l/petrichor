@@ -3,6 +3,12 @@
     "fragment": "petrichor:petrichor_puddle",
     "samplers": [
         {
+            "name": "SceneColor"
+        },
+        {
+            "name": "SceneDepth"
+        },
+        {
             "name": "Sampler2"
         }
     ],
@@ -128,6 +134,29 @@
             ]
         },
         {
+            "name": "InvProjMat",
+            "type": "matrix4x4",
+            "count": 16,
+            "values": [
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]
+        },
+        {
             "name": "Wetness",
             "type": "float",
             "count": 1,
@@ -149,6 +178,22 @@
             "count": 1,
             "values": [
                 0.0
+            ]
+        },
+        {
+            "name": "Flow",
+            "type": "float",
+            "count": 1,
+            "values": [
+                0.0
+            ]
+        },
+        {
+            "name": "SsrSteps",
+            "type": "float",
+            "count": 1,
+            "values": [
+                24.0
             ]
         }
     ]

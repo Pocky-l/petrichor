@@ -71,10 +71,11 @@ final class Strike {
         if (t < 0.0F) {
             return 0.0F;
         }
-        if (t < 0.4F) {
-            return t / 0.4F;
+        if (t < 0.3F) {
+            return t / 0.3F;
         }
-        return (float) Math.exp(-(t - 0.4F) / 1.1F);
+        // A bright moment, then a fade over a few tenths of a second, as the eye perceives a stroke.
+        return (float) Math.exp(-(t - 0.3F) / 2.2F);
     }
 
     /** Light the event gives off at time {@code t}, 0..~1.2. */

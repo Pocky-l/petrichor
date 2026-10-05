@@ -1,23 +1,38 @@
 {
-  "ambient.rain.light": {
-    "sounds": [{"name": "petrichor:ambient/rain_light", "stream": true}],
+  "ambient.rain.ground_light": {
+    "sounds": [
+      {"name": "petrichor:ambient/ground_light_a", "attenuation_distance": 28},
+      {"name": "petrichor:ambient/ground_light_b", "attenuation_distance": 28}
+    ],
     "subtitle": "subtitles.petrichor.rain"
   },
-  "ambient.rain.medium": {
-    "sounds": [{"name": "petrichor:ambient/rain_medium", "stream": true}],
+  "ambient.rain.ground_medium": {
+    "sounds": [
+      {"name": "petrichor:ambient/ground_medium_a", "attenuation_distance": 28},
+      {"name": "petrichor:ambient/ground_medium_b", "attenuation_distance": 28}
+    ],
     "subtitle": "subtitles.petrichor.rain"
   },
-  "ambient.rain.heavy": {
-    "sounds": [{"name": "petrichor:ambient/rain_heavy", "stream": true}],
+  "ambient.rain.ground_heavy": {
+    "sounds": [
+      {"name": "petrichor:ambient/ground_heavy_a", "attenuation_distance": 28},
+      {"name": "petrichor:ambient/ground_heavy_b", "attenuation_distance": 28}
+    ],
     "subtitle": "subtitles.petrichor.rain_heavy"
   },
-  "ambient.rain.roof": {
-    "sounds": [{"name": "petrichor:ambient/rain_roof", "stream": true}],
-    "subtitle": "subtitles.petrichor.rain_roof"
-  },
   "ambient.rain.leaves": {
-    "sounds": [{"name": "petrichor:ambient/rain_leaves", "stream": true}],
+    "sounds": [
+      {"name": "petrichor:ambient/leaves_a", "attenuation_distance": 22},
+      {"name": "petrichor:ambient/leaves_b", "attenuation_distance": 22}
+    ],
     "subtitle": "subtitles.petrichor.rain_leaves"
+  },
+  "ambient.rain.roof": {
+    "sounds": [
+      {"name": "petrichor:ambient/roof_a", "attenuation_distance": 16},
+      {"name": "petrichor:ambient/roof_b", "attenuation_distance": 16}
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
   },
   "step.puddle": {
     "sounds": ["petrichor:step/puddle1", "petrichor:step/puddle2", "petrichor:step/puddle3", "petrichor:step/puddle4",

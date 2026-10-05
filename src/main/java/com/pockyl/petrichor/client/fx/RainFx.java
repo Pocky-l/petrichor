@@ -92,6 +92,11 @@ public final class RainFx {
         return count >= capacity;
     }
 
+    /** Whether more than {@code share} of the pool is in use; keeps one kind of effect from starving the others. */
+    public boolean busy(float share) {
+        return count >= capacity * share;
+    }
+
     /** Keeps the float positions precise: re-bases them when the camera wanders more than 512 blocks away. */
     public void recenter(double camX, double camZ) {
         if (Math.abs(camX - originX) < 512 && Math.abs(camZ - originZ) < 512) {
@@ -144,9 +149,9 @@ public final class RainFx {
     /** A splash crown with a few droplets, plus rings when it lands on water. */
     public void splash(double wx, double wy, double wz, float scale, byte surface, int packedLight, int droplets) {
         if (surface != LAND_WATER) {
-            add(SPLASH, wx, wy, wz, 0.0F, 0.0F, 0.0F, scale * (0.8F + random.nextFloat() * 0.4F), 0.55F, 5 + random.nextInt(2), packedLight);
+            add(SPLASH, wx, wy, wz, 0.0F, 0.0F, 0.0F, scale * (0.6F + random.nextFloat() * 0.4F), 0.28F, 4 + random.nextInt(2), packedLight);
         }
-        if (surface != LAND_GROUND) {
+        if (surface == LAND_WATER) {
             ripple(wx, wy, wz, scale, packedLight);
         }
         for (int d = 0; d < droplets; d++) {
@@ -278,14 +283,14 @@ public final class RainFx {
                 case SPLASH -> {
                     int frame = Math.min(FxAtlas.SPLASH_FRAMES - 1, (int) (t * FxAtlas.SPLASH_FRAMES));
                     float a = alpha[i] * (1.0F - t * 0.6F);
-                    upright(out, cx, cy, cz, 0.16F * size[i], 0.26F * size[i], FxAtlas.SPLASH + frame, a, light[i]);
+                    upright(out, cx, cy, cz, 0.11F * size[i], 0.17F * size[i], FxAtlas.SPLASH + frame, a, light[i]);
                 }
                 case RIPPLE -> {
                     float r = (0.06F + t * 0.38F) * size[i];
                     float a = alpha[i] * (1.0F - t) * (1.0F - t);
                     flat(out, cx, cy + 0.012F, cz, r, FxAtlas.RIPPLE, a, light[i]);
                 }
-                case DROPLET -> billboard(out, cx, cy, cz, 0.022F * size[i], FxAtlas.DROPLET, alpha[i], light[i], left, up);
+                case DROPLET -> billboard(out, cx, cy, cz, 0.016F * size[i], FxAtlas.DROPLET, alpha[i] * 0.7F, light[i], left, up);
                 case SPARK -> billboard(out, cx, cy, cz, 0.04F * size[i] * (1.0F - t * 0.7F), FxAtlas.SPARK, alpha[i] * (1.0F - t * t),
                         light[i], left, up);
                 case MIST -> {
@@ -293,9 +298,9 @@ public final class RainFx {
                     billboard(out, cx, cy, cz, size[i] * (0.7F + t * 0.6F), FxAtlas.MIST, a, light[i], left, up);
                 }
                 case DRIP -> {
-                    float len = Math.max(0.09F, -vy[i] * 1.1F);
-                    Streaks.streak(out, cx, cy, cz, vx[i], vy[i], vz[i], len, 0.028F * size[i], FxAtlas.DRIP, alpha[i], alpha[i] * 0.6F,
-                            light[i], 0.83F, 0.88F, 0.95F);
+                    float len = Math.max(0.12F, -vy[i] * 1.4F);
+                    Streaks.streak(out, cx, cy, cz, vx[i], vy[i], vz[i], len, 0.045F * size[i], FxAtlas.DRIP, alpha[i], alpha[i] * 0.5F,
+                            light[i], 0.8F, 0.85F, 0.92F);
                 }
                 default -> {
                 }
@@ -351,6 +356,6 @@ public final class RainFx {
     }
 
     private static void vertex(VertexConsumer out, float vx, float vy, float vz, float u, float v, float a, int packedLight) {
-        out.addVertex(vx, vy, vz).setUv(u, v).setColor(0.85F, 0.9F, 1.0F, a).setLight(packedLight);
+        out.addVertex(vx, vy, vz).setUv(u, v).setColor(0.7F, 0.76F, 0.84F, a).setLight(packedLight);
     }
 }

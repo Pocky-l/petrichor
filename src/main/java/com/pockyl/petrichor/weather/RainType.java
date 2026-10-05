@@ -10,10 +10,10 @@ import java.util.Locale;
  */
 public enum RainType {
     // density, fall, streak, width, alpha, wind, gust, fogDistance, splash, wetCap, wetRate, light, medium, heavy
-    DRIZZLE(0.45F, 0.26F, 0.20F, 0.010F, 0.30F, 0.035F, 0.15F, 150.0F, 0.25F, 0.45F, 0.5F, 1.0F, 0.0F, 0.0F),
-    RAIN(1.0F, 0.62F, 0.55F, 0.016F, 0.40F, 0.09F, 0.30F, 110.0F, 1.0F, 0.80F, 1.0F, 0.35F, 1.0F, 0.0F),
-    DOWNPOUR(2.4F, 0.85F, 0.85F, 0.020F, 0.48F, 0.16F, 0.60F, 52.0F, 2.4F, 1.0F, 2.2F, 0.0F, 0.45F, 1.0F),
-    THUNDERSTORM(1.9F, 0.90F, 0.90F, 0.020F, 0.48F, 0.32F, 0.90F, 70.0F, 2.0F, 1.0F, 1.8F, 0.0F, 0.55F, 0.9F);
+    DRIZZLE(0.45F, 0.26F, 0.20F, 0.010F, 0.30F, 0.035F, 0.15F, 200.0F, 0.25F, 0.45F, 0.5F, 1.0F, 0.0F, 0.0F),
+    RAIN(1.0F, 0.62F, 0.55F, 0.016F, 0.40F, 0.09F, 0.30F, 150.0F, 1.0F, 0.80F, 1.0F, 0.35F, 1.0F, 0.0F),
+    DOWNPOUR(2.4F, 0.85F, 0.85F, 0.020F, 0.48F, 0.16F, 0.60F, 90.0F, 2.4F, 1.0F, 2.2F, 0.0F, 0.45F, 1.0F),
+    THUNDERSTORM(1.9F, 0.90F, 0.90F, 0.020F, 0.48F, 0.32F, 0.90F, 110.0F, 2.0F, 1.0F, 1.8F, 0.0F, 0.55F, 0.9F);
 
     private static final RainType[] VALUES = values();
 

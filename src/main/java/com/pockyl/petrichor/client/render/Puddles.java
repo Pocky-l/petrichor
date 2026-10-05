@@ -1,5 +1,8 @@
 package com.pockyl.petrichor.client.render;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -24,6 +27,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
@@ -38,29 +43,32 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Puddles, wet ground, rivulets and the places where water pours off edges, per chunk.
+ * Puddles, wet ground, running water and the places where water pours off edges, per chunk.
  *
  * <p>For every chunk near the camera the surface of the chunk plus a 16-block margin is sampled, the runoff solved and
  * the puddle field computed (all in {@code world}). From that a static GPU mesh is built: one quad over every flat,
  * rain-exposed top (the shader turns it into wet ground, a puddle or nothing depending on the wetness, so puddles grow
- * and dry without rebuilding) and ribbons along the streams. Meshes are rebuilt when the chunk's surface changes.
+ * and dry without rebuilding; the direction and amount of runoff ride along in the vertex normals) and sheets of water
+ * spilling over steps. Puddles reflect the scene by marching through a copy of the depth buffer. Meshes are rebuilt when the chunk's surface changes.
  */
 public final class Puddles implements AutoCloseable {
     private static final int MARGIN = 16;
     private static final int GRID = 16 + MARGIN * 2;
-    /** Cells collecting the rain of fewer cells than this carry no visible rivulet. */
-    private static final int MIN_FLOW = 5;
-    /** Rivulets are drawn only this close to the next step down; on wide flats water just soaks and pools. */
-    private static final int MAX_EDGE_DISTANCE = 3;
+    /** Edges collecting the rain of fewer cells than this do not visibly spill over. */
+    private static final int MIN_FLOW = 4;
+    /** Water visibly runs only this close to the next step down; on wide flats it just soaks in and pools. */
+    private static final int MAX_EDGE_DISTANCE = 4;
+    private static final int[] CORNER_X = {0, 0, 1, 1};
+    private static final int[] CORNER_Z = {0, 1, 1, 0};
     private static final int BUILDS_PER_TICK = 2;
     private static final int CHECKS_PER_TICK = 3;
     private static final float LIFT = 0.002F;
-    private static final float RIVULET_LIFT = 0.012F;
 
     private final Long2ObjectOpenHashMap<ChunkPuddles> chunks = new Long2ObjectOpenHashMap<>();
     private final ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 18);
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
     private ClientLevel level;
+    private RenderTarget scene;
     private int idleTicks;
     private int checkCursor;
     private int lastQuads;
@@ -73,9 +81,9 @@ public final class Puddles implements AutoCloseable {
         final int chunkX;
         final int chunkZ;
         VertexBuffer puddles;
-        VertexBuffer rivulets;
+        VertexBuffer sheets;
         int puddleQuads;
-        int rivuletQuads;
+        int sheetQuads;
         AABB bounds;
         final float[] field = new float[256];
         final float[] top = new float[256];
@@ -93,9 +101,9 @@ public final class Puddles implements AutoCloseable {
                 puddles.close();
                 puddles = null;
             }
-            if (rivulets != null) {
-                rivulets.close();
-                rivulets = null;
+            if (sheets != null) {
+                sheets.close();
+                sheets = null;
             }
         }
     }
@@ -111,6 +119,10 @@ public final class Puddles implements AutoCloseable {
     public void close() {
         clear();
         bytes.close();
+        if (scene != null) {
+            scene.destroyBuffers();
+            scene = null;
+        }
     }
 
     public int chunkCount() {
@@ -119,6 +131,14 @@ public final class Puddles implements AutoCloseable {
 
     public int lastQuads() {
         return lastQuads;
+    }
+
+    public int emitterCount() {
+        int count = 0;
+        for (ChunkPuddles chunk : chunks.values()) {
+            count += chunk.emitters.size();
+        }
+        return count;
     }
 
     private static boolean enabled() {
@@ -250,17 +270,27 @@ public final class Puddles implements AutoCloseable {
             return;
         }
         chunk.bounds = new AABB(originX, minY - 1.0, originZ, originX + 16, maxY + 1.0, originZ + 16);
-        buildPuddles(level, chunk, grid, field);
-        buildRivulets(level, chunk, grid, runoff, rains);
+        buildPuddles(level, chunk, grid, runoff, field);
+        buildSheets(level, chunk, grid, runoff, rains);
         chunk.emitters = findEmitters(chunk, grid, runoff, rains);
     }
 
-    private void buildPuddles(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, float[] field) {
+    private void buildPuddles(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, float[] field) {
         int originX = chunk.chunkX << 4;
         int originZ = chunk.chunkZ << 4;
-        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        float[] flowX = new float[grid.size * grid.size];
+        float[] flowZ = new float[grid.size * grid.size];
+        for (int i = 0; i < flowX.length; i++) {
+            float strength = flowStrength(grid, runoff, i);
+            if (strength > 0.0F) {
+                int j = runoff.downstream[i];
+                flowX[i] = ((j % grid.size) - (i % grid.size)) * strength;
+                flowZ[i] = ((j / grid.size) - (i / grid.size)) * strength;
+            }
+        }
+        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
         int quads = 0;
-        float[] corner = new float[4];
+        float[] cornerFlow = new float[3];
         for (int lz = 0; lz < 16; lz++) {
             for (int lx = 0; lx < 16; lx++) {
                 int c = lz * 16 + lx;
@@ -271,38 +301,80 @@ public final class Puddles implements AutoCloseable {
                 int gz = lz + MARGIN;
                 int i = grid.index(gx, gz);
                 float top = grid.top[i];
-                for (int k = 0; k < 4; k++) {
-                    int cornerX = gx + (k == 1 || k == 2 ? 1 : 0);
-                    int cornerZ = gz + (k >= 2 ? 1 : 0);
-                    corner[k] = cornerField(grid, field, cornerX, cornerZ, top);
-                }
                 pos.set(originX + lx, grid.height[i], originZ + lz);
                 int light = LevelRenderer.getLightColor(level, pos);
                 float r;
                 float g;
                 float b;
+                // The colour water takes over this ground: brown over soil, dark grey over stone and wood.
                 if (grid.soil[i]) {
-                    r = 0.46F;
-                    g = 0.37F;
-                    b = 0.27F;
+                    r = 0.36F;
+                    g = 0.29F;
+                    b = 0.21F;
                 } else {
-                    int water = level.getBiome(pos).value().getWaterColor();
-                    r = 0.25F + ((water >> 16) & 0xFF) / 255.0F * 0.5F;
-                    g = 0.27F + ((water >> 8) & 0xFF) / 255.0F * 0.5F;
-                    b = 0.3F + (water & 0xFF) / 255.0F * 0.5F;
+                    r = 0.27F;
+                    g = 0.29F;
+                    b = 0.31F;
                 }
                 float y = top + LIFT;
                 int wx = Math.floorMod(originX + lx, 256);
                 int wz = Math.floorMod(originZ + lz, 256);
-                builder.addVertex(lx, y, lz).setUv(wx, wz).setColor(r, g, b, corner[0]).setLight(light);
-                builder.addVertex(lx, y, lz + 1).setUv(wx, wz + 1).setColor(r, g, b, corner[3]).setLight(light);
-                builder.addVertex(lx + 1, y, lz + 1).setUv(wx + 1, wz + 1).setColor(r, g, b, corner[2]).setLight(light);
-                builder.addVertex(lx + 1, y, lz).setUv(wx + 1, wz).setColor(r, g, b, corner[1]).setLight(light);
+                for (int k = 0; k < 4; k++) {
+                    int cornerX = gx + CORNER_X[k];
+                    int cornerZ = gz + CORNER_Z[k];
+                    float cornerValue = cornerField(grid, field, cornerX, cornerZ, top);
+                    cornerFlow(grid, flowX, flowZ, cornerX, cornerZ, top, cornerFlow);
+                    builder.addVertex(lx + CORNER_X[k], y, lz + CORNER_Z[k]).setColor(r, g, b, cornerValue)
+                            .setUv(wx + CORNER_X[k], wz + CORNER_Z[k]).setLight(light)
+                            .setNormal(cornerFlow[0], cornerFlow[1], cornerFlow[2]);
+                }
                 quads++;
             }
         }
         chunk.puddleQuads = quads;
         chunk.puddles = upload(chunk.puddles, builder.build());
+    }
+
+    /** How much water runs over this cell, 0..1: visible runoff only near the next step down. */
+    private static float flowStrength(SurfaceGrid grid, RunoffSolver runoff, int i) {
+        if (grid.kind[i] != SurfaceKind.GROUND || runoff.downstream[i] < 0 || runoff.accumulation[i] < 3
+                || runoff.distanceToEdge[i] > MAX_EDGE_DISTANCE) {
+            return 0.0F;
+        }
+        float amount = Math.clamp(log2(runoff.accumulation[i]) / 5.0F, 0.0F, 1.0F);
+        return amount * (1.0F - runoff.distanceToEdge[i] * 0.18F);
+    }
+
+    /** Mean flow of the cells sharing a corner on the same level: direction (x, z) and strength (y). */
+    private static void cornerFlow(SurfaceGrid grid, float[] flowX, float[] flowZ, int cornerX, int cornerZ, float top, float[] out) {
+        float sx = 0.0F;
+        float sz = 0.0F;
+        for (int dz = -1; dz <= 0; dz++) {
+            for (int dx = -1; dx <= 0; dx++) {
+                int x = cornerX + dx;
+                int z = cornerZ + dz;
+                if (x < 0 || z < 0 || x >= grid.size || z >= grid.size) {
+                    continue;
+                }
+                int j = grid.index(x, z);
+                if (grid.kind[j] == SurfaceKind.GROUND && Math.abs(grid.top[j] - top) < 0.01F) {
+                    sx += flowX[j];
+                    sz += flowZ[j];
+                }
+            }
+        }
+        sx *= 0.25F;
+        sz *= 0.25F;
+        float strength = Mth.sqrt(sx * sx + sz * sz);
+        if (strength < 1.0E-4F) {
+            out[0] = 0.0F;
+            out[1] = 0.0F;
+            out[2] = 0.0F;
+            return;
+        }
+        out[0] = sx / strength;
+        out[1] = Math.min(1.0F, strength);
+        out[2] = sz / strength;
     }
 
     /**
@@ -327,120 +399,69 @@ public final class Puddles implements AutoCloseable {
         return sum * 0.25F;
     }
 
-    private boolean flows(SurfaceGrid grid, RunoffSolver runoff, int i) {
-        return grid.kind[i] == SurfaceKind.GROUND && runoff.accumulation[i] >= MIN_FLOW && runoff.downstream[i] >= 0
-                && runoff.drop[i] <= 1 && runoff.distanceToEdge[i] <= MAX_EDGE_DISTANCE;
-    }
-
-    private static float ribbonWidth(int flow) {
-        return Math.clamp(0.05F + 0.045F * log2(flow), 0.08F, 0.38F);
-    }
-
-    private static float ribbonStrength(int flow) {
-        return Math.clamp(0.35F + 0.1F * log2(flow), 0.4F, 1.0F);
-    }
-
     private static float log2(int value) {
         return (float) (Math.log(value) / Math.log(2.0));
     }
 
-    private void buildRivulets(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, boolean[] rains) {
+    /**
+     * Water spilling over the lip of a one- or two-block step: a sheet across the whole width of the edge, on the face
+     * of the step, from the upper surface down to the lower one.
+     */
+    private void buildSheets(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, boolean[] rains) {
         if (!ClientConfig.RIVULETS.get() || !ClientConfig.quality().rivulets) {
-            chunk.rivuletQuads = 0;
-            chunk.rivulets = upload(chunk.rivulets, null);
+            chunk.sheetQuads = 0;
+            chunk.sheets = upload(chunk.sheets, null);
             return;
         }
         int originX = chunk.chunkX << 4;
         int originZ = chunk.chunkZ << 4;
-        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
         int quads = 0;
         for (int lz = 0; lz < 16; lz++) {
             for (int lx = 0; lx < 16; lx++) {
-                int c = lz * 16 + lx;
-                if (!rains[c]) {
+                if (!rains[lz * 16 + lx]) {
                     continue;
                 }
                 int gx = lx + MARGIN;
                 int gz = lz + MARGIN;
                 int i = grid.index(gx, gz);
-                if (grid.kind[i] != SurfaceKind.GROUND) {
+                int j = runoff.downstream[i];
+                SurfaceKind kind = grid.kind[i];
+                if (j < 0 || runoff.drop[i] < 1 || runoff.drop[i] > 2 || runoff.accumulation[i] < MIN_FLOW
+                        || kind == SurfaceKind.LEAVES || kind == SurfaceKind.WATER || kind == SurfaceKind.HOT) {
                     continue;
                 }
+                int dirX = (j % grid.size) - gx;
+                int dirZ = (j / grid.size) - gz;
+                float topY = grid.top[i];
+                float bottomY = grid.known(j) ? grid.top[j] : topY - runoff.drop[i];
                 pos.set(originX + lx, grid.height[i], originZ + lz);
                 int light = LevelRenderer.getLightColor(level, pos);
-                float tintR = grid.soil[i] ? 0.5F : 0.45F;
-                float tintG = grid.soil[i] ? 0.42F : 0.5F;
-                float tintB = grid.soil[i] ? 0.32F : 0.58F;
-                float y = grid.top[i] + RIVULET_LIFT;
-                float cx = lx + 0.5F;
-                float cz = lz + 0.5F;
-                if (flows(grid, runoff, i)) {
-                    int j = runoff.downstream[i];
-                    float dirX = (j % grid.size) - gx;
-                    float dirZ = (j / grid.size) - gz;
-                    int flow = runoff.accumulation[i];
-                    float w = ribbonWidth(flow);
-                    float s = ribbonStrength(flow);
-                    float ex = cx + dirX * 0.5F;
-                    float ez = cz + dirZ * 0.5F;
-                    flat(builder, cx, y, cz, ex, ez, w, 0.0F, 0.5F, tintR, tintG, tintB, s, light);
-                    quads++;
-                    if (runoff.drop[i] == 1) {
-                        float bottom = grid.known(j) ? grid.top[j] + RIVULET_LIFT : y - 1.0F;
-                        wall(builder, ex + dirX * 0.008F, ez + dirZ * 0.008F, dirX, dirZ, y, bottom, w, 0.5F, tintR, tintG, tintB, s,
-                                light);
-                        quads++;
-                    }
-                }
-                for (int d = 0; d < 4; d++) {
-                    int ux = gx + (d == 0 ? 1 : d == 1 ? -1 : 0);
-                    int uz = gz + (d == 2 ? 1 : d == 3 ? -1 : 0);
-                    if (ux < 0 || uz < 0 || ux >= grid.size || uz >= grid.size) {
-                        continue;
-                    }
-                    int u = grid.index(ux, uz);
-                    if (runoff.downstream[u] != i || !flows(grid, runoff, u)) {
-                        continue;
-                    }
-                    int flow = runoff.accumulation[u];
-                    float sx = cx + (ux - gx) * 0.5F;
-                    float sz = cz + (uz - gz) * 0.5F;
-                    flat(builder, sx, y, sz, cx, cz, ribbonWidth(flow), -0.5F, 0.0F, tintR, tintG, tintB, ribbonStrength(flow), light);
-                    quads++;
-                }
+                float strength = Math.clamp(0.3F + 0.12F * log2(runoff.accumulation[i]), 0.3F, 1.0F);
+                // The face between the two cells, pushed a hair out towards the lower one.
+                float fx = lx + 0.5F + dirX * 0.506F;
+                float fz = lz + 0.5F + dirZ * 0.506F;
+                float ax = fx - dirZ * 0.5F;
+                float az = fz + dirX * 0.5F;
+                float bx = fx + dirZ * 0.5F;
+                float bz = fz - dirX * 0.5F;
+                // Along-edge texture coordinate in world blocks, so neighbouring sheets continue each other.
+                float ua = dirX != 0 ? Math.floorMod(originZ, 64) + az : Math.floorMod(originX, 64) + ax;
+                float ub = dirX != 0 ? Math.floorMod(originZ, 64) + bz : Math.floorMod(originX, 64) + bx;
+                sheetVertex(builder, ax, topY, az, ua, 0.0F, strength, light, dirX, dirZ);
+                sheetVertex(builder, bx, topY, bz, ub, 0.0F, strength, light, dirX, dirZ);
+                sheetVertex(builder, bx, bottomY, bz, ub, 1.0F, strength, light, dirX, dirZ);
+                sheetVertex(builder, ax, bottomY, az, ua, 1.0F, strength, light, dirX, dirZ);
+                quads++;
             }
         }
-        chunk.rivuletQuads = quads;
-        chunk.rivulets = upload(chunk.rivulets, builder.build());
+        chunk.sheetQuads = quads;
+        chunk.sheets = upload(chunk.sheets, builder.build());
     }
 
-    /** A horizontal ribbon from A to B. */
-    private static void flat(BufferBuilder out, float ax, float y, float az, float bx, float bz, float width, float v0, float v1,
-            float r, float g, float b, float a, int light) {
-        float dx = bx - ax;
-        float dz = bz - az;
-        float len = Mth.sqrt(dx * dx + dz * dz);
-        if (len < 1.0E-4F) {
-            return;
-        }
-        float sx = -dz / len * width * 0.5F;
-        float sz = dx / len * width * 0.5F;
-        out.addVertex(ax - sx, y, az - sz).setUv(-1.0F, v0).setColor(r, g, b, a).setLight(light);
-        out.addVertex(ax + sx, y, az + sz).setUv(1.0F, v0).setColor(r, g, b, a).setLight(light);
-        out.addVertex(bx + sx, y, bz + sz).setUv(1.0F, v1).setColor(r, g, b, a).setLight(light);
-        out.addVertex(bx - sx, y, bz - sz).setUv(-1.0F, v1).setColor(r, g, b, a).setLight(light);
-    }
-
-    /** A vertical ribbon running down the face of a one-block step. */
-    private static void wall(BufferBuilder out, float x, float z, float dirX, float dirZ, float topY, float bottomY, float width,
-            float v0, float r, float g, float b, float a, int light) {
-        float sx = -dirZ * width * 0.5F;
-        float sz = dirX * width * 0.5F;
-        float v1 = v0 + (topY - bottomY);
-        out.addVertex(x - sx, topY, z - sz).setUv(-1.0F, v0).setColor(r, g, b, a).setLight(light);
-        out.addVertex(x + sx, topY, z + sz).setUv(1.0F, v0).setColor(r, g, b, a).setLight(light);
-        out.addVertex(x + sx, bottomY, z + sz).setUv(1.0F, v1).setColor(r, g, b, a).setLight(light);
-        out.addVertex(x - sx, bottomY, z - sz).setUv(-1.0F, v1).setColor(r, g, b, a).setLight(light);
+    private static void sheetVertex(BufferBuilder out, float x, float y, float z, float u, float v, float strength, int light, int dirX,
+            int dirZ) {
+        out.addVertex(x, y, z).setColor(0.5F, 0.55F, 0.6F, strength).setUv(u, v).setLight(light).setNormal(dirX, 0.0F, dirZ);
     }
 
     private static List<Emitter> findEmitters(ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, boolean[] rains) {
@@ -456,7 +477,9 @@ public final class Puddles implements AutoCloseable {
                 int gz = lz + MARGIN;
                 int i = grid.index(gx, gz);
                 int j = runoff.downstream[i];
-                if (j < 0 || runoff.drop[i] < 2 || grid.kind[i] == SurfaceKind.WATER || grid.kind[i] == SurfaceKind.HOT) {
+                // Canopies drip through their leaves (FxSpawner.leafDrips), not off their rims.
+                if (j < 0 || runoff.drop[i] < 2 || grid.kind[i] == SurfaceKind.WATER || grid.kind[i] == SurfaceKind.HOT
+                        || grid.kind[i] == SurfaceKind.LEAVES) {
                     continue;
                 }
                 float dirX = (j % grid.size) - gx;
@@ -510,6 +533,16 @@ public final class Puddles implements AutoCloseable {
         return PuddleField.cover(chunk.field[c], ClientWeather.wetness(), (float) (double) ClientConfig.PUDDLE_COVERAGE.get());
     }
 
+    /** What the puddle system knows about one column, for the debug screen. */
+    public String describe(int x, int z) {
+        ChunkPuddles chunk = chunks.get(ChunkPos.asLong(x >> 4, z >> 4));
+        if (chunk == null) {
+            return "no puddle data";
+        }
+        int c = (z & 15) * 16 + (x & 15);
+        return String.format("ground %s, field %.2f, top %.2f", chunk.ground[c], chunk.field[c], chunk.top[c]);
+    }
+
     /** Emitters of the chunks within {@code radius} blocks. */
     public void emittersNear(double x, double z, int radius, List<Emitter> out) {
         int cx0 = Mth.floor(x - radius) >> 4;
@@ -541,6 +574,14 @@ public final class Puddles implements AutoCloseable {
         float time = (float) ((level.getGameTime() % 72000L + partialTick) / 20.0);
         float wetness = ClientWeather.wetness();
         float intensity = ClientWeather.intensity();
+        float flow = Wetness.runoff(wetness, intensity);
+        int steps = ClientConfig.quality().reflectionSteps;
+
+        ShaderInstance puddle = PetrichorShaders.puddle();
+        boolean drawPuddles = puddle != null && ClientConfig.PUDDLES.get() && wetness > 0.002F;
+        if (drawPuddles && steps > 0) {
+            captureScene(minecraft.getMainRenderTarget());
+        }
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
@@ -551,12 +592,18 @@ public final class Puddles implements AutoCloseable {
         RenderSystem.polygonOffset(-1.0F, -10.0F);
         lightTexture.turnOnLightLayer();
 
-        ShaderInstance puddle = PetrichorShaders.puddle();
-        if (puddle != null && ClientConfig.PUDDLES.get() && wetness > 0.002F) {
+        if (drawPuddles) {
             puddle.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, minecraft.getWindow());
+            if (scene != null) {
+                puddle.setSampler("SceneColor", scene.getColorTextureId());
+                puddle.setSampler("SceneDepth", scene.getDepthTextureId());
+            }
+            puddle.safeGetUniform("InvProjMat").set(new Matrix4f(projection).invert());
+            puddle.safeGetUniform("SsrSteps").set(scene != null ? (float) steps : 0.0F);
             puddle.safeGetUniform("Wetness").set(wetness);
             puddle.safeGetUniform("Coverage").set((float) (double) ClientConfig.PUDDLE_COVERAGE.get());
             puddle.safeGetUniform("RainAmount").set(Math.min(1.0F, intensity * (0.2F + ClientWeather.density * 0.4F)));
+            puddle.safeGetUniform("Flow").set(ClientConfig.RIVULETS.get() ? flow : 0.0F);
             puddle.safeGetUniform("PetrichorTime").set(time);
             puddle.safeGetUniform("SkyColor").set((float) sky.x, (float) sky.y, (float) sky.z);
             puddle.apply();
@@ -565,18 +612,18 @@ public final class Puddles implements AutoCloseable {
             }
             puddle.clear();
         }
-        float flow = Wetness.runoff(wetness, intensity);
-        ShaderInstance rivulet = PetrichorShaders.rivulet();
-        if (rivulet != null && flow > 0.01F) {
-            rivulet.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, minecraft.getWindow());
-            rivulet.safeGetUniform("Flow").set(flow);
-            rivulet.safeGetUniform("PetrichorTime").set(time);
-            rivulet.safeGetUniform("SkyColor").set((float) sky.x, (float) sky.y, (float) sky.z);
-            rivulet.apply();
+        ShaderInstance sheet = PetrichorShaders.sheet();
+        if (sheet != null && flow > 0.01F) {
+            RenderSystem.polygonOffset(-1.0F, -4.0F);
+            sheet.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, minecraft.getWindow());
+            sheet.safeGetUniform("Flow").set(flow);
+            sheet.safeGetUniform("PetrichorTime").set(time);
+            sheet.safeGetUniform("SkyColor").set((float) sky.x, (float) sky.y, (float) sky.z);
+            sheet.apply();
             for (ChunkPuddles chunk : chunks.values()) {
-                lastQuads += draw(chunk, chunk.rivulets, chunk.rivuletQuads, rivulet.CHUNK_OFFSET, cam, frustum);
+                lastQuads += draw(chunk, chunk.sheets, chunk.sheetQuads, sheet.CHUNK_OFFSET, cam, frustum);
             }
-            rivulet.clear();
+            sheet.clear();
         }
         VertexBuffer.unbind();
 
@@ -586,6 +633,22 @@ public final class Puddles implements AutoCloseable {
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
         RenderSystem.disableBlend();
+    }
+
+    /** Copies colour and depth of what is drawn so far, for the reflections in the puddles. */
+    private void captureScene(RenderTarget main) {
+        if (scene == null) {
+            scene = new TextureTarget(main.width, main.height, true, Minecraft.ON_OSX);
+            scene.setFilterMode(GL11.GL_LINEAR);
+        } else if (scene.width != main.width || scene.height != main.height) {
+            scene.resize(main.width, main.height, Minecraft.ON_OSX);
+            scene.setFilterMode(GL11.GL_LINEAR);
+        }
+        GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, main.frameBufferId);
+        GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, scene.frameBufferId);
+        GlStateManager._glBlitFrameBuffer(0, 0, main.width, main.height, 0, 0, scene.width, scene.height,
+                GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+        main.bindWrite(false);
     }
 
     private static int draw(ChunkPuddles chunk, VertexBuffer buffer, int quads, Uniform offset, Vec3 cam, Frustum frustum) {

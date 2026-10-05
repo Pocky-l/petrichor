@@ -1,6 +1,6 @@
 {
-    "vertex": "petrichor:petrichor_rivulet",
-    "fragment": "petrichor:petrichor_rivulet",
+    "vertex": "petrichor:petrichor_sheet",
+    "fragment": "petrichor:petrichor_sheet",
     "samplers": [
         {
             "name": "Sampler2"

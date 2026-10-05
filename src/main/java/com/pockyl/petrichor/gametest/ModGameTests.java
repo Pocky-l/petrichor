@@ -156,6 +156,34 @@ public final class ModGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void wideHollowFills(GameTestHelper helper) {
+        SurfaceGrid grid = flatGrid(13, 64);
+        for (int z = 4; z <= 8; z++) {
+            for (int x = 4; x <= 8; x++) {
+                grid.set(x, z, 63, 63.0F, SurfaceKind.GROUND, true);
+            }
+        }
+        RunoffSolver runoff = RunoffSolver.solve(grid);
+        float[] field = PuddleField.compute(grid, runoff);
+        for (int z = 4; z <= 8; z++) {
+            for (int x = 4; x <= 8; x++) {
+                int i = grid.index(x, z);
+                helper.assertTrue(runoff.closed[i], "Pit cell " + x + "," + z + " is closed");
+                helper.assertTrue(field[i] > 0.5F, "Pit cell " + x + "," + z + " field " + field[i]);
+            }
+        }
+        // A deeper spot inside the pit must not drain the rest of it: the pit still fills to its brim.
+        grid.set(6, 6, 62, 62.0F, SurfaceKind.GROUND, true);
+        runoff = RunoffSolver.solve(grid);
+        field = PuddleField.compute(grid, runoff);
+        helper.assertTrue(runoff.depth[grid.index(4, 4)] == 1, "Pit corner lies a block under the brim");
+        helper.assertTrue(runoff.depth[grid.index(6, 6)] == 2, "The deeper spot two blocks");
+        helper.assertTrue(runoff.depth[grid.index(1, 1)] == 0, "Open ground is not under water");
+        helper.assertTrue(field[grid.index(5, 4)] > 0.5F, "The pit around the deeper spot still fills, " + field[grid.index(5, 4)]);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void runoffFlowsDownhill(GameTestHelper helper) {
         // A staircase falling to the east: columns x=0..2 at 70, 3..5 at 69, 6..8 at 68.
         SurfaceGrid grid = new SurfaceGrid(0, 0, 9);
