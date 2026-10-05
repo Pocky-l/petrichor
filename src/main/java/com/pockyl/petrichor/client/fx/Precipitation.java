@@ -24,6 +24,7 @@ public final class Precipitation {
     private static final int SEED_X = 0x0D20_0002;
     private static final int SEED_Z = 0x0D20_0003;
     private static final int SEED_COUNT = 0x0D20_0004;
+    private static final int SEED_VARY = 0x0D20_0005;
     private static final float SNOW_SPEED = 0.055F;
 
     private int lastDrops;
@@ -35,20 +36,24 @@ public final class Precipitation {
     /**
      * @param time game ticks with the partial tick
      */
-    public void render(VertexConsumer out, Columns columns, double camX, double camY, double camZ, double time, Vector3f left, Vector3f up,
-            float[] fog) {
+    /**
+     * @param rain drops, drawn with additive blending: rain is light caught in water, it brightens what is behind it
+     * @param flakes snowflakes, drawn with normal blending
+     */
+    public void render(VertexConsumer rain, VertexConsumer flakes, Columns columns, double camX, double camY, double camZ, double time,
+            Vector3f left, Vector3f up, float[] fog) {
         ClientConfig.Quality quality = ClientConfig.quality();
         int radius = quality.rainRadius;
-        float rain = ClientWeather.rain();
+        float rainLevel = ClientWeather.rain();
         float intensity = ClientWeather.intensity();
-        if (rain <= 0.0F) {
+        if (rainLevel <= 0.0F) {
             lastDrops = 0;
             return;
         }
         float budget = (float) (quality.maxDrops * ClientConfig.RAIN_DENSITY.get());
         float perColumn = budget / (Mth.PI * radius * radius * MAX_TYPE_DENSITY);
         float rainExpected = perColumn * ClientWeather.density * Math.min(intensity, 1.6F);
-        float snowExpected = perColumn * 0.8F * Math.min(rain, 1.0F);
+        float snowExpected = perColumn * 0.8F * Math.min(rainLevel, 1.0F);
         float wind = (float) (double) ClientConfig.WIND.get();
         float fall = ClientWeather.fallSpeed;
         float windX = ClientWeather.windX() * wind;
@@ -64,12 +69,12 @@ public final class Precipitation {
         float bands = ClientWeather.gustiness * 0.55F;
         float length = ClientWeather.streakLength;
         float width = ClientWeather.streakWidth;
-        float baseAlpha = ClientWeather.alpha * Math.min(1.0F, 0.35F + rain * 0.65F);
+        float baseAlpha = ClientWeather.alpha * Math.min(1.0F, 0.35F + rainLevel * 0.65F);
         double anchor = Math.floor(camY / 16.0) * 16.0 - 16.0;
         // Drops take the colour of the light around them: a little brighter than the haze.
-        float dropR = Math.min(1.0F, fog[0] * 0.6F + 0.42F);
-        float dropG = Math.min(1.0F, fog[1] * 0.6F + 0.45F);
-        float dropB = Math.min(1.0F, fog[2] * 0.6F + 0.5F);
+        float dropR = Math.min(1.0F, fog[0] * 0.5F + 0.36F);
+        float dropG = Math.min(1.0F, fog[1] * 0.5F + 0.39F);
+        float dropB = Math.min(1.0F, fog[2] * 0.5F + 0.44F);
         double rainShift = time * fall;
         double snowShift = time * SNOW_SPEED;
         int ccx = Mth.floor(camX);
@@ -111,7 +116,9 @@ public final class Precipitation {
                 n = Math.min(n, 12);
                 for (int i = 0; i < n; i++) {
                     float phase = Noise.unit(cx, cz, i, SEED_PHASE);
-                    double shift = snow ? snowShift : rainShift;
+                    // Every drop a little different: size, and with it speed, length and brightness.
+                    float vary = Noise.unit(cx, cz, i, SEED_VARY);
+                    double shift = snow ? snowShift : rainShift * (0.9 + vary * 0.2);
                     double fallen = (shift + phase * CYCLE) % CYCLE;
                     double y = anchor + CYCLE - fallen;
                     float jx = Noise.unit(cx, cz, i, SEED_X);
@@ -145,14 +152,20 @@ public final class Precipitation {
                     if (snow) {
                         float a = 0.85F * edgeFade * window * near;
                         float half = 0.035F + jx * 0.03F;
-                        snowflake(out, hx, hy, hz, half, a, light, left, up);
+                        snowflake(flakes, hx, hy, hz, half, a, light, left, up);
                     } else {
-                        // Drops close to the eye are seen larger and blurred; far ones keep at least a pixel of width.
-                        float close = Math.clamp(1.0F - (d - 1.5F) / 5.0F, 0.0F, 1.0F);
-                        float w = Math.max(width * 2.2F * (1.0F + close * 1.2F), d * 0.0045F);
-                        float a = Math.min(0.9F, baseAlpha * 1.6F * edgeFade * window * near * Mth.sqrt(width / w) * (1.0F + close * 0.6F));
-                        Streaks.streak(out, hx, hy, hz, slantX, -1.0F, slantZ, length * (0.8F + jz * 0.4F) * (1.0F + close * 0.5F), w,
-                                FxAtlas.STREAK, a, 0.0F, light, dropR, dropG, dropB);
+                        // Close drops are big; the closest ones are out of focus - wide, long and faint.
+                        float close = Math.clamp(1.0F - (d - 1.0F) / 4.0F, 0.0F, 1.0F);
+                        float blur = Math.clamp(1.0F - (d - 0.6F) / 1.8F, 0.0F, 1.0F);
+                        float size = 0.75F + vary * 0.5F;
+                        float w = Math.max(width * 2.0F * size * (1.0F + close * 0.8F + blur * 2.5F), d * 0.004F);
+                        float len = length * (0.6F + vary * 0.8F) * (1.0F + close * 0.4F + blur * 0.6F);
+                        float sparkle = 0.55F + jz * 0.45F;
+                        float a = Math.min(0.85F, baseAlpha * 1.05F * sparkle * edgeFade * window * near * Mth.sqrt(width * 2.0F / w)
+                                * (1.0F - blur * 0.55F));
+                        float tilt = 1.0F + (vary - 0.5F) * 0.2F;
+                        Streaks.streak(rain, hx, hy, hz, slantX * tilt, -1.0F, slantZ * tilt, len, w, FxAtlas.STREAK, a, a, light, dropR,
+                                dropG, dropB);
                     }
                     drops++;
                 }

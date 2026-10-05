@@ -1,8 +1,10 @@
 package com.pockyl.petrichor.client;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
@@ -55,6 +57,7 @@ public final class WeatherClient {
     private static final FxSpawner SPAWNER = new FxSpawner();
     private static final Lightning LIGHTNING = new Lightning();
     private static Puddles puddles;
+    private static ByteBufferBuilder rainBytes;
     private static int ticks;
 
     private WeatherClient() {
@@ -62,6 +65,13 @@ public final class WeatherClient {
 
     private static boolean ourSky(ClientLevel level) {
         return level != null && level.effects() instanceof PetrichorEffects;
+    }
+
+    private static ByteBufferBuilder rainBuffer() {
+        if (rainBytes == null) {
+            rainBytes = new ByteBufferBuilder(1 << 20);
+        }
+        return rainBytes;
     }
 
     private static Puddles puddles() {
@@ -191,12 +201,21 @@ public final class WeatherClient {
 
         float[] fog = RenderSystem.getShaderFogColor();
         double time = level.getGameTime() + (double) partialTick;
+        // Two passes: drops add light (rain glints, it never darkens), flakes and effects blend normally.
+        ByteBufferBuilder rainBytes = rainBuffer();
+        BufferBuilder drops = new BufferBuilder(rainBytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        PRECIPITATION.render(builder, COLUMNS, camX, camY, camZ, time, left, up, fog);
+        PRECIPITATION.render(drops, builder, COLUMNS, camX, camY, camZ, time, left, up, fog);
         FX.render(builder, camX, camY, camZ, partialTick, left, up);
         MeshData mesh = builder.build();
         if (mesh != null) {
             BufferUploader.drawWithShader(mesh);
+        }
+        MeshData dropMesh = drops.build();
+        if (dropMesh != null) {
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            BufferUploader.drawWithShader(dropMesh);
+            RenderSystem.defaultBlendFunc();
         }
 
         ShaderInstance veil = PetrichorShaders.veil();

@@ -104,9 +104,12 @@ def flake():
 
 
 def streak():
+    """A falling drop smeared by the exposure: thin, tapering towards the tail (top), a brighter head (bottom)."""
     x, y = grid()
-    across = np.exp(-((x - 0.5) ** 2) / (2 * 0.16 ** 2))
-    return np.clip(across, 0, 1)
+    across = np.exp(-((x - 0.5) ** 2) / (2 * 0.12 ** 2))
+    along = np.clip(y, 0, 1) ** 1.4 * (1 - np.clip((y - 0.9) / 0.1, 0, 1) ** 2)
+    head = np.exp(-((y - 0.86) ** 2) / (2 * 0.04 ** 2)) * np.exp(-((x - 0.5) ** 2) / (2 * 0.08 ** 2)) * 0.5
+    return np.clip(across * along + head, 0, 1)
 
 
 def drip():
