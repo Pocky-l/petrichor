@@ -137,18 +137,16 @@ void main() {
     float field = vertexColor.a + (detail - 0.5) * 0.34;
     float threshold = 1.05 - Wetness * 0.62 * Coverage;
     float aa = max(fwidth(field) * 1.2, 0.004);
-    // Under eaves and crowns the ground is less and less wet; the edge of the dry patch is ragged, never a straight line.
+    // How wet this spot is relative to open ground (sheltered, freshly placed or drying). Partly wet ground is wet in
+    // patches with ragged edges, never along a straight line.
     float edgeNoise = petrichor_noise(worldUv * 2.0 + 17.0, 512.0) * 0.6 + petrichor_noise(worldUv * 6.0, 1536.0) * 0.4;
     float exposure = vertexColor.g;
     float ragged = exposure + (edgeNoise - 0.5) * 0.7 * (1.0 - exposure * exposure);
     float open = smoothstep(0.0, 0.9, ragged);
     open = open * open * (3.0 - 2.0 * open);
-    // A surface that just appeared soaks in patches: the dry part shrinks as vertexColor.b falls from 1 to 0.
-    float fresh = vertexColor.b;
-    float soaked = fresh <= 0.0 ? 1.0 : smoothstep(fresh - 0.12, fresh + 0.12, edgeNoise * 0.85 + 0.075);
-    float puddle = smoothstep(threshold - aa, threshold + aa, field) * smoothstep(0.55, 0.95, exposure) * soaked * soaked;
+    float puddle = smoothstep(threshold - aa, threshold + aa, field) * smoothstep(0.6, 0.98, ragged);
     float margin = smoothstep(threshold - 0.16, threshold, field) * (1.0 - puddle);
-    float wet = clamp(Wetness * 1.5, 0.0, 1.0) * open * soaked;
+    float wet = clamp(Wetness * 1.5, 0.0, 1.0) * open;
 
     // Surface normal: rain rings on puddles, running water on slopes, fine grain on wet ground.
     vec2 slope = vec2(0.0);

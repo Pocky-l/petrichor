@@ -19,7 +19,7 @@ import com.pockyl.petrichor.weather.Noise;
  */
 public final class Precipitation {
     private static final int CYCLE = 48;
-    private static final float MAX_TYPE_DENSITY = 2.4F;
+    private static final float MAX_TYPE_DENSITY = 2.6F;
     private static final int SEED_PHASE = 0x0D20_0001;
     private static final int SEED_X = 0x0D20_0002;
     private static final int SEED_Z = 0x0D20_0003;
@@ -158,7 +158,9 @@ public final class Precipitation {
                         float close = Math.clamp(1.0F - (d - 1.0F) / 4.0F, 0.0F, 1.0F);
                         float blur = Math.clamp(1.0F - (d - 0.6F) / 1.8F, 0.0F, 1.0F);
                         float size = 0.75F + vary * 0.5F;
-                        float w = Math.max(width * 2.0F * size * (1.0F + close * 0.8F + blur * 2.5F), d * 0.004F);
+                        // Far drops keep about a pixel of width - less for the fine drops of a drizzle.
+                        float w = Math.max(width * 2.0F * size * (1.0F + close * 0.8F + blur * 2.5F),
+                                d * 0.004F * Math.min(1.0F, width / 0.016F));
                         float len = length * (0.6F + vary * 0.8F) * (1.0F + close * 0.4F + blur * 0.6F);
                         float sparkle = 0.55F + jz * 0.45F;
                         float a = Math.min(0.9F, baseAlpha * 1.3F * sparkle * edgeFade * window * near * Mth.sqrt(width * 2.0F / w)

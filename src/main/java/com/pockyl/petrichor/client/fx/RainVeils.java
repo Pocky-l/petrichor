@@ -37,7 +37,9 @@ public final class RainVeils {
         if (rain <= 0.0F || columns.precipitation(Mth.floor(camX), Mth.floor(camZ)) == Columns.SNOW) {
             return;
         }
-        float strength = Math.min(1.2F, ClientWeather.intensity()) * Math.min(1.0F, 0.25F + ClientWeather.density * 0.4F);
+        // Curtains belong to heavy rain: hardly any in a drizzle, dense ones in a downpour.
+        float heaviness = Math.clamp((ClientWeather.density - 0.5F) / 2.1F, 0.0F, 1.0F);
+        float strength = Math.min(1.2F, ClientWeather.intensity()) * heaviness * heaviness * 1.3F;
         float fall = ClientWeather.fallSpeed * 20.0F;
         float windX = ClientWeather.windX();
         float windZ = ClientWeather.windZ();
