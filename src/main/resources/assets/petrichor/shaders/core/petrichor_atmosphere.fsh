@@ -24,7 +24,6 @@ uniform float Gloom;
 uniform float Shafts;
 uniform float Glow;
 uniform float Flash;
-uniform float CloudY;
 uniform vec3 SunDir;
 uniform vec4 FogColor;
 
@@ -33,6 +32,8 @@ in vec2 ndc;
 out vec4 fragColor;
 
 const float PERIOD = 65536.0;
+/** Height of the overcast deck above the camera, in blocks: far above the block clouds, like real rain clouds. */
+const float DECK = 1200.0;
 
 float fbm(vec2 p) {
     float sum = 0.0;
@@ -56,17 +57,22 @@ float opticalDepth(vec3 dir, float dist) {
     return Haze * (0.35 * d + 0.65 * exp(-Falloff * h0) * along);
 }
 
-// Heavier and lighter rain drifting with the wind, sampled where the ray crosses it.
+// Heavier and lighter showers far away, drifting slowly with the wind, sampled where the ray crosses them. Only the
+// distance along the land is affected: the air overhead and close by stays calm, so nothing visibly races past.
 float showers(vec3 dir, float dist) {
-    float span = min(max(dist - 6.0, 0.0), 900.0);
+    float weight = smoothstep(50.0, 180.0, dist) * (1.0 - smoothstep(0.06, 0.3, abs(dir.y))) * Shafts;
+    if (weight <= 0.0) {
+        return 1.0;
+    }
+    float span = min(dist, 900.0);
     float sum = 0.0;
     for (int i = 0; i < 4; i++) {
-        float t = 6.0 + span * (0.2 + 0.2 * float(i));
-        vec2 p = CameraPos.xz + dir.xz * t - Wind * PetrichorTime;
-        sum += fbm(p / 260.0);
+        float t = span * (0.4 + 0.2 * float(i));
+        vec2 p = CameraPos.xz + dir.xz * t - Wind * PetrichorTime * 0.35;
+        sum += fbm(p / 320.0);
     }
     float n = smoothstep(0.3, 0.72, sum / 4.0);
-    return mix(1.0, 0.35 + 1.4 * n, Shafts);
+    return mix(1.0, 0.45 + 1.2 * n, weight);
 }
 
 void main() {
@@ -102,24 +108,23 @@ void main() {
     vec3 color = haze;
     vec2 around = normalize(dir.xz + vec2(1.0e-5));
     if (dir.y > 0.0) {
-        // The cloud deck: broad dark rolls and finer texture, drifting with the wind.
-        float t = (CloudY - CameraPos.y) / max(dir.y, 0.015);
-        vec2 p = CameraPos.xz + dir.xz * t - Wind * PetrichorTime * 1.6;
-        float broad = fbm(p / 900.0);
-        float fine = fbm(p / 210.0 + 3.7);
-        float rolls = smoothstep(0.28, 0.78, broad * 0.7 + fine * 0.3);
-        vec3 dark = base * (0.58 - 0.28 * Gloom);
-        vec3 light = base * 1.06 + 0.025;
+        // The cloud deck, as high and as slow as real rain clouds: it is projected onto a plane far above (not the
+        // block clouds' height), so overhead it barely drifts and towards the horizon it closes up.
+        float t = DECK / max(dir.y, 0.03);
+        vec2 p = dir.xz * t - Wind * PetrichorTime * 0.12;
+        float broad = fbm(p / 2600.0);
+        float fine = fbm(p / 800.0 + 3.7);
+        float rolls = smoothstep(0.28, 0.78, broad * 0.75 + fine * 0.25);
+        vec3 dark = base * (0.6 - 0.26 * Gloom);
+        vec3 light = base * 1.05 + 0.02;
         vec3 cloud = mix(dark, light, rolls);
         cloud += Flash * vec3(0.55, 0.6, 0.75) * (0.4 + 0.6 * rolls);
-        // Far parts of the deck sink into the haze.
-        float visible = exp(-t * Haze * 0.35) * smoothstep(0.0, 0.1, dir.y);
-        color = mix(haze, cloud, clamp(visible, 0.0, 1.0));
+        // Towards the horizon the deck sinks into the haze.
+        color = mix(haze, cloud, smoothstep(0.03, 0.35, dir.y));
     }
-    // Rain shafts hanging from the clouds down to the horizon, streaked by the falling rain.
-    float shaft = smoothstep(0.42, 0.72, fbm(around * 3.5 + vec2(PetrichorTime * 0.004, 0.0) + Wind * PetrichorTime * 0.0005));
-    float streak = 0.82 + 0.18 * petrichor_noise(around * 240.0 + vec2(0.0, dir.y * 30.0 - PetrichorTime * 0.6), PERIOD);
-    float band = 1.0 - smoothstep(-0.02, 0.24, dir.y);
-    color = mix(color, base * 0.74 * streak, shaft * band * Shafts * 0.65);
+    // Rain shafts hanging from the clouds down to the horizon: soft, wide and slow, a background, not a pattern.
+    float shaft = smoothstep(0.45, 0.75, fbm(around * 2.2 + vec2(PetrichorTime * 0.0015, 7.3)));
+    float band = (1.0 - smoothstep(0.0, 0.2, dir.y)) * smoothstep(-0.08, 0.0, dir.y);
+    color = mix(color, base * 0.8, shaft * band * Shafts * 0.45);
     fragColor = vec4(color, Overcast * Strength);
 }

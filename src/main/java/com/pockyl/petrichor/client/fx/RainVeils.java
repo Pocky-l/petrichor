@@ -12,12 +12,13 @@ import com.pockyl.petrichor.client.Columns;
 /**
  * Curtains of rain in the distance: rings of tall sheets around the camera, textured with falling streaks, at several
  * distances so they overlap in depth and dissolve into the haze. Their density swells and fades in bands that travel
- * with the wind - the sheets of a storm sweeping across a field. Far curtains have coarser streaks and reach up towards
- * the clouds. Terrain in front hides them through the depth test.
+ * with the wind - the sheets of a storm sweeping across a field. Beyond the last ring the atmosphere takes over with
+ * soft showers: textured curtains far away read as a wall, not as rain. Terrain in front hides them through the depth
+ * test.
  */
 public final class RainVeils {
     public static final ResourceLocation TEXTURE = Petrichor.id("textures/fx/rain_sheet.png");
-    private static final float[] RADII = {16.0F, 24.0F, 34.0F, 48.0F, 68.0F, 96.0F, 136.0F};
+    private static final float[] RADII = {11.0F, 16.0F, 24.0F, 34.0F, 48.0F, 68.0F};
     private static final int SEGMENTS = 56;
     /** Blocks covered by one width / height of the texture next to the camera; far rings use coarser streaks. */
     private static final float TILE_WIDTH = 7.0F;
@@ -31,7 +32,7 @@ public final class RainVeils {
     /**
      * @param fog    current fog colour; the curtains are a little lighter than the haze
      * @param time   game ticks with the partial tick
-     * @param haze   haze per block of the atmosphere, 0 when it is off (then the vanilla fog end limits the rings)
+     * @param haze   haze per block of the atmosphere, 0 when it is off
      */
     public static void render(VertexConsumer out, Columns columns, double camX, double camY, double camZ, double time, float[] fog,
             float fogEnd, float haze) {
@@ -39,9 +40,8 @@ public final class RainVeils {
         if (rain <= 0.0F || columns.precipitation(Mth.floor(camX), Mth.floor(camZ)) == Columns.SNOW) {
             return;
         }
-        // Curtains belong to heavy rain: hardly any in a drizzle, dense ones in a downpour.
-        float heaviness = Math.clamp((ClientWeather.density - 0.5F) / 2.1F, 0.0F, 1.0F);
-        float strength = Math.min(1.2F, ClientWeather.intensity()) * heaviness * heaviness * 1.3F;
+        // Every rain fills the middle distance: faintly in a drizzle, as a grey veil in rain, in dense sheets in a downpour.
+        float strength = Math.min(1.2F, ClientWeather.intensity()) * (0.12F + 0.88F * ClientWeather.heaviness) * 1.15F;
         if (strength <= 0.001F) {
             return;
         }
@@ -60,7 +60,7 @@ public final class RainVeils {
         int light = LightTexture.pack(0, 15);
         float bottom = -BELOW;
         float middle = 6.0F;
-        float limit = haze > 0.0F ? Float.MAX_VALUE : fogEnd * 1.1F;
+        float limit = fogEnd * 1.1F;
         for (int ring = 0; ring < RADII.length; ring++) {
             float radius = RADII[ring];
             if (radius > limit) {
@@ -68,15 +68,16 @@ public final class RainVeils {
             }
             // A curtain stands in the haze like the land behind it: further ones are paler and fainter.
             float hazed = haze > 0.0F ? 1.0F - (float) Math.exp(-haze * radius) : 0.0F;
-            float ringAlpha = strength * 0.09F * (1.0F - hazed * 0.55F);
+            // The outermost ring fades out, so the curtains end softly in the haze.
+            float edge = ring == RADII.length - 1 ? 0.5F : 1.0F;
+            float ringAlpha = strength * 0.09F * (1.0F - hazed * 0.55F) * edge;
             float r = Mth.lerp(hazed * 0.6F, lightR, fog[0]);
             float g = Mth.lerp(hazed * 0.6F, lightG, fog[1]);
             float b = Mth.lerp(hazed * 0.6F, lightB, fog[2]);
-            float coarse = 1.0F + radius / 60.0F;
+            float coarse = 1.0F + radius / 120.0F;
             float tileWidth = TILE_WIDTH * coarse;
             float tileHeight = TILE_HEIGHT * coarse;
-            // Far curtains hang from higher up: the rain is seen falling from the clouds.
-            float top = ABOVE + radius * 0.45F;
+            float top = ABOVE + radius * 0.15F;
             float scroll = seconds * fall / tileHeight * (0.9F + ring * 0.04F) + ring * 0.37F;
             float circumference = Mth.TWO_PI * radius;
             for (int s = 0; s < SEGMENTS; s++) {

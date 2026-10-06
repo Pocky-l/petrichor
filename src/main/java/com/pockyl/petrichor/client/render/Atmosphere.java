@@ -34,7 +34,6 @@ import com.pockyl.petrichor.client.WeatherClient;
 public final class Atmosphere {
     /** Optical depth that counts as "can no longer see": 95% haze. */
     private static final float OPAQUE = 3.0F;
-    private static final float DEFAULT_CLOUD_HEIGHT = 192.0F;
     private static TextureTarget depth;
 
     private Atmosphere() {
@@ -93,7 +92,6 @@ public final class Atmosphere {
         shader.safeGetUniform("Shafts").set(Mth.clamp((heaviness - 0.3F) / 0.7F, 0.0F, 1.0F));
         shader.safeGetUniform("Glow").set(Math.max(0.0F, sunY + 0.2F) * (1.0F - 0.6F * heaviness) * 0.6F);
         shader.safeGetUniform("Flash").set(WeatherClient.flash(partialTick));
-        shader.safeGetUniform("CloudY").set(Math.max(cloudHeight(level), (float) camY + 40.0F));
         shader.safeGetUniform("SunDir").set(sunX, sunY, 0.0F);
 
         RenderSystem.setShader(() -> shader);
@@ -129,10 +127,5 @@ public final class Atmosphere {
         // Back to where the weather is drawn: its own target with Fabulous graphics, the main one otherwise.
         RenderTarget weather = minecraft.levelRenderer.getWeatherTarget();
         (Minecraft.useShaderTransparency() && weather != null ? weather : main).bindWrite(false);
-    }
-
-    private static float cloudHeight(ClientLevel level) {
-        float cloud = level.effects().getCloudHeight();
-        return Float.isNaN(cloud) ? DEFAULT_CLOUD_HEIGHT : cloud;
     }
 }

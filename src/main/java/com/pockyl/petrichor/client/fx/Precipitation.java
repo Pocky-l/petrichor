@@ -105,9 +105,10 @@ public final class Precipitation {
                 }
                 float columnDistance = Mth.sqrt(dist2);
                 float edgeFade = 1.0F - Math.clamp((columnDistance - fadeStart) / (radius - fadeStart), 0.0F, 1.0F);
-                // Most drops close to the eye, where they can be seen; the distance is the curtains' job.
+                // More drops close to the eye, where they can be seen one by one, but enough further out to fill the
+                // middle distance until the curtains take over.
                 if (!snow) {
-                    expected *= Math.clamp(1.9F - columnDistance / 12.0F, 0.3F, 1.9F);
+                    expected *= Math.clamp(1.7F - columnDistance / 16.0F, 0.65F, 1.7F);
                 }
                 int n = (int) expected;
                 if (Noise.unit(cx, cz, SEED_COUNT) < expected - n) {
@@ -163,8 +164,9 @@ public final class Precipitation {
                                 d * 0.004F * Math.min(1.0F, width / 0.016F));
                         float len = length * (0.6F + vary * 0.8F) * (1.0F + close * 0.4F + blur * 0.6F);
                         float sparkle = 0.55F + jz * 0.45F;
-                        float a = Math.min(0.9F, baseAlpha * 1.3F * sparkle * edgeFade * window * near * Mth.sqrt(width * 2.0F / w)
-                                * (1.0F - blur * 0.55F));
+                        // Drops kept a pixel wide far away fade only a little: together they are the grey veil of rain.
+                        float thin = (float) Math.pow(width * 2.0F / w, 0.3);
+                        float a = Math.min(0.9F, baseAlpha * 1.3F * sparkle * edgeFade * window * near * thin * (1.0F - blur * 0.55F));
                         float tilt = 1.0F + (vary - 0.5F) * 0.2F;
                         // Slow, fine drops (drizzle) waver in the air instead of falling in straight lines.
                         float floaty = Math.clamp((0.5F - fall) / 0.3F, 0.0F, 1.0F);
