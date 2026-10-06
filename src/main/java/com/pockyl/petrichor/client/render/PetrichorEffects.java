@@ -13,13 +13,13 @@ import com.pockyl.petrichor.client.WeatherClient;
 /**
  * Overworld sky effects with this mod's precipitation: replaces the vanilla rain and snow drawing and the vanilla rain
  * ticking (splash particles and sounds), and adds lightning flashes to the light map. With rain disabled in the config,
- * and in snowy land, everything falls back to vanilla.
+ * and in snowy or dry land, everything falls back to vanilla.
  */
 public final class PetrichorEffects extends DimensionSpecialEffects.OverworldEffects {
     @Override
     public boolean renderSnowAndRain(ClientLevel level, int ticks, float partialTick, LightTexture lightTexture, double camX, double camY,
             double camZ) {
-        if (!ClientConfig.RAIN.get() || ClientWeather.snowy()) {
+        if (!ClientConfig.RAIN.get() || ClientWeather.vanillaWeather()) {
             return false;
         }
         return WeatherClient.renderWeather(level, partialTick, lightTexture, camX, camY, camZ);
@@ -27,8 +27,8 @@ public final class PetrichorEffects extends DimensionSpecialEffects.OverworldEff
 
     @Override
     public boolean tickRain(ClientLevel level, int ticks, Camera camera) {
-        // In snowy land vanilla ticks its own weather (nothing for snow); elsewhere the mod's splashes and sounds replace it.
-        return ClientConfig.RAIN.get() && !ClientWeather.snowy();
+        // In snowy or dry land vanilla ticks its own weather; elsewhere the mod's splashes and sounds replace it.
+        return ClientConfig.RAIN.get() && !ClientWeather.vanillaWeather();
     }
 
     @Override

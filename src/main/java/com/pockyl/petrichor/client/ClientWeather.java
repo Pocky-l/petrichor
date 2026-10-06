@@ -20,8 +20,9 @@ import com.pockyl.petrichor.weather.Wetness;
  * look-and-sound parameters glide towards the current type over ~10 seconds, so a drizzle swells into a downpour instead
  * of switching. Wetness follows the server too, or is simulated locally the same way.
  *
- * <p>The rain level follows the land around the listener: where it snows (or never rains, like a desert) the mod's
- * rain fades out, and in snowy land the mod steps aside completely - vanilla draws the snowfall, the light and the fog.
+ * <p>The rain level follows the land around the listener: towards land where it snows or never rains (deserts,
+ * badlands) the mod's rain fades out, and in such land the mod steps aside completely - vanilla draws the snowfall,
+ * the light and the fog.
  */
 public final class ClientWeather {
     /** Server state older than this is ignored (the server stopped sending: it does not have the mod). */
@@ -41,7 +42,7 @@ public final class ClientWeather {
     /** Share of the land around the listener where rain (not snow) falls, gliding. */
     private static float presence = 1.0F;
     private static float presenceTarget = 1.0F;
-    private static boolean snowy;
+    private static boolean noRain;
     private static float thunder;
     private static float gust = 1.0F;
     private static float windX;
@@ -77,7 +78,7 @@ public final class ClientWeather {
         rain = 0.0F;
         thunder = 0.0F;
         presence = presenceTarget = 1.0F;
-        snowy = false;
+        noRain = false;
     }
 
     private static boolean serverActive() {
@@ -120,40 +121,36 @@ public final class ClientWeather {
     }
 
     /**
-     * Where around the listener it rains and where it snows: 25 points over a 48-block square, each checked at the
-     * height the rain or snow reaches there (mountain tops can be snowy above rainy valleys).
+     * Where around the listener it rains: 25 points over a 48-block square, each checked at the height the rain
+     * reaches there (mountain tops can be snowy above rainy valleys).
      */
     private static void surveyLand(ClientLevel level) {
         Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int rainy = 0;
-        int snowing = 0;
-        boolean snowHere = false;
+        boolean rainHere = false;
         for (int i = -2; i <= 2; i++) {
             for (int j = -2; j <= 2; j++) {
                 int x = Mth.floor(cam.x) + i * 12;
                 int z = Mth.floor(cam.z) + j * 12;
                 pos.set(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z), z);
                 Biome biome = level.getBiome(pos).value();
-                if (!biome.hasPrecipitation()) {
-                    continue;
-                }
-                if (biome.getPrecipitationAt(pos) == Biome.Precipitation.SNOW) {
-                    snowing++;
-                    snowHere |= i == 0 && j == 0;
-                } else {
+                if (biome.hasPrecipitation() && biome.getPrecipitationAt(pos) == Biome.Precipitation.RAIN) {
                     rainy++;
+                    rainHere |= i == 0 && j == 0;
                 }
             }
         }
         presenceTarget = rainy / 25.0F;
-        // Some hysteresis, so walking along a biome border does not flip between the mod and vanilla.
-        if (snowHere || snowing > 10) {
-            snowy = true;
-        } else if (snowing < 5) {
-            snowy = false;
+        // Snowy or dry land (deserts, badlands, savannas): vanilla's weather. Some hysteresis, so walking along a biome
+        // border does not flip between the mod and vanilla.
+        int other = 25 - rainy;
+        if (!rainHere || other > 10) {
+            noRain = true;
+        } else if (other < 5) {
+            noRain = false;
         }
-        if (snowy) {
+        if (noRain) {
             presenceTarget = 0.0F;
         }
     }
@@ -207,9 +204,9 @@ public final class ClientWeather {
         return rain;
     }
 
-    /** In snowy land the mod leaves the weather to vanilla entirely. */
-    public static boolean snowy() {
-        return snowy;
+    /** Where it snows or never rains (deserts, badlands) the mod leaves the weather to vanilla entirely. */
+    public static boolean vanillaWeather() {
+        return noRain;
     }
 
     public static float thunder() {
