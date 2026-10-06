@@ -144,9 +144,22 @@ public final class ClientConfig {
             .translation(key("rainVolume"))
             .defineInRange("rainVolume", 1.0, 0.0, 2.0);
     public static final ModConfigSpec.BooleanValue ROOF = BUILDER
-            .comment("Muffled rain drumming on the roof when you are under cover.")
+            .comment("Rain drumming on the roof above you when you are under cover: tin, planks, glass, a tent or a thick roof.")
             .translation(key("roof"))
             .define("roofSounds", true);
+    public static final ModConfigSpec.BooleanValue MUFFLING = BUILDER
+            .comment("Rain heard through walls, windows and roofs sounds muffled (low-pass filter), not only quieter. "
+                    + "Turned off automatically when Sound Physics Remastered is installed.")
+            .translation(key("muffling"))
+            .define("muffling", true);
+    public static final ModConfigSpec.DoubleValue DRIP_VOLUME = BUILDER
+            .comment("Volume of single drops falling from roofs, edges and leaves.")
+            .translation(key("dripVolume"))
+            .defineInRange("dripVolume", 1.0, 0.0, 2.0);
+    public static final ModConfigSpec.DoubleValue WIND_VOLUME = BUILDER
+            .comment("Volume of the wind in heavy rain and thunderstorms.")
+            .translation(key("windVolume"))
+            .defineInRange("windVolume", 1.0, 0.0, 2.0);
     public static final ModConfigSpec.DoubleValue THUNDER_VOLUME = BUILDER
             .comment("Volume of thunder.")
             .translation(key("thunderVolume"))

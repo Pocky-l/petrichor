@@ -16,21 +16,71 @@
 
 ## Features
 
-- TBD
+### Rain
+
+- **Rain types** that change during a long rain: drizzle, rain, downpour and thunderstorm, blending smoothly into each
+  other. Intensity swells and ebbs with gusts, wind turns slowly and slants the rain.
+- Drops with depth: they taper, glint and vary in size and speed; curtains of rain drift with the wind in the distance
+  and fade into the fog; light gets dimmer and colder under rain clouds.
+- Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
+
+### Water on the ground
+
+- **Puddles** gather in hollows and on flat ground, reflect the sky and the world, ripple under the rain and dry out
+  slowly afterwards. Wet ground darkens and shines; ground under roofs stays dry with a soft edge.
+- Water runs off towards edges, spills over steps and **drips from roofs, eaves, cliffs and leaves** - also for a while
+  after the rain.
+- Splashing footsteps in puddles.
+
+### Sound
+
+- A **soundscape placed in the world**, not a recording in your ears: rain is heard from where it actually falls -
+  through the open door, from the field on your left, from the crowns above.
+- **Every surface sounds like itself**: grass and earth, stone, planks, metal, glass, wool, puddles and open water each
+  have their own field recordings, light and heavy.
+- **Intensity matters**: a drizzle is a soft hush with single drops you can pick out, a downpour a dense roar;
+  recordings crossfade with the rain's intensity and gusts.
+- **Shelter**: the roof above you drums according to what it is made of - a tin roof rings, planks knock, a skylight
+  taps, a tent thuds, a thick roof rumbles. Rain beats on the windows the wind drives it against.
+- **Muffling**: rain behind walls, windows and roofs sounds muffled (a low-pass filter), not just quieter - step inside
+  and the storm becomes a cosy murmur; open the door and it rushes in.
+- Water **trickling** from edges and pouring off roofs, single drops landing on stone, wood, metal or a puddle.
+- Rain far away in every open direction and the **wind** in storms give the world its size.
+
+### Lightning and thunder
+
+- Branching lightning with a growing leader, return strokes and afterglow; flashes light the sky and the world.
+- Distant bolts and flashes inside the clouds during thunderstorms.
+- **Thunder arrives after the flash** at the speed of sound: a sharp crack nearby, a rolling clap further away, a low
+  rumble from a distant storm - and a dull boom when heard from indoors.
+- Extra strikes during thunderstorms prefer the tallest spot nearby.
 
 ## Controls
 
-| Action | Default |
+No keys. Commands for operators:
+
+| Command | Effect |
 |---|---|
-| TBD | TBD |
+| `/petrichor weather <drizzle\|rain\|downpour\|thunderstorm> [seconds]` | Start a rain of this type |
+| `/petrichor weather clear` | Stop the rain |
+| `/petrichor wetness <0..1>` | Set how wet the ground is |
+| `/petrichor status` | Show the current weather |
+| `/petrichor strike` | Strike lightning near you |
 
 ## Crafting
 
-TBD. In creative mode all items are in the **Pocky Mods** tab.
+Nothing to craft: the mod changes the weather.
 
 ## Configuration
 
-TBD
+Client options (*Mods -> Petrichor -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
+splashes, fog, puddles, runoff and drips, lightning and flashes, and sound - rain, drip, wind and thunder volume, roof
+sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
+lightning strikes.
+
+The mod works on the client alone; installed on the server too, every player sees the same rain type and wetness.
+Muffling is turned off automatically when
+[Sound Physics Remastered](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered) is installed.
 
 ## Installation
 
@@ -48,6 +98,53 @@ The jar is written to `build/libs/`.
 ## Credits
 
 - Author: **Pocky**.
+- Sounds: field recordings from [Freesound](https://freesound.org), all released under
+  [Creative Commons 0](https://creativecommons.org/publicdomain/zero/1.0/), edited into loops and single sounds by
+  `tools/prepare_sounds.py`:
+  - [soft_rain_outside](https://freesound.org/s/768872/) by Gustavo_C
+  - [mediumrain](https://freesound.org/s/160699/) by klangfabrik
+  - [Rain, Heavy in Woods](https://freesound.org/s/870823/) by CHallSmith
+  - [RAINVege_Forest. Drops On Grass, Bushes, Ferns And Leaves](https://freesound.org/s/865323/) by newlocknew
+  - [rain medium on street pavement](https://freesound.org/s/454143/) by kyles
+  - [Heavy rain, splatty on stone](https://freesound.org/s/338109/) by SpliceSound
+  - [Rain On Wood Deck (Burya rain library)](https://freesound.org/s/611421/) by cocaine
+  - [Rain, on metallic tin roof, heavy med light](https://freesound.org/s/717874/) by TRP
+  - [rooflight raindrops](https://freesound.org/s/242724/) by rucisko
+  - [Rain under a skylight](https://freesound.org/s/718977/) by clement.bernardeau
+  - [Rain_Hitting_Window_9](https://freesound.org/s/869851/) by SignatureSoundsOrg
+  - [Rain on tent](https://freesound.org/s/484723/) by Breviceps
+  - [Rain on Tent](https://freesound.org/s/817155/) by craigsmith
+  - [Rain, on water lake, modulating light to med](https://freesound.org/s/572429/) by TRP
+  - [md10trk1 (rain falling into a puddle)](https://freesound.org/s/124168/) by alienistcog
+  - [Indoors_Shed_RainOnTinRoof_01](https://freesound.org/s/521773/) by MrFossy
+  - [Medium rain on a tin roof](https://freesound.org/s/771981/) by Sassaby
+  - [Rain in a barn](https://freesound.org/s/414162/) by felix.blume
+  - [rain medium on roof or large wood shed](https://freesound.org/s/451156/) by kyles
+  - [Strong Rain on Roof from Inside of the Room](https://freesound.org/s/428603/) by Erbsland-Music
+  - [Rain gutter zleb 003](https://freesound.org/s/652260/) by frenkfurth
+  - [downspout-rainwater1](https://freesound.org/s/124975/) by alienistcog
+  - [Wind gusting from window](https://freesound.org/s/574556/) by TRP
+  - [eau qui coule - water dripping](https://freesound.org/s/843505/) by vfrattaroli
+  - [water dripping from gutter to ground](https://freesound.org/s/180948/) by jc144940
+  - [Dripping water](https://freesound.org/s/770443/) by SpinOpel
+  - [Water dripping under bridge in small town](https://freesound.org/s/442480/) by BonnyOrbit
+  - [Water dripping after the rain](https://freesound.org/s/628404/) by xkeril
+  - [gully with water drips](https://freesound.org/s/249927/) by launemax
+  - [Water Dripping on Wood (off mic)](https://freesound.org/s/683783/) by Elements-Library
+  - [Water Dripping on Thin Metal](https://freesound.org/s/683778/) by Elements-Library
+  - [Rain, on leaves, close up, popping, brittle](https://freesound.org/s/577303/) by TRP
+  - [Rain, light close drops on leaves](https://freesound.org/s/715698/) by TRP
+  - [Thunder, close crack crash big](https://freesound.org/s/717907/) by TRP
+  - [Thunder, close crack light rain](https://freesound.org/s/717909/) by TRP
+  - [Thunder, pretty close crack](https://freesound.org/s/567945/) by TRP
+  - [thunder](https://freesound.org/s/191992/) by pyer75
+  - [Spectacular thunder clap](https://freesound.org/s/865693/) by Valerie-Vivegnis
+  - [Loud Thunderclap](https://freesound.org/s/570351/) by JPBILLINGSLEYJR
+  - [thunder-rain-middle-distance](https://freesound.org/s/197738/) by ragamuffin
+  - [Distant rumbles](https://freesound.org/s/584946/) by richwise
+  - [Distant Thunder 2](https://freesound.org/s/581123/) by Fission9
+  - [peal of thunder - distant](https://freesound.org/s/243782/) by bastipictures
+  - [Splashing Footsteps Shallow Water](https://freesound.org/s/861369/) by ChristopherJngs
 
 <!-- more-mods:start -->
 <!-- more-mods:end -->

@@ -18,6 +18,7 @@ import com.pockyl.petrichor.weather.StormData;
 import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.PuddleField;
 import com.pockyl.petrichor.world.RunoffSolver;
+import com.pockyl.petrichor.world.SoundMaterial;
 import com.pockyl.petrichor.world.StrikeTargeting;
 import com.pockyl.petrichor.world.SurfaceGrid;
 import com.pockyl.petrichor.world.SurfaceKind;
@@ -285,6 +286,34 @@ public final class ModGameTests {
         helper.assertTrue(!level.getLevelData().isRaining(), "Clear stops the rain");
         helper.assertTrue(data.currentType(level) == null, "No rain type without rain");
         data.setWetness(0.0F);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void rainSoundsMatchMaterials(GameTestHelper helper) {
+        helper.assertTrue(SoundMaterial.of(Blocks.STONE_BRICKS.defaultBlockState()) == SoundMaterial.HARD, "Stone bricks are hard");
+        helper.assertTrue(SoundMaterial.of(Blocks.COBBLESTONE.defaultBlockState()) == SoundMaterial.HARD, "Cobblestone is hard");
+        helper.assertTrue(SoundMaterial.of(Blocks.GRASS_BLOCK.defaultBlockState()) == SoundMaterial.SOFT, "Grass is soft");
+        helper.assertTrue(SoundMaterial.of(Blocks.SAND.defaultBlockState()) == SoundMaterial.SOFT, "Sand is soft");
+        helper.assertTrue(SoundMaterial.of(Blocks.SPRUCE_PLANKS.defaultBlockState()) == SoundMaterial.WOOD, "Planks are wood");
+        helper.assertTrue(SoundMaterial.of(Blocks.OAK_STAIRS.defaultBlockState()) == SoundMaterial.WOOD, "Wooden stairs are wood");
+        helper.assertTrue(SoundMaterial.of(Blocks.IRON_BLOCK.defaultBlockState()) == SoundMaterial.METAL, "Iron is metal");
+        helper.assertTrue(SoundMaterial.of(Blocks.CUT_COPPER_SLAB.defaultBlockState()) == SoundMaterial.METAL, "Copper is metal");
+        helper.assertTrue(SoundMaterial.of(Blocks.GLASS.defaultBlockState()) == SoundMaterial.GLASS, "Glass is glass");
+        helper.assertTrue(SoundMaterial.of(Blocks.LIGHT_BLUE_STAINED_GLASS_PANE.defaultBlockState()) == SoundMaterial.GLASS, "Panes are glass");
+        helper.assertTrue(SoundMaterial.of(Blocks.WHITE_WOOL.defaultBlockState()) == SoundMaterial.FABRIC, "Wool is fabric");
+        helper.assertTrue(SoundMaterial.of(Blocks.RED_CARPET.defaultBlockState()) == SoundMaterial.FABRIC, "Carpet is fabric");
+        helper.assertTrue(SoundMaterial.of(Blocks.OAK_LEAVES.defaultBlockState()) == SoundMaterial.LEAVES, "Leaves are leaves");
+        helper.assertTrue(SoundMaterial.of(Blocks.WATER.defaultBlockState()) == SoundMaterial.WATER, "Water is water");
+        helper.assertTrue(SoundMaterial.of(Blocks.SNOW_BLOCK.defaultBlockState()) == SoundMaterial.SILENT, "Snow swallows rain");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void rainTypesGrowHeavier(GameTestHelper helper) {
+        helper.assertTrue(RainType.DRIZZLE.heaviness < RainType.RAIN.heaviness, "A drizzle is lighter than rain");
+        helper.assertTrue(RainType.RAIN.heaviness < RainType.DOWNPOUR.heaviness, "Rain is lighter than a downpour");
+        helper.assertTrue(RainType.THUNDERSTORM.heaviness > RainType.RAIN.heaviness, "A thunderstorm is heavy");
         helper.succeed();
     }
 

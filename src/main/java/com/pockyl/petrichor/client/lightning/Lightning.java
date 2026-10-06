@@ -15,7 +15,6 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -27,6 +26,9 @@ import org.joml.Matrix4fStack;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.fx.RainFx;
+import com.pockyl.petrichor.client.sound.Muffler;
+import com.pockyl.petrichor.client.sound.PetrichorSounds;
+import com.pockyl.petrichor.client.sound.RainSounds;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -48,14 +50,23 @@ public final class Lightning {
     private float flash;
     private float previousFlash;
 
-    private record Thunder(long due, double x, double y, double z, SoundEvent sound, float volume, float pitch) {
+    /** @param highs how much of the highs reach the listener: distance takes them off */
+    private record Thunder(long due, double x, double y, double z, SoundEvent sound, float volume, float pitch, float highs) {
     }
 
-    /** Thunder played by this mod; vanilla thunder is replaced, ours must pass. */
-    public static final class ThunderSound extends SimpleSoundInstance {
-        ThunderSound(SoundEvent sound, float volume, float pitch, double x, double y, double z) {
+    /** Thunder played by this mod; vanilla thunder is replaced, ours must pass. Muffled indoors. */
+    public static final class ThunderSound extends SimpleSoundInstance implements Muffler.Muffled {
+        private final float highs;
+
+        ThunderSound(SoundEvent sound, float volume, float pitch, double x, double y, double z, float highs) {
             super(sound.getLocation(), SoundSource.WEATHER, volume, pitch, SoundInstance.createUnseededRandom(), false, 0,
                     SoundInstance.Attenuation.NONE, x, y, z, false);
+            this.highs = highs;
+        }
+
+        @Override
+        public float highs() {
+            return highs;
         }
     }
 
@@ -107,29 +118,30 @@ public final class Lightning {
         long now = level.getGameTime();
         float volume = (float) (double) ClientConfig.THUNDER_VOLUME.get();
         long due = now + Math.round(distance / blocksPerTick);
-        if (distance < 40.0F && !cloud) {
-            // Close: the crack of the discharge right away, the roll right behind it.
-            thunder.add(new Thunder(due, x, y, z, SoundEvents.LIGHTNING_BOLT_IMPACT, volume, 0.6F + random.nextFloat() * 0.25F));
-            thunder.add(new Thunder(due + 1, x, y, z, SoundEvents.LIGHTNING_BOLT_THUNDER, volume, 0.9F + random.nextFloat() * 0.1F));
-            return;
-        }
-        float pitch;
+        // Recordings by distance: the crack of a strike nearby, a clap rolling away, the low grumble of a far storm.
+        SoundEvent sound;
         float loudness;
-        if (distance < 120.0F) {
-            pitch = 0.8F + random.nextFloat() * 0.15F;
-            loudness = 0.9F;
-        } else if (distance < 300.0F) {
-            pitch = 0.65F + random.nextFloat() * 0.15F;
-            loudness = 0.6F;
+        float highs;
+        float pitch = 0.92F + random.nextFloat() * 0.14F;
+        if (distance < 70.0F && !cloud) {
+            sound = PetrichorSounds.THUNDER_CLOSE;
+            loudness = 1.0F;
+            highs = 1.0F;
+        } else if (distance < 260.0F) {
+            sound = PetrichorSounds.THUNDER_MID;
+            loudness = 0.85F;
+            highs = 0.8F;
         } else {
-            pitch = 0.5F + random.nextFloat() * 0.12F;
-            loudness = 0.4F;
+            sound = PetrichorSounds.THUNDER_FAR;
+            loudness = Math.max(0.35F, 0.7F - (distance - 260.0F) / 1500.0F);
+            highs = 0.6F;
+            pitch -= 0.06F;
         }
         if (cloud) {
             loudness *= 0.6F;
-            pitch -= 0.05F;
+            highs *= 0.7F;
         }
-        thunder.add(new Thunder(due, x, y, z, SoundEvents.LIGHTNING_BOLT_THUNDER, volume * loudness, pitch));
+        thunder.add(new Thunder(due, x, y, z, sound, volume * loudness, pitch, highs));
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -141,7 +153,10 @@ public final class Lightning {
         for (Iterator<Thunder> it = thunder.iterator(); it.hasNext(); ) {
             Thunder t = it.next();
             if (now >= t.due()) {
-                Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), t.volume(), t.pitch(), t.x(), t.y(), t.z()));
+                // Heard from indoors, thunder loses its crack and keeps its rumble.
+                float enclosure = RainSounds.enclosure();
+                Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), t.volume() * (1.0F - enclosure * 0.3F), t.pitch(),
+                        t.x(), t.y(), t.z(), t.highs() * (1.0F - enclosure * 0.75F)));
                 it.remove();
             } else if (t.due() - now > 2000) {
                 it.remove();

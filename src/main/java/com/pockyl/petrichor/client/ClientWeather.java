@@ -42,9 +42,7 @@ public final class ClientWeather {
     public static float gustiness;
     public static float fogDistance;
     public static float splash;
-    public static float soundLight;
-    public static float soundMedium;
-    public static float soundHeavy;
+    public static float heaviness;
     private static float windBase;
 
     private ClientWeather() {
@@ -120,9 +118,7 @@ public final class ClientWeather {
         gustiness = t.gustiness;
         fogDistance = t.fogDistance;
         splash = t.splash;
-        soundLight = t.soundLight;
-        soundMedium = t.soundMedium;
-        soundHeavy = t.soundHeavy;
+        heaviness = t.heaviness;
     }
 
     private static void blendTo(RainType t) {
@@ -135,9 +131,7 @@ public final class ClientWeather {
         gustiness += (t.gustiness - gustiness) * BLEND;
         fogDistance += (t.fogDistance - fogDistance) * BLEND;
         splash += (t.splash - splash) * BLEND;
-        soundLight += (t.soundLight - soundLight) * BLEND;
-        soundMedium += (t.soundMedium - soundMedium) * BLEND;
-        soundHeavy += (t.soundHeavy - soundHeavy) * BLEND;
+        heaviness += (t.heaviness - heaviness) * BLEND;
     }
 
     public static RainType type() {

@@ -2,10 +2,10 @@ package com.pockyl.petrichor.client.sound;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -15,272 +15,224 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.sound.PlaySoundSourceEvent;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.Petrichor;
 import com.pockyl.petrichor.client.ClientWeather;
 import com.pockyl.petrichor.client.Columns;
 import com.pockyl.petrichor.client.fx.RainFx;
-import com.pockyl.petrichor.world.SurfaceKind;
-
-import java.util.Arrays;
+import com.pockyl.petrichor.client.render.Puddles;
+import com.pockyl.petrichor.world.SoundMaterial;
 
 /**
- * The sound of rain as a soundscape placed in the world instead of a recording played into the ears.
+ * The sound of rain: the {@link Soundscape} of loops placed around the listener, plus single drops - water falling
+ * off eaves and leaves onto stone, planks, metal or a puddle, and the odd nearby drop that lets a light rain be heard
+ * drop by drop.
  *
- * <ul>
- *   <li>around the listener, one source per direction sits on the nearest ground where rain actually lands - so rain
- *   is heard from the open side of a doorway, from the field to the left and not from the wall to the right;</li>
- *   <li>a source hidden behind blocks is turned down: rain outside a closed room is a faint murmur;</li>
- *   <li>tree crowns in the rain get sources of their own, up in the leaves;</li>
- *   <li>a roof over the listener drums from above, louder the closer it is;</li>
- *   <li>every ground source blends light, medium and heavy rain by the rain type.</li>
- * </ul>
- * The loops are mono CC0 field recordings (see tools/prepare_sounds.py). The sound events are not registered, only
- * listed in sounds.json, so the client works on servers without the mod.
+ * <p>Intensity drives everything: a drizzle is a soft hush with single drops, a downpour a dense roar; gusts make the
+ * rain swell and ebb.
  */
+@EventBusSubscriber(modid = Petrichor.MOD_ID, value = Dist.CLIENT)
 public final class RainSounds {
-    public static final SoundEvent GROUND_LIGHT = event("ambient.rain.ground_light");
-    public static final SoundEvent GROUND_MEDIUM = event("ambient.rain.ground_medium");
-    public static final SoundEvent GROUND_HEAVY = event("ambient.rain.ground_heavy");
-    public static final SoundEvent LEAVES = event("ambient.rain.leaves");
-    public static final SoundEvent ROOF = event("ambient.rain.roof");
-    public static final SoundEvent PUDDLE_STEP = event("step.puddle");
-
-    private static final int SECTORS = 6;
-    private static final int[] DISTANCES = {2, 4, 6, 9, 12, 16};
-    private static final int LEAF_SOURCES = 3;
-    private static final int LEAF_RANGE = 10;
-    private static final float GROUND_GAIN = 0.3F;
-    private static final float LEAF_GAIN = 0.32F;
-    private static final float ROOF_GAIN = 0.5F;
-    /** A source hidden behind blocks keeps this much of its volume. */
-    private static final float OCCLUDED = 0.28F;
-
     private static final RandomSource RANDOM = RandomSource.create();
-    private static final Spot[] GROUND = new Spot[SECTORS];
-    private static final Spot[] CANOPY = new Spot[LEAF_SOURCES];
-    private static final Spot OVERHEAD = new Spot();
-    private static final LoopSound[][] GROUND_LOOPS = new LoopSound[SECTORS][3];
-    private static final LoopSound[] LEAF_LOOPS = new LoopSound[LEAF_SOURCES];
-    private static LoopSound roofLoop;
-    private static int ticks;
-
-    static {
-        for (int i = 0; i < SECTORS; i++) {
-            GROUND[i] = new Spot();
-        }
-        for (int i = 0; i < LEAF_SOURCES; i++) {
-            CANOPY[i] = new Spot();
-        }
-    }
-
-    /** Where a source should be and how much rain it stands for (0..1, with occlusion applied). */
-    private static final class Spot {
-        double x;
-        double y;
-        double z;
-        float amount;
-    }
+    private static final Soundscape SOUNDSCAPE = new Soundscape();
+    /** Falling drops heard at most this far. */
+    private static final double DRIP_RANGE = 16.0;
+    /** At most this many drop sounds start per second (a dripping eave, not a drum roll). */
+    private static final float DRIPS_PER_TICK = 0.35F;
+    private static final float DRIP_BURST = 3.0F;
+    private static final float DRIP_GAIN = 0.4F;
+    private static final float CLOSE_GAIN = 0.16F;
+    private static float dripTokens;
 
     private RainSounds() {
     }
 
-    private static SoundEvent event(String path) {
-        return SoundEvent.createVariableRangeEvent(Petrichor.id(path));
-    }
+    /** A drop or other one-shot of the mod, muffled by what is between it and the listener. */
+    private static final class ShotSound extends SimpleSoundInstance implements Muffler.Muffled {
+        private final float highs;
 
-    public static void tick(ClientLevel level, Columns columns, Vec3 eye) {
-        if (ticks++ % 4 == 0) {
-            measureGround(level, columns, eye);
-            measureCanopy(level, columns, eye);
-            measureRoof(level, columns, eye);
+        ShotSound(SoundEvent sound, float volume, float pitch, double x, double y, double z, float highs) {
+            super(sound.getLocation(), SoundSource.WEATHER, volume, pitch, SoundInstance.createUnseededRandom(), false, 0,
+                    SoundInstance.Attenuation.LINEAR, x, y, z, false);
+            this.highs = highs;
         }
-        float loudness = Math.min(1.0F, ClientWeather.intensity()) * (float) (double) ClientConfig.RAIN_VOLUME.get();
-        // How loud this kind of rain is on leaves and roofs too: a drizzle whispers, a downpour drums.
-        float heaviness = Math.min(1.0F, (ClientWeather.soundLight + ClientWeather.soundMedium + ClientWeather.soundHeavy) / 1.35F);
-        for (int s = 0; s < SECTORS; s++) {
-            Spot spot = GROUND[s];
-            float base = spot.amount * loudness * GROUND_GAIN;
-            LoopSound[] loops = GROUND_LOOPS[s];
-            loops[0] = drive(loops[0], GROUND_LIGHT, base * ClientWeather.soundLight, spot);
-            loops[1] = drive(loops[1], GROUND_MEDIUM, base * ClientWeather.soundMedium, spot);
-            loops[2] = drive(loops[2], GROUND_HEAVY, base * ClientWeather.soundHeavy, spot);
-        }
-        for (int c = 0; c < LEAF_SOURCES; c++) {
-            LEAF_LOOPS[c] = drive(LEAF_LOOPS[c], LEAVES, CANOPY[c].amount * loudness * LEAF_GAIN * heaviness * heaviness, CANOPY[c]);
-        }
-        float roofVolume = ClientConfig.ROOF.get() ? OVERHEAD.amount * loudness * ROOF_GAIN * heaviness : 0.0F;
-        roofLoop = drive(roofLoop, ROOF, roofVolume, OVERHEAD);
-    }
 
-    /** For every direction, the nearest rain-hit ground at about the listener's level, and how much of it there is. */
-    private static void measureGround(ClientLevel level, Columns columns, Vec3 eye) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int s = 0; s < SECTORS; s++) {
-            float angle = (s + 0.5F) * Mth.TWO_PI / SECTORS;
-            float dx = Mth.cos(angle);
-            float dz = Mth.sin(angle);
-            float weight = 0.0F;
-            float total = 0.0F;
-            boolean placed = false;
-            Spot spot = GROUND[s];
-            for (int d : DISTANCES) {
-                float w = 1.0F / (1.0F + d / 6.0F);
-                total += w;
-                int x = Mth.floor(eye.x + dx * d);
-                int z = Mth.floor(eye.z + dz * d);
-                if (columns.precipitation(x, z) != Columns.RAIN) {
-                    continue;
-                }
-                int h = columns.height(x, z);
-                if (h > eye.y + 4.0 || h < eye.y - 12.0) {
-                    continue;
-                }
-                pos.set(x, h - 1, z);
-                if (SurfaceKind.classify(level.getBlockState(pos)).kind() == SurfaceKind.LEAVES) {
-                    continue;
-                }
-                weight += w;
-                if (!placed) {
-                    placed = true;
-                    spot.x = x + 0.5;
-                    spot.y = h + 0.3;
-                    spot.z = z + 0.5;
-                }
-            }
-            if (!placed) {
-                spot.amount = 0.0F;
-                continue;
-            }
-            float amount = weight / total;
-            spot.amount = amount * (visible(level, eye, spot.x, spot.y + 0.4, spot.z) ? 1.0F : OCCLUDED);
+        @Override
+        public float highs() {
+            return highs;
         }
     }
 
-    /** Up to three rain-hit tree crowns nearby, the nearest one in each third of the circle. */
-    private static void measureCanopy(ClientLevel level, Columns columns, Vec3 eye) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        double[] best = new double[LEAF_SOURCES];
-        int[] count = new int[LEAF_SOURCES];
-        Arrays.fill(best, Double.MAX_VALUE);
-        int ex = Mth.floor(eye.x);
-        int ez = Mth.floor(eye.z);
-        for (int oz = -LEAF_RANGE; oz <= LEAF_RANGE; oz += 2) {
-            for (int ox = -LEAF_RANGE; ox <= LEAF_RANGE; ox += 2) {
-                int x = ex + ox;
-                int z = ez + oz;
-                if (columns.precipitation(x, z) != Columns.RAIN) {
-                    continue;
-                }
-                int h = columns.height(x, z);
-                if (h < eye.y - 6.0 || h > eye.y + 24.0) {
-                    continue;
-                }
-                pos.set(x, h - 1, z);
-                if (SurfaceKind.classify(level.getBlockState(pos)).kind() != SurfaceKind.LEAVES) {
-                    continue;
-                }
-                double angle = Math.atan2(oz, ox) + Math.PI;
-                int sector = Math.min(LEAF_SOURCES - 1, (int) (angle / (Math.PI * 2.0) * LEAF_SOURCES));
-                count[sector]++;
-                double dist = ox * ox + oz * oz + (h - eye.y) * (h - eye.y) * 0.5;
-                if (dist < best[sector]) {
-                    best[sector] = dist;
-                    CANOPY[sector].x = x + 0.5;
-                    CANOPY[sector].y = h - 0.5;
-                    CANOPY[sector].z = z + 0.5;
-                }
-            }
-        }
-        for (int c = 0; c < LEAF_SOURCES; c++) {
-            Spot spot = CANOPY[c];
-            if (count[c] == 0) {
-                spot.amount = 0.0F;
-                continue;
-            }
-            float amount = Math.min(1.0F, count[c] / 10.0F);
-            spot.amount = amount * (visible(level, eye, spot.x, spot.y, spot.z) ? 1.0F : OCCLUDED);
-        }
+    // ------------------------------------------------------------------------------------------------------------
+    // Intensity
+    // ------------------------------------------------------------------------------------------------------------
+
+    /** How hard it rains for the ear, ~0.15 for a drizzle .. ~1 for a downpour, swelling with gusts. */
+    public static float intensity() {
+        return ClientWeather.heaviness * (float) Math.pow(Mth.clamp(gust(), 0.4F, 1.6F), 0.6);
     }
 
-    /** A roof (not a tree) close above the listener drums on it from above. */
-    private static void measureRoof(ClientLevel level, Columns columns, Vec3 eye) {
-        int ex = Mth.floor(eye.x);
-        int ez = Mth.floor(eye.z);
-        int h = columns.height(ex, ez);
-        double distance = h - eye.y;
-        OVERHEAD.x = eye.x;
-        OVERHEAD.y = h - 0.5;
-        OVERHEAD.z = eye.z;
-        if (columns.precipitation(ex, ez) != Columns.RAIN || distance < 0.5 || distance > 16.0) {
-            OVERHEAD.amount = 0.0F;
-            return;
-        }
-        BlockPos top = new BlockPos(ex, h - 1, ez);
-        if (SurfaceKind.classify(level.getBlockState(top)).kind() == SurfaceKind.LEAVES) {
-            OVERHEAD.amount = 0.0F;
-            return;
-        }
-        OVERHEAD.amount = Math.clamp(1.25F - (float) distance / 10.0F, 0.2F, 1.0F);
+    /** Overall loudness at an intensity: a drizzle is quiet, a downpour loud. */
+    static float loudness(float intensity) {
+        return 0.2F + 0.8F * (float) Math.pow(Math.min(intensity, 1.2F), 0.8);
     }
 
-    /** Whether the line from the ear to the spot is free of blocks (the spot's own block does not count). */
-    private static boolean visible(ClientLevel level, Vec3 eye, double x, double y, double z) {
-        Vec3 target = new Vec3(x, y, z);
-        BlockHitResult hit = level.clip(new ClipContext(eye, target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
-                CollisionContext.empty()));
-        return hit.getType() == HitResult.Type.MISS || hit.getLocation().distanceToSqr(target) < 2.25;
+    static float gust() {
+        float rain = ClientWeather.rain();
+        return rain > 0.001F ? ClientWeather.intensity() / rain : 1.0F;
     }
 
-    private static LoopSound drive(LoopSound loop, SoundEvent event, float volume, Spot spot) {
-        SoundManager sounds = Minecraft.getInstance().getSoundManager();
-        if (loop != null && (loop.isStopped() || !sounds.isActive(loop))) {
-            loop = null;
-        }
-        if (loop == null) {
-            if (volume < 0.004F) {
-                return null;
-            }
-            loop = new LoopSound(event, spot.x, spot.y, spot.z, RANDOM);
-            sounds.play(loop);
-        }
-        loop.setTarget(volume, spot.x, spot.y, spot.z);
-        return loop;
+    /** Water still dripping and running after the rain, 0..0.25, while the ground is wet. */
+    static float afterRain() {
+        return Math.clamp((ClientWeather.wetness() - 0.1F) * 0.4F, 0.0F, 0.25F) * (1.0F - Math.min(1.0F, ClientWeather.rain() * 2.0F));
+    }
+
+    /** 0 out in the open .. 1 in a closed room under a roof. */
+    public static float enclosure() {
+        return SOUNDSCAPE.enclosure();
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Ticking
+    // ------------------------------------------------------------------------------------------------------------
+
+    public static void tick(ClientLevel level, Columns columns, Puddles puddles, Vec3 eye) {
+        SOUNDSCAPE.tick(level, columns, puddles, eye);
+        dripTokens = Math.min(DRIP_BURST, dripTokens + DRIPS_PER_TICK);
+        closeDrops(level, columns, puddles, eye);
     }
 
     public static void stopAll() {
-        SoundManager sounds = Minecraft.getInstance().getSoundManager();
-        for (LoopSound[] loops : GROUND_LOOPS) {
-            for (int i = 0; i < loops.length; i++) {
-                if (loops[i] != null) {
-                    sounds.stop(loops[i]);
-                    loops[i] = null;
-                }
-            }
+        SOUNDSCAPE.stop();
+    }
+
+    /**
+     * Now and then a single drop lands close to the listener and is heard on its own: on a stone, a plank, a puddle.
+     * In a drizzle these drops are most of what is heard; in a downpour they get lost in the roar.
+     */
+    private static void closeDrops(ClientLevel level, Columns columns, Puddles puddles, Vec3 eye) {
+        float rain = ClientWeather.rain();
+        if (rain <= 0.0F) {
+            return;
         }
-        for (int i = 0; i < LEAF_SOURCES; i++) {
-            if (LEAF_LOOPS[i] != null) {
-                sounds.stop(LEAF_LOOPS[i]);
-                LEAF_LOOPS[i] = null;
-            }
+        float s = intensity();
+        float expected = rain * (0.08F + 0.1F * Math.min(1.0F, s));
+        if (RANDOM.nextFloat() >= expected) {
+            return;
         }
-        if (roofLoop != null) {
-            sounds.stop(roofLoop);
-            roofLoop = null;
+        float angle = RANDOM.nextFloat() * Mth.TWO_PI;
+        float r = 1.2F + RANDOM.nextFloat() * 4.0F;
+        double x = eye.x + Mth.cos(angle) * r;
+        double z = eye.z + Mth.sin(angle) * r;
+        int bx = Mth.floor(x);
+        int bz = Mth.floor(z);
+        if (columns.precipitation(bx, bz) != Columns.RAIN) {
+            return;
+        }
+        int h = columns.height(bx, bz);
+        if (h > eye.y + 5.0 || h < eye.y - 5.0) {
+            return;
+        }
+        BlockPos top = new BlockPos(bx, h - 1, bz);
+        SoundMaterial material = SoundMaterial.of(level.getBlockState(top));
+        if ((material == SoundMaterial.SOFT || material == SoundMaterial.HARD) && puddles.coverAt(x, h, z) > 0.5F) {
+            material = SoundMaterial.PUDDLE;
+        }
+        float volume = CLOSE_GAIN * (float) (double) ClientConfig.RAIN_VOLUME.get() * rain * (0.6F + RANDOM.nextFloat() * 0.6F);
+        // Single drops stand out in light rain and drown in heavy rain.
+        volume *= 1.2F - 0.6F * Math.min(1.0F, s);
+        playDrop(level, eye, material, x, h + 0.05, z, volume, true);
+    }
+
+    /** A falling drip landed. Every drip near the listener can be heard, within a budget of sounds per second. */
+    public static void drip(double x, double y, double z, double distanceSq, byte surface) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null || distanceSq > DRIP_RANGE * DRIP_RANGE || dripTokens < 1.0F) {
+            return;
+        }
+        double distance = Math.sqrt(distanceSq);
+        // Near drips always, far ones only now and then: the budget goes to what is close.
+        if (RANDOM.nextFloat() > Mth.clamp(1.3F - (float) distance / 10.0F, 0.12F, 1.0F)) {
+            return;
+        }
+        SoundMaterial material = switch (surface) {
+            case RainFx.LAND_WATER -> SoundMaterial.WATER;
+            case RainFx.LAND_PUDDLE -> SoundMaterial.PUDDLE;
+            default -> SoundMaterial.of(level.getBlockState(BlockPos.containing(x, y - 0.05, z)));
+        };
+        float volume = DRIP_GAIN * (float) (double) ClientConfig.DRIP_VOLUME.get() * (0.7F + RANDOM.nextFloat() * 0.5F);
+        Vec3 eye = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        if (playDrop(level, eye, material, x, y, z, volume, false)) {
+            dripTokens -= 1.0F;
         }
     }
 
-    /** A falling drip landed; plays now and then within earshot so a dripping eave is heard but not a drum roll. */
-    public static void drip(double x, double y, double z, double distanceSq, byte surface) {
-        ClientLevel level = Minecraft.getInstance().level;
-        if (level == null || distanceSq > 14 * 14 || RANDOM.nextFloat() > 0.1F) {
-            return;
+    /**
+     * A drop landing on a material.
+     *
+     * @param close the near-field drops of the rain itself: smaller and only where the listener can see them
+     * @return whether a sound was started
+     */
+    private static boolean playDrop(ClientLevel level, Vec3 eye, SoundMaterial material, double x, double y, double z, float volume,
+            boolean close) {
+        SoundEvent sound;
+        float pitch = 0.9F + RANDOM.nextFloat() * 0.25F;
+        switch (material) {
+            case HARD -> sound = PetrichorSounds.DROP_HARD;
+            case WOOD -> sound = PetrichorSounds.DROP_WOOD;
+            case METAL -> sound = PetrichorSounds.DROP_METAL;
+            case GLASS -> {
+                // A glassy tick: the metal drop, higher and softer.
+                sound = PetrichorSounds.DROP_METAL;
+                pitch += 0.35F;
+                volume *= 0.6F;
+            }
+            case PUDDLE -> sound = PetrichorSounds.DROP_PUDDLE;
+            case WATER -> {
+                // Deeper water: a rounder plop.
+                sound = PetrichorSounds.DROP_PUDDLE;
+                pitch -= 0.2F;
+            }
+            case LEAVES -> sound = PetrichorSounds.DROP_LEAVES;
+            case FABRIC -> {
+                sound = PetrichorSounds.DROP_LEAVES;
+                pitch -= 0.3F;
+                volume *= 0.7F;
+            }
+            case SOFT -> {
+                // Grass and earth swallow a drop: only a soft tap, and only some of them.
+                if (close || RANDOM.nextFloat() < 0.5F) {
+                    return false;
+                }
+                sound = PetrichorSounds.DROP_LEAVES;
+                pitch -= 0.35F;
+                volume *= 0.35F;
+            }
+            default -> {
+                return false;
+            }
         }
-        SoundEvent sound = surface == RainFx.LAND_GROUND ? SoundEvents.POINTED_DRIPSTONE_DRIP_WATER
-                : SoundEvents.POINTED_DRIPSTONE_DRIP_WATER_INTO_CAULDRON;
-        level.playLocalSound(x, y, z, sound, SoundSource.WEATHER, 0.18F + RANDOM.nextFloat() * 0.15F, 0.8F + RANDOM.nextFloat() * 0.5F,
-                false);
+        float highs = 1.0F;
+        BlockHitResult hit = level.clip(new ClipContext(eye, new Vec3(x, y + 0.1, z), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                CollisionContext.empty()));
+        if (hit.getType() != HitResult.Type.MISS && hit.getLocation().distanceToSqr(x, y + 0.1, z) > 1.0) {
+            if (close) {
+                return false;
+            }
+            highs = 0.12F;
+            volume *= 0.45F;
+        }
+        if (volume < 0.01F) {
+            return false;
+        }
+        Minecraft.getInstance().getSoundManager().play(new ShotSound(sound, volume, pitch, x, y, z, highs));
+        return true;
     }
 
     public static void puddleStep(Entity entity, float strength) {
@@ -288,21 +240,26 @@ public final class RainSounds {
         if (level == null) {
             return;
         }
-        level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(), PUDDLE_STEP, entity.getSoundSource(),
+        level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(), PetrichorSounds.PUDDLE_STEP, entity.getSoundSource(),
                 0.15F + 0.25F * Math.min(1.0F, strength), 0.9F + RANDOM.nextFloat() * 0.25F, false);
     }
 
-    /** Ground sources that can be heard, for the debug screen. */
+    /** What the listener hears, for the debug screen. */
     public static String debugSummary() {
-        StringBuilder out = new StringBuilder();
-        for (Spot spot : GROUND) {
-            out.append(String.format("%.1f ", spot.amount));
-        }
-        out.append("| leaves ");
-        for (Spot spot : CANOPY) {
-            out.append(String.format("%.1f ", spot.amount));
-        }
-        out.append(String.format("| roof %.1f", OVERHEAD.amount));
-        return out.toString();
+        return String.format("intensity %.2f, ", intensity()) + SOUNDSCAPE.debugSummary();
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Muffling hooks
+    // ------------------------------------------------------------------------------------------------------------
+
+    @SubscribeEvent
+    public static void onSourceReady(PlaySoundSourceEvent event) {
+        Muffler.onSourceReady(event.getSound(), event.getChannel());
+    }
+
+    @SubscribeEvent
+    public static void onTagsUpdated(TagsUpdatedEvent event) {
+        SoundMaterial.clearCache();
     }
 }

@@ -146,7 +146,7 @@ public final class WeatherClient {
         boolean rain = ClientConfig.RAIN.get();
         if (rain) {
             SPAWNER.tick(level, COLUMNS, puddles, FX, cam);
-            RainSounds.tick(level, COLUMNS, cam);
+            RainSounds.tick(level, COLUMNS, puddles, cam);
         } else {
             RainSounds.stopAll();
         }
