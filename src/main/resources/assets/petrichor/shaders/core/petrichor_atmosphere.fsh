@@ -14,7 +14,8 @@ uniform sampler2D Sampler0;
 uniform mat4 InvViewProj;
 uniform vec3 CameraPos;
 uniform float PetrichorTime;
-uniform vec2 Wind;
+/** How far the wind has carried the air, in blocks. */
+uniform vec2 Drift;
 uniform float Haze;
 uniform float Falloff;
 uniform float BaseY;
@@ -68,7 +69,7 @@ float showers(vec3 dir, float dist) {
     float sum = 0.0;
     for (int i = 0; i < 4; i++) {
         float t = span * (0.4 + 0.2 * float(i));
-        vec2 p = CameraPos.xz + dir.xz * t - Wind * PetrichorTime * 0.35;
+        vec2 p = CameraPos.xz + dir.xz * t - Drift * 0.35;
         sum += fbm(p / 320.0);
     }
     float n = smoothstep(0.3, 0.72, sum / 4.0);
@@ -111,7 +112,7 @@ void main() {
         // The cloud deck, as high and as slow as real rain clouds: it is projected onto a plane far above (not the
         // block clouds' height), so overhead it barely drifts and towards the horizon it closes up.
         float t = DECK / max(dir.y, 0.03);
-        vec2 p = dir.xz * t - Wind * PetrichorTime * 0.12;
+        vec2 p = dir.xz * t - Drift * 0.12;
         float broad = fbm(p / 2600.0);
         float fine = fbm(p / 800.0 + 3.7);
         float rolls = smoothstep(0.28, 0.78, broad * 0.75 + fine * 0.25);

@@ -45,13 +45,15 @@ public final class RainVeils {
         if (strength <= 0.001F) {
             return;
         }
-        float fall = ClientWeather.fallSpeed * 20.0F;
         float windX = ClientWeather.windX();
         float windZ = ClientWeather.windZ();
         float windSpeed = Mth.sqrt(windX * windX + windZ * windZ);
         float windAngle = (float) Math.atan2(windZ, windX);
         float slant = Math.min(0.6F, windSpeed / Math.max(ClientWeather.fallSpeed, 0.05F));
         float seconds = (float) (time / 20.0 % 3600.0);
+        float partialTick = (float) (time - Math.floor(time));
+        double fallen = ClientWeather.fallen(partialTick);
+        float sweep = (float) (ClientWeather.travel(partialTick) % 100000.0);
         // Gusty storms sweep in sheets with clear gaps between them; steady rain hangs evenly.
         float contrast = 0.35F + 0.4F * ClientWeather.gustiness;
         float lightR = Math.min(1.0F, fog[0] * 1.15F + 0.16F);
@@ -78,7 +80,7 @@ public final class RainVeils {
             float tileWidth = TILE_WIDTH * coarse;
             float tileHeight = TILE_HEIGHT * coarse;
             float top = ABOVE + radius * 0.15F;
-            float scroll = seconds * fall / tileHeight * (0.9F + ring * 0.04F) + ring * 0.37F;
+            float scroll = (float) (fallen / tileHeight % 1000.0) * (0.9F + ring * 0.04F) + ring * 0.37F;
             float circumference = Mth.TWO_PI * radius;
             for (int s = 0; s < SEGMENTS; s++) {
                 float a0 = s * Mth.TWO_PI / SEGMENTS;
@@ -90,7 +92,7 @@ public final class RainVeils {
                 // Bands of heavier rain sweeping past with the wind.
                 float mid = (a0 + a1) * 0.5F;
                 float along = Mth.cos(mid - windAngle) * radius;
-                float alpha = ringAlpha * band(along, mid, seconds, windSpeed, ring, contrast);
+                float alpha = ringAlpha * band(along, mid, seconds, sweep, ring, contrast);
                 if (alpha < 0.002F) {
                     continue;
                 }
@@ -105,9 +107,8 @@ public final class RainVeils {
         }
     }
 
-    private static float band(float along, float angle, float seconds, float windSpeed, int ring, float contrast) {
-        float speed = Math.max(windSpeed * 20.0F, 1.5F);
-        float wave = Mth.sin((along - seconds * speed) / 18.0F + ring * 1.7F);
+    private static float band(float along, float angle, float seconds, float sweep, int ring, float contrast) {
+        float wave = Mth.sin((along - sweep) / 18.0F + ring * 1.7F);
         // A second, slower pattern around the ring, so the sheets are not all the same width.
         float patch = Mth.sin(angle * 3.0F + seconds * 0.05F + ring * 0.9F);
         float slow = Mth.sin(seconds * 0.07F + ring * 2.3F);

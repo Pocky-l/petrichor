@@ -48,6 +48,12 @@ public final class ClientWeather {
     private static float gust = 1.0F;
     private static float windX;
     private static float windZ;
+    // Distances covered so far, summed tick by tick. Anything that moves with the wind or falls uses these, never
+    // "speed x time": with a speed that changes (gusts, a new rain type) that product jumps back and forth.
+    private static double driftX;
+    private static double driftZ;
+    private static double travel;
+    private static double fallen;
     private static float wetness;
 
     // The blended parameters of the current type.
@@ -112,6 +118,10 @@ public final class ClientWeather {
         float speed = RainSchedule.windSpeed(time, windBase, gustiness) * (0.4F + 0.6F * rain);
         windX = (float) Math.cos(angle) * speed;
         windZ = (float) Math.sin(angle) * speed;
+        driftX += windX;
+        driftZ += windZ;
+        travel += Math.max(speed, 0.075F);
+        fallen += fallSpeed;
 
         if (serverActive()) {
             wetness += Math.clamp(serverWetness - wetness, -0.02F, 0.02F);
@@ -229,6 +239,25 @@ public final class ClientWeather {
 
     public static float windX() {
         return windX;
+    }
+
+    /** How far the wind has carried the air, in blocks, with the partial tick. */
+    public static double driftX(float partialTick) {
+        return driftX + windX * partialTick;
+    }
+
+    public static double driftZ(float partialTick) {
+        return driftZ + windZ * partialTick;
+    }
+
+    /** How far gusts and sheets of rain have swept along the wind, in blocks (at least a slow drift in calm air). */
+    public static double travel(float partialTick) {
+        return travel + Math.max(Math.sqrt(windX * windX + windZ * windZ), 0.075) * partialTick;
+    }
+
+    /** How far the rain has fallen, in blocks. */
+    public static double fallen(float partialTick) {
+        return fallen + fallSpeed * partialTick;
     }
 
     public static float windZ() {

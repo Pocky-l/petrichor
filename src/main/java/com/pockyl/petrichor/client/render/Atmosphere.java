@@ -81,7 +81,8 @@ public final class Atmosphere {
         shader.safeGetUniform("InvViewProj").set(inverse);
         shader.safeGetUniform("CameraPos").set((float) (camX % 16384.0), (float) camY, (float) (camZ % 16384.0));
         shader.safeGetUniform("PetrichorTime").set((float) seconds);
-        shader.safeGetUniform("Wind").set(ClientWeather.windX() * 20.0F, ClientWeather.windZ() * 20.0F);
+        shader.safeGetUniform("Drift").set((float) (ClientWeather.driftX(partialTick) % 65536.0),
+                (float) (ClientWeather.driftZ(partialTick) % 65536.0));
         shader.safeGetUniform("Haze").set(haze());
         shader.safeGetUniform("Falloff").set(1.0F / 40.0F);
         shader.safeGetUniform("BaseY").set((float) level.getSeaLevel());

@@ -8,7 +8,7 @@
         { "name": "InvViewProj", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
         { "name": "CameraPos", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] },
         { "name": "PetrichorTime", "type": "float", "count": 1, "values": [ 0.0 ] },
-        { "name": "Wind", "type": "float", "count": 2, "values": [ 0.0, 0.0 ] },
+        { "name": "Drift", "type": "float", "count": 2, "values": [ 0.0, 0.0 ] },
         { "name": "Haze", "type": "float", "count": 1, "values": [ 0.0 ] },
         { "name": "Falloff", "type": "float", "count": 1, "values": [ 0.025 ] },
         { "name": "BaseY", "type": "float", "count": 1, "values": [ 63.0 ] },

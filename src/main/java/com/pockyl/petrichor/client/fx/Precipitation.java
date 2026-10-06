@@ -56,7 +56,8 @@ public final class Precipitation {
         float windSpeed = Mth.sqrt(windX * windX + windZ * windZ);
         float bandX = windSpeed > 1.0E-4F ? windX / windSpeed : 1.0F;
         float bandZ = windSpeed > 1.0E-4F ? windZ / windSpeed : 0.0F;
-        float bandPhase = (float) (time * Math.max(windSpeed, 0.02F) * 0.6 % 2200.0);
+        float partialTick = (float) (time - Math.floor(time));
+        float bandPhase = (float) (ClientWeather.travel(partialTick) * 0.6 % 2200.0);
         float bands = ClientWeather.gustiness * 0.55F;
         float length = ClientWeather.streakLength;
         float width = ClientWeather.streakWidth;
@@ -66,7 +67,7 @@ public final class Precipitation {
         float dropR = Math.min(1.0F, fog[0] * 0.5F + 0.36F);
         float dropG = Math.min(1.0F, fog[1] * 0.5F + 0.39F);
         float dropB = Math.min(1.0F, fog[2] * 0.5F + 0.44F);
-        double rainShift = time * fall;
+        double rainShift = ClientWeather.fallen(partialTick);
         int ccx = Mth.floor(camX);
         int ccz = Mth.floor(camZ);
         float radiusSq = radius * radius;
