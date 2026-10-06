@@ -1,4 +1,4 @@
-# Petrichor
+# Petrichor: Rain & Storms
 
 Realistic rain and storms: rain types, puddles, runoff and drips, branching lightning with delayed thunder.
 
@@ -58,7 +58,7 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
 
 ## Configuration
 
-Everything can be tuned in *Mods -> Petrichor -> Config*, with quality presets for weaker computers. Works on the
+Everything can be tuned in *Mods -> Petrichor: Rain & Storms -> Config*, with quality presets for weaker computers. Works on the
 client alone; on the server too, every player sees the same weather. Muffling is turned off automatically with
 [Sound Physics Remastered](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered).
 

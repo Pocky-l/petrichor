@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="src/main/resources/logo.png" alt="Petrichor" width="160">
+  <img src="src/main/resources/logo.png" alt="Petrichor: Rain &amp; Storms" width="160">
 </p>
 
-<h1 align="center">Petrichor</h1>
+<h1 align="center">Petrichor: Rain &amp; Storms</h1>
 
 <p align="center">
   Realistic rain and storms: rain types, puddles, runoff and drips, branching lightning with delayed thunder.
@@ -86,7 +86,7 @@ Nothing to craft: the mod changes the weather.
 
 ## Configuration
 
-Client options (*Mods -> Petrichor -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
+Client options (*Mods -> Petrichor: Rain & Storms -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
 splashes, fog, rainy atmosphere, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
 a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
 lightning strikes.
