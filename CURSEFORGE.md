@@ -2,6 +2,10 @@
 
 Realistic rain and storms: rain types, puddles, runoff and drips, branching lightning with delayed thunder.
 
+![A downpour over the river under a heavy cloud deck](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/screenshots/downpour.jpg)
+
+*A downpour over the river under a heavy cloud deck*
+
 ## Features
 
 ### Rain
@@ -73,6 +77,12 @@ client alone; on the server too, every player sees the same weather. Muffling is
 ## Requirements
 
 [NeoForge](https://neoforged.net) 1.21.1.
+
+## Screenshots
+
+![Rain water dripping into a cave through an opening](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/screenshots/cave-drips.jpg)
+
+*Rain water dripping into a cave through an opening*
 
 ## Credits
 
