@@ -1,42 +1,441 @@
 {
   "ambient.rain.ground_light": {
     "sounds": [
-      {"name": "petrichor:ambient/ground_light_a", "attenuation_distance": 28},
-      {"name": "petrichor:ambient/ground_light_b", "attenuation_distance": 28}
+      {
+        "name": "petrichor:ambient/ground_light_a",
+        "attenuation_distance": 28
+      },
+      {
+        "name": "petrichor:ambient/ground_light_b",
+        "attenuation_distance": 28
+      }
     ],
     "subtitle": "subtitles.petrichor.rain"
   },
   "ambient.rain.ground_medium": {
     "sounds": [
-      {"name": "petrichor:ambient/ground_medium_a", "attenuation_distance": 28},
-      {"name": "petrichor:ambient/ground_medium_b", "attenuation_distance": 28}
+      {
+        "name": "petrichor:ambient/ground_medium_a",
+        "attenuation_distance": 28
+      },
+      {
+        "name": "petrichor:ambient/ground_medium_b",
+        "attenuation_distance": 28
+      }
     ],
     "subtitle": "subtitles.petrichor.rain"
   },
   "ambient.rain.ground_heavy": {
     "sounds": [
-      {"name": "petrichor:ambient/ground_heavy_a", "attenuation_distance": 28},
-      {"name": "petrichor:ambient/ground_heavy_b", "attenuation_distance": 28}
+      {
+        "name": "petrichor:ambient/ground_heavy_a",
+        "attenuation_distance": 28
+      },
+      {
+        "name": "petrichor:ambient/ground_heavy_b",
+        "attenuation_distance": 28
+      }
     ],
     "subtitle": "subtitles.petrichor.rain_heavy"
   },
-  "ambient.rain.leaves": {
+  "ambient.rain.far": {
     "sounds": [
-      {"name": "petrichor:ambient/leaves_a", "attenuation_distance": 22},
-      {"name": "petrichor:ambient/leaves_b", "attenuation_distance": 22}
+      {
+        "name": "petrichor:ambient/far"
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_far"
+  },
+  "ambient.wind": {
+    "sounds": [
+      {
+        "name": "petrichor:ambient/wind"
+      }
+    ],
+    "subtitle": "subtitles.petrichor.wind"
+  },
+  "surface.rain.leaves": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/leaves_a",
+        "attenuation_distance": 22
+      },
+      {
+        "name": "petrichor:surface/leaves_b",
+        "attenuation_distance": 22
+      }
     ],
     "subtitle": "subtitles.petrichor.rain_leaves"
   },
-  "ambient.rain.roof": {
+  "surface.rain.hard_light": {
     "sounds": [
-      {"name": "petrichor:ambient/roof_a", "attenuation_distance": 16},
-      {"name": "petrichor:ambient/roof_b", "attenuation_distance": 16}
+      {
+        "name": "petrichor:surface/hard_light",
+        "attenuation_distance": 18
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_hard"
+  },
+  "surface.rain.hard_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/hard_heavy",
+        "attenuation_distance": 18
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_hard"
+  },
+  "surface.rain.wood_light": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/wood_light",
+        "attenuation_distance": 18
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_wood"
+  },
+  "surface.rain.wood_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/wood_heavy",
+        "attenuation_distance": 18
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_wood"
+  },
+  "surface.rain.metal_light": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/metal_light",
+        "attenuation_distance": 18
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_metal"
+  },
+  "surface.rain.metal_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/metal_heavy",
+        "attenuation_distance": 18
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_metal"
+  },
+  "surface.rain.puddle": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/puddle",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_puddle"
+  },
+  "surface.rain.water_light": {
+    "sounds": [
+      {
+        "name": "petrichor:water/lake_light",
+        "attenuation_distance": 24
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_water"
+  },
+  "surface.rain.water_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:water/lake_heavy",
+        "attenuation_distance": 24
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_water"
+  },
+  "surface.rain.window": {
+    "sounds": [
+      {
+        "name": "petrichor:surface/window",
+        "attenuation_distance": 10
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_window"
+  },
+  "roof.rain.metal_light": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/metal_light",
+        "attenuation_distance": 16
+      }
     ],
     "subtitle": "subtitles.petrichor.rain_roof"
   },
+  "roof.rain.metal_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/metal_heavy",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "roof.rain.wood_light": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/wood_light",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "roof.rain.wood_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/wood_heavy",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "roof.rain.glass_light": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/glass_light",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "roof.rain.glass_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/glass_heavy",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "roof.rain.fabric_light": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/fabric_light",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "roof.rain.fabric_heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/fabric_heavy",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "roof.rain.thick": {
+    "sounds": [
+      {
+        "name": "petrichor:roof/thick",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_roof"
+  },
+  "water.trickle": {
+    "sounds": [
+      {
+        "name": "petrichor:water/trickle",
+        "attenuation_distance": 14
+      }
+    ],
+    "subtitle": "subtitles.petrichor.water_trickle"
+  },
+  "water.pour": {
+    "sounds": [
+      {
+        "name": "petrichor:water/pour",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.water_trickle"
+  },
+  "drop.puddle": {
+    "sounds": [
+      {
+        "name": "petrichor:drop/puddle1",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/puddle2",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/puddle3",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/puddle4",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/puddle5",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/puddle6",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/puddle7",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/puddle8",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.drip"
+  },
+  "drop.hard": {
+    "sounds": [
+      {
+        "name": "petrichor:drop/hard1",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/hard2",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/hard3",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/hard4",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/hard5",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/hard6",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.drip"
+  },
+  "drop.wood": {
+    "sounds": [
+      {
+        "name": "petrichor:drop/wood1",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/wood2",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/wood3",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/wood4",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/wood5",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.drip"
+  },
+  "drop.metal": {
+    "sounds": [
+      {
+        "name": "petrichor:drop/metal1",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/metal2",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/metal3",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/metal4",
+        "attenuation_distance": 16
+      },
+      {
+        "name": "petrichor:drop/metal5",
+        "attenuation_distance": 16
+      }
+    ],
+    "subtitle": "subtitles.petrichor.drip"
+  },
+  "drop.leaves": {
+    "sounds": [
+      {
+        "name": "petrichor:drop/leaves1",
+        "attenuation_distance": 12
+      },
+      {
+        "name": "petrichor:drop/leaves2",
+        "attenuation_distance": 12
+      },
+      {
+        "name": "petrichor:drop/leaves3",
+        "attenuation_distance": 12
+      },
+      {
+        "name": "petrichor:drop/leaves4",
+        "attenuation_distance": 12
+      },
+      {
+        "name": "petrichor:drop/leaves5",
+        "attenuation_distance": 12
+      },
+      {
+        "name": "petrichor:drop/leaves6",
+        "attenuation_distance": 12
+      }
+    ],
+    "subtitle": "subtitles.petrichor.drip"
+  },
   "step.puddle": {
-    "sounds": ["petrichor:step/puddle1", "petrichor:step/puddle2", "petrichor:step/puddle3", "petrichor:step/puddle4",
-      "petrichor:step/puddle5", "petrichor:step/puddle6"],
+    "sounds": [
+      "petrichor:step/puddle1",
+      "petrichor:step/puddle2",
+      "petrichor:step/puddle3",
+      "petrichor:step/puddle4",
+      "petrichor:step/puddle5",
+      "petrichor:step/puddle6"
+    ],
     "subtitle": "subtitles.petrichor.puddle_step"
+  },
+  "weather.thunder.close": {
+    "sounds": [
+      "petrichor:thunder/close1",
+      "petrichor:thunder/close2",
+      "petrichor:thunder/close3",
+      "petrichor:thunder/close4"
+    ],
+    "subtitle": "subtitles.entity.lightning_bolt.thunder"
+  },
+  "weather.thunder.mid": {
+    "sounds": [
+      "petrichor:thunder/mid1",
+      "petrichor:thunder/mid2",
+      "petrichor:thunder/mid3"
+    ],
+    "subtitle": "subtitles.entity.lightning_bolt.thunder"
+  },
+  "weather.thunder.far": {
+    "sounds": [
+      "petrichor:thunder/far1",
+      "petrichor:thunder/far2",
+      "petrichor:thunder/far3",
+      "petrichor:thunder/far4"
+    ],
+    "subtitle": "subtitles.entity.lightning_bolt.thunder"
   }
 }
