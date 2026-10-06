@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rainy air: layered haze over the distance, drifting showers, an overcast sky with rain shafts on the horizon.
 - Snowy and dry land keeps the vanilla weather.
 - Splashes, rings on water, spray from leaves and mobs, mist in heavy rain.
-- Rain no longer passes through walls when the wind slants it.
+- Slanted rain does not pass through walls: lee sides stay dry.
 - Cinematic storm: the view darkens before a strike, close flashes overexpose it and leave an afterimage, drops freeze
   in the flash.
 - Puddles with reflections and ripples, wet and drying ground, water running off edges and dripping from roofs and leaves.
