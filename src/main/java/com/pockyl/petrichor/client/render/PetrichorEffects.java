@@ -6,7 +6,6 @@ import net.minecraft.client.renderer.DimensionSpecialEffects;
 import net.minecraft.client.renderer.LightTexture;
 import org.joml.Vector3f;
 
-import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.WeatherClient;
 
 /**
