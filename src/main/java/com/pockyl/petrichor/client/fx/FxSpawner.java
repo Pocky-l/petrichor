@@ -48,8 +48,8 @@ public final class FxSpawner {
 
     public void tick(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, Vec3 cam) {
         fx.clearBeads();
-        float intensity = ClientWeather.intensity();
-        float rain = ClientWeather.rain();
+        float intensity = ClientWeather.localIntensity();
+        float rain = ClientWeather.localRain();
         float wetness = ClientWeather.wetness();
         if (rain > 0.0F && ClientConfig.SPLASHES.get()) {
             groundSplashes(level, columns, puddles, fx, cam, intensity);

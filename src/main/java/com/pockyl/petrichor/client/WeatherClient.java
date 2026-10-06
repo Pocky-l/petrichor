@@ -85,6 +85,11 @@ public final class WeatherClient {
         return puddles;
     }
 
+    /** Whether the mod draws the rain (and vanilla only the snow). */
+    public static boolean ownsRain() {
+        return ClientConfig.RAIN.get() && PetrichorShaders.rain() != null && ourSky(Minecraft.getInstance().level);
+    }
+
     public static float flash(float partialTick) {
         return LIGHTNING.flash(partialTick);
     }
@@ -193,7 +198,7 @@ public final class WeatherClient {
     // Rendering
     // ------------------------------------------------------------------------------------------------------------
 
-    /** Draws rain, snow and the rain effects in place of the vanilla weather. */
+    /** Draws the rain and its effects in place of the vanilla rain. */
     public static boolean renderWeather(ClientLevel level, float partialTick, LightTexture lightTexture, double camX, double camY,
             double camZ) {
         ShaderInstance shader = PetrichorShaders.rain();
@@ -220,11 +225,11 @@ public final class WeatherClient {
 
         float[] fog = RenderSystem.getShaderFogColor();
         double time = level.getGameTime() + (double) partialTick;
-        // Two passes: drops add light (rain glints, it never darkens), flakes and effects blend normally.
+        // Two passes: drops add light (rain glints, it never darkens), effects blend normally.
         ByteBufferBuilder rainBytes = rainBuffer();
         BufferBuilder drops = new BufferBuilder(rainBytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        PRECIPITATION.render(drops, builder, COLUMNS, camX, camY, camZ, time, left, up, fog);
+        PRECIPITATION.render(drops, COLUMNS, camX, camY, camZ, time, fog);
         FX.render(builder, drops, camX, camY, camZ, partialTick, left, up);
         MeshData mesh = builder.build();
         if (mesh != null) {

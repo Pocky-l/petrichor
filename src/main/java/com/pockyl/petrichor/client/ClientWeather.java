@@ -20,9 +20,10 @@ import com.pockyl.petrichor.weather.Wetness;
  * look-and-sound parameters glide towards the current type over ~10 seconds, so a drizzle swells into a downpour instead
  * of switching. Wetness follows the server too, or is simulated locally the same way.
  *
- * <p>The rain level follows the land around the listener: towards land where it snows or never rains (deserts,
- * badlands) the mod's rain fades out, and in such land the mod steps aside completely - vanilla draws the snowfall,
- * the light and the fog.
+ * <p>The rain level for everything that fills the whole view or the ears (sound, haze, sky, light, curtains) follows
+ * the land around the listener: towards land where it snows or never rains (deserts, badlands) it fades out, and in
+ * such land it is zero - the weather there is vanilla's. Drops, splashes and puddles go column by column and use
+ * {@link #localRain()}; snowfall is always drawn by vanilla.
  */
 public final class ClientWeather {
     /** Server state older than this is ignored (the server stopped sending: it does not have the mod). */
@@ -101,7 +102,7 @@ public final class ClientWeather {
         if (!initialized) {
             initialized = true;
             snapTo(type);
-            wetness = serverActive() ? serverWetness : rain * type.wetnessCap * 0.6F;
+            wetness = serverActive() ? serverWetness : worldRain * type.wetnessCap * 0.6F;
         } else {
             blendTo(type);
         }
@@ -115,7 +116,7 @@ public final class ClientWeather {
         if (serverActive()) {
             wetness += Math.clamp(serverWetness - wetness, -0.02F, 0.02F);
         } else {
-            wetness = Wetness.step(wetness, rain, rain > 0.0F ? type : null, level.isDay(),
+            wetness = Wetness.step(wetness, worldRain, worldRain > 0.0F ? type : null, level.isDay(),
                     Config.FILL_SPEED.get(), Config.DRYING_SPEED.get());
         }
     }
@@ -142,8 +143,8 @@ public final class ClientWeather {
             }
         }
         presenceTarget = rainy / 25.0F;
-        // Snowy or dry land (deserts, badlands, savannas): vanilla's weather. Some hysteresis, so walking along a biome
-        // border does not flip between the mod and vanilla.
+        // Snowy or dry land (deserts, badlands, savannas): no rain to hear or see around. Some hysteresis, so walking
+        // along a biome border does not flip back and forth.
         int other = 25 - rainy;
         if (!rainHere || other > 10) {
             noRain = true;
@@ -204,9 +205,17 @@ public final class ClientWeather {
         return rain;
     }
 
-    /** Where it snows or never rains (deserts, badlands) the mod leaves the weather to vanilla entirely. */
-    public static boolean vanillaWeather() {
-        return noRain;
+    /**
+     * The world's rain level, for what happens column by column (drops, splashes, puddles): those only ever happen
+     * where rain falls, so they need no fading at the edge of snowy or dry land.
+     */
+    public static float localRain() {
+        return worldRain;
+    }
+
+    /** {@link #localRain()} with gusts. */
+    public static float localIntensity() {
+        return worldRain * gust;
     }
 
     public static float thunder() {
