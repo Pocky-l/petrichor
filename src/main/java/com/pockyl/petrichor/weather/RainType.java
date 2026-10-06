@@ -9,11 +9,11 @@ import java.util.Locale;
  * <p>Speeds are in blocks per tick, sizes in blocks.
  */
 public enum RainType {
-    // density, fall, streak, width, alpha, wind, gust, fogDistance, splash, wetCap, wetRate, heaviness
-    DRIZZLE(1.1F, 0.2F, 0.2F, 0.01F, 0.42F, 0.05F, 0.1F, 170.0F, 0.0F, 0.45F, 0.5F, 0.15F),
-    RAIN(0.9F, 0.55F, 0.45F, 0.014F, 0.38F, 0.09F, 0.3F, 160.0F, 0.9F, 0.80F, 1.0F, 0.5F),
-    DOWNPOUR(2.6F, 0.95F, 1.1F, 0.024F, 0.55F, 0.18F, 0.6F, 70.0F, 2.6F, 1.0F, 2.2F, 1.0F),
-    THUNDERSTORM(2.2F, 1.0F, 1.1F, 0.024F, 0.55F, 0.34F, 0.9F, 90.0F, 2.2F, 1.0F, 1.8F, 0.9F);
+    // density, fall, streak, width, alpha, wind, gust, visibility, splash, wetCap, wetRate, heaviness
+    DRIZZLE(1.1F, 0.2F, 0.2F, 0.01F, 0.42F, 0.05F, 0.1F, 520.0F, 0.0F, 0.45F, 0.5F, 0.15F),
+    RAIN(0.9F, 0.55F, 0.45F, 0.014F, 0.38F, 0.09F, 0.3F, 340.0F, 0.9F, 0.80F, 1.0F, 0.5F),
+    DOWNPOUR(2.6F, 0.95F, 1.1F, 0.024F, 0.55F, 0.18F, 0.6F, 170.0F, 2.6F, 1.0F, 2.2F, 1.0F),
+    THUNDERSTORM(2.2F, 1.0F, 1.1F, 0.024F, 0.55F, 0.34F, 0.9F, 220.0F, 2.2F, 1.0F, 1.8F, 0.9F);
 
     private static final RainType[] VALUES = values();
 
@@ -27,8 +27,8 @@ public enum RainType {
     public final float wind;
     /** How strongly intensity and wind vary over time, 0..1. */
     public final float gustiness;
-    /** Distance the fog closes in to at full intensity. */
-    public final float fogDistance;
+    /** Blocks through which the rain's haze hides the land at full intensity (95% haze). */
+    public final float visibility;
     /** Relative number of splashes on the ground. */
     public final float splash;
     /** The wetness this rain soaks the ground to, 0..1. */
@@ -39,7 +39,7 @@ public enum RainType {
     public final float heaviness;
 
     RainType(float density, float fallSpeed, float streakLength, float streakWidth, float alpha, float wind, float gustiness,
-            float fogDistance, float splash, float wetnessCap, float wetnessRate, float heaviness) {
+            float visibility, float splash, float wetnessCap, float wetnessRate, float heaviness) {
         this.density = density;
         this.fallSpeed = fallSpeed;
         this.streakLength = streakLength;
@@ -47,7 +47,7 @@ public enum RainType {
         this.alpha = alpha;
         this.wind = wind;
         this.gustiness = gustiness;
-        this.fogDistance = fogDistance;
+        this.visibility = visibility;
         this.splash = splash;
         this.wetnessCap = wetnessCap;
         this.wetnessRate = wetnessRate;

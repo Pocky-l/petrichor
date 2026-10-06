@@ -44,6 +44,7 @@ import com.pockyl.petrichor.client.fx.Precipitation;
 import com.pockyl.petrichor.client.fx.RainFx;
 import com.pockyl.petrichor.client.fx.RainVeils;
 import com.pockyl.petrichor.client.lightning.Lightning;
+import com.pockyl.petrichor.client.render.Atmosphere;
 import com.pockyl.petrichor.client.render.PetrichorEffects;
 import com.pockyl.petrichor.client.render.PetrichorShaders;
 import com.pockyl.petrichor.client.render.Puddles;
@@ -199,6 +200,8 @@ public final class WeatherClient {
         if (shader == null) {
             return false;
         }
+        // The air first: haze over the distance, the overcast sky. The rain falls in front of it.
+        Atmosphere.render(level, partialTick, camX, camY, camZ);
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vector3f left = camera.getLeftVector();
         Vector3f up = camera.getUpVector();
@@ -240,7 +243,8 @@ public final class WeatherClient {
             RenderSystem.setShaderTexture(0, RainVeils.TEXTURE);
             Minecraft.getInstance().getTextureManager().getTexture(RainVeils.TEXTURE).setFilter(true, false);
             builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-            RainVeils.render(builder, COLUMNS, camX, camY, camZ, time, fog, RenderSystem.getShaderFogEnd());
+            RainVeils.render(builder, COLUMNS, camX, camY, camZ, time, fog, RenderSystem.getShaderFogEnd(),
+                    Atmosphere.active() ? Atmosphere.haze() : 0.0F);
             mesh = builder.build();
             if (mesh != null) {
                 BufferUploader.drawWithShader(mesh);
@@ -286,11 +290,13 @@ public final class WeatherClient {
         }
         float rain = ClientWeather.rain();
         double strength = ClientConfig.FOG.get();
-        if (rain <= 0.0F || strength <= 0.0) {
+        // The atmosphere draws the haze itself; the vanilla fog only hides the edge of the world as usual.
+        if (rain <= 0.0F || strength <= 0.0 || Atmosphere.active()) {
             return;
         }
         float far = event.getFarPlaneDistance();
-        float target = ClientWeather.fogDistance;
+        // Without the atmosphere a plain fog stands in for the haze, about half as far as one can see.
+        float target = ClientWeather.visibility * 0.5F;
         if (target >= far) {
             return;
         }

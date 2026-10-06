@@ -50,6 +50,7 @@
   "petrichor.configuration.splashes": "Брызги",
   "petrichor.configuration.splashDensity": "Количество брызг",
   "petrichor.configuration.fog": "Дымка от дождя",
+  "petrichor.configuration.atmosphere": "Дождевая атмосфера",
   "petrichor.configuration.puddles": "Лужи",
   "petrichor.configuration.puddlesEnabled": "Лужи и мокрая земля",
   "petrichor.configuration.puddleCoverage": "Площадь луж",

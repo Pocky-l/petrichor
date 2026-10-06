@@ -56,7 +56,7 @@ public final class ClientWeather {
     public static float streakWidth;
     public static float alpha;
     public static float gustiness;
-    public static float fogDistance;
+    public static float visibility;
     public static float splash;
     public static float heaviness;
     private static float windBase;
@@ -174,7 +174,7 @@ public final class ClientWeather {
         alpha = t.alpha;
         windBase = t.wind;
         gustiness = t.gustiness;
-        fogDistance = t.fogDistance;
+        visibility = t.visibility;
         splash = t.splash;
         heaviness = t.heaviness;
     }
@@ -187,7 +187,7 @@ public final class ClientWeather {
         alpha += (t.alpha - alpha) * BLEND;
         windBase += (t.wind - windBase) * BLEND;
         gustiness += (t.gustiness - gustiness) * BLEND;
-        fogDistance += (t.fogDistance - fogDistance) * BLEND;
+        visibility += (t.visibility - visibility) * BLEND;
         splash += (t.splash - splash) * BLEND;
         heaviness += (t.heaviness - heaviness) * BLEND;
     }

@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Rain types (drizzle, rain, downpour, thunderstorm) that blend into each other, with gusts and wind.
-- Drops with depth, curtains of rain in the distance, overcast light.
+- Drops with depth, curtains of rain sweeping past in the distance, overcast light.
+- Rainy air: layered haze over the distance, drifting showers, an overcast sky with rain shafts on the horizon.
+- Snowy and dry land keeps the vanilla weather.
 - Splashes, rings on water, spray from leaves and mobs, mist in heavy rain.
 - Puddles with reflections and ripples, wet and drying ground, water running off edges and dripping from roofs and leaves.
 - A rain soundscape placed in the world: every surface (earth, stone, wood, metal, glass, wool, puddles, water) sounds

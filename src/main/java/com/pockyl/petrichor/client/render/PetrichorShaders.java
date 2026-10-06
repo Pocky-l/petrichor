@@ -8,12 +8,13 @@ import com.pockyl.petrichor.Petrichor;
 
 import java.io.IOException;
 
-/** The mod's core shaders: drops and effects, puddles and wet ground, water spilling over steps. */
+/** The mod's core shaders: drops and effects, puddles and wet ground, water spilling over steps, the rainy air. */
 public final class PetrichorShaders {
     private static ShaderInstance rain;
     private static ShaderInstance puddle;
     private static ShaderInstance sheet;
     private static ShaderInstance veil;
+    private static ShaderInstance atmosphere;
 
     private PetrichorShaders() {
     }
@@ -28,6 +29,8 @@ public final class PetrichorShaders {
                     DefaultVertexFormat.BLOCK), shader -> sheet = shader);
             event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_veil"),
                     DefaultVertexFormat.PARTICLE), shader -> veil = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_atmosphere"),
+                    DefaultVertexFormat.POSITION), shader -> atmosphere = shader);
         } catch (IOException e) {
             Petrichor.LOGGER.error("Failed to load Petrichor shaders", e);
         }
@@ -47,5 +50,9 @@ public final class PetrichorShaders {
 
     public static ShaderInstance veil() {
         return veil;
+    }
+
+    public static ShaderInstance atmosphere() {
+        return atmosphere;
     }
 }

@@ -8,8 +8,12 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
 
 - **Rain types** that change during a long rain: drizzle, rain, downpour and thunderstorm, blending smoothly into each
   other. Intensity swells and ebbs with gusts, wind turns slowly and slants the rain.
-- Drops with depth: they taper, glint and vary in size and speed; curtains of rain drift with the wind in the distance
-  and fade into the fog; light gets dimmer and colder under rain clouds.
+- Drops with depth: they taper, glint and vary in size and speed; curtains of rain sweep past with the wind in
+  sheets, coarser and higher the further away they are; light gets dimmer and colder under rain clouds.
+- **Rainy air** instead of a flat grey wall: the haze deepens with distance and settles in valleys, so ridges behind
+  ridges fade in layers; heavier showers drift across the land; the sky turns into a cloud deck with dark rolls and
+  rain shafts on the horizon, lit up by lightning.
+- In snowy and dry land (deserts, badlands) the mod steps aside and the weather is vanilla.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
 
 ### Water on the ground

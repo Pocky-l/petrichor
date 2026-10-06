@@ -52,7 +52,7 @@ vec2 ripples(vec2 uv, float time, float amount) {
             float t = time / period + petrichor_hash(key);
             float cycle = floor(t);
             float age = fract(t);
-            float active = step(petrichor_hash(key + vec2(mod(cycle, 61.0) * 7.0, 3.0)), amount);
+            float falling = step(petrichor_hash(key + vec2(mod(cycle, 61.0) * 7.0, 3.0)), amount);
             vec2 center = c + vec2(petrichor_hash(key + vec2(mod(cycle, 53.0) * 0.37, 5.0)),
                     petrichor_hash(key + vec2(9.0, mod(cycle, 47.0) * 0.53)));
             vec2 d = p - center;
@@ -62,7 +62,7 @@ vec2 ripples(vec2 uv, float time, float amount) {
             // A couple of crests behind the front, fading as the ring grows.
             float wave = sin(x0) * exp(-x0 * x0 * 0.08) * step(x0, 6.0);
             float fade = (1.0 - age) * (1.0 - age);
-            slope += active * wave * fade * d / (dist + 0.001);
+            slope += falling * wave * fade * d / (dist + 0.001);
         }
     }
     return slope;
