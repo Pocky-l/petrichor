@@ -23,7 +23,6 @@ import com.pockyl.petrichor.client.Columns;
 import com.pockyl.petrichor.client.render.Puddles;
 import com.pockyl.petrichor.client.sound.RainSounds;
 import com.pockyl.petrichor.weather.Noise;
-import com.pockyl.petrichor.world.DropPath;
 import com.pockyl.petrichor.world.SurfaceKind;
 
 import java.util.ArrayList;
@@ -78,13 +77,8 @@ public final class FxSpawner {
                 * ClientWeather.splash / 2.4F * Math.min(intensity, 1.5F);
         int n = stochastic(random, expected);
         float scale = 0.55F + ClientWeather.density * 0.25F;
-        int followed = ClientConfig.quality().impactRadius;
         for (int s = 0; s < n && !fx.busy(0.55F); s++) {
             float r = 1.0F + SPLASH_RANGE * (float) Math.pow(random.nextFloat(), 0.8);
-            // Close by, the drops that are drawn splash where they land themselves; these stand for the finer rain.
-            if (r < followed && random.nextFloat() < 0.45F) {
-                continue;
-            }
             float angle = random.nextFloat() * Mth.TWO_PI;
             double x = cam.x + Mth.cos(angle) * r;
             double z = cam.z + Mth.sin(angle) * r;
@@ -99,51 +93,6 @@ public final class FxSpawner {
             }
             landOnTop(level, puddles, fx, x, z, bx, h, bz, scale, columns.light(bx, bz), random.nextInt(3));
         }
-    }
-
-    /**
-     * A drawn drop met the terrain. On the top of a block it splashes like any other; on the side of a wall it bursts
-     * into a flattened crown, droplets bounce off, and its water stays on the wall and runs down.
-     *
-     * @param velX the drop's velocity, blocks per tick
-     */
-    public void impact(ClientLevel level, Columns columns, Puddles puddles, RainFx fx, WallWater walls, DropPath.Hit hit, float velX,
-            float velY, float velZ, float size, int light) {
-        boolean splashes = ClientConfig.SPLASHES.get() && !fx.busy(0.6F);
-        float scale = (0.55F + ClientWeather.density * 0.25F) * size;
-        if (hit.face() == Direction.UP) {
-            int bx = Mth.floor(hit.x());
-            int bz = Mth.floor(hit.z());
-            if (splashes) {
-                landOnTop(level, puddles, fx, hit.x(), hit.z(), bx, columns.height(bx, bz), bz, scale, light, 1 + random.nextInt(2));
-            }
-            return;
-        }
-        Direction face = hit.face();
-        int bx = Mth.floor(hit.x() - face.getStepX() * 0.5);
-        int by = Mth.floor(hit.y());
-        int bz = Mth.floor(hit.z() - face.getStepZ() * 0.5);
-        pos.set(bx, by, bz);
-        BlockState state = level.getBlockState(pos);
-        if (state.isAir()) {
-            return;
-        }
-        if (SurfaceKind.classify(state).kind() == SurfaceKind.LEAVES) {
-            if (splashes) {
-                shatterOnLeaves(fx, hit.x() + face.getStepX() * 0.02, hit.y(), hit.z() + face.getStepZ() * 0.02, light);
-            }
-            return;
-        }
-        byte held = walls.impact(bx, by, bz, face, hit.x(), hit.y(), hit.z(), size);
-        if (!splashes) {
-            return;
-        }
-        double ground = columns.top(Mth.floor(hit.x() + face.getStepX() * 0.5), Mth.floor(hit.z() + face.getStepZ() * 0.5));
-        // On glass most of the drop stays where it hit; a rough wall throws more of it back.
-        boolean glass = held == WallWater.GLASS;
-        int droplets = glass ? random.nextInt(2) : 1 + random.nextInt(3);
-        fx.wallSplash(hit.x(), hit.y(), hit.z(), face.getStepX(), face.getStepZ(), velX, velY, velZ, scale * (glass ? 0.7F : 1.0F), light,
-                droplets, ground);
     }
 
     /** What a drop does when it lands on the top of the column at {@code (bx, bz)} whose first free y is {@code h}. */

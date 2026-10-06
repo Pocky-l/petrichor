@@ -14,52 +14,27 @@ import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-import com.pockyl.petrichor.ClientConfig;
-import com.pockyl.petrichor.client.ClientWeather;
 import com.pockyl.petrichor.client.WeatherClient;
-import com.pockyl.petrichor.weather.Noise;
 
 /**
  * The storm seen through a camera: the world holds its breath and darkens before a strike, a close flash overexposes
- * the view and leaves the eyes in the dark for a moment, close thunder shakes the camera, heavy rain and storms close in
- * the edges of the view with a cold vignette, and in first person rain lands on the lens.
+ * the view and leaves the eyes in the dark for a moment, and in first person a rare drop of rain lands on the lens.
  */
 public final class Cinematics {
-    private static final int SEED_PITCH = 0x0D23_0001;
-    private static final int SEED_YAW = 0x0D23_0002;
-    private static final int SEED_ROLL = 0x0D23_0003;
-    /** Degrees of camera shake at full strength. */
-    private static final float SHAKE_DEGREES = 1.4F;
-
     private static final LensDrops LENS = new LensDrops();
-    private static float shake;
-    private static float previousShake;
     /** How bright the last close flash was, remembered by the eyes: it fades slowly. */
     private static float adaptation;
     private static float previousAdaptation;
-    private static long ticks;
 
     private Cinematics() {
     }
 
-    /** Close thunder arrived: the camera shakes, harder the closer it was. */
-    public static void thunderShake(float strength) {
-        shake = Math.max(shake, Math.clamp(strength, 0.0F, 1.0F));
-    }
-
     public static void clear() {
-        shake = previousShake = 0.0F;
         adaptation = previousAdaptation = 0.0F;
         LENS.clear();
     }
 
     public static void tick(ClientLevel level, Vec3 cam) {
-        ticks++;
-        previousShake = shake;
-        shake *= 0.9F;
-        if (shake < 0.002F) {
-            shake = 0.0F;
-        }
         previousAdaptation = adaptation;
         float glare = WeatherClient.glare(1.0F);
         adaptation = Math.max(glare, adaptation * 0.955F);
@@ -76,26 +51,6 @@ public final class Cinematics {
     }
 
     // ------------------------------------------------------------------------------------------------------------
-    // Camera
-    // ------------------------------------------------------------------------------------------------------------
-
-    /** @return pitch, yaw and roll to add, in degrees */
-    public static float[] shakeAngles(float partialTick) {
-        float amount = Mth.lerp(partialTick, previousShake, shake) * (float) (double) ClientConfig.SHAKE.get();
-        if (amount <= 0.0F) {
-            return null;
-        }
-        // A rumble: quick, irregular, settling down - not a regular wobble.
-        double t = (ticks + partialTick) * 0.85;
-        float degrees = amount * amount * SHAKE_DEGREES;
-        return new float[] {
-                (Noise.value(t, SEED_PITCH) - 0.5F) * 2.0F * degrees,
-                (Noise.value(t, SEED_YAW) - 0.5F) * 1.4F * degrees,
-                (Noise.value(t * 0.7, SEED_ROLL) - 0.5F) * 1.2F * degrees
-        };
-    }
-
-    // ------------------------------------------------------------------------------------------------------------
     // Screen
     // ------------------------------------------------------------------------------------------------------------
 
@@ -106,23 +61,18 @@ public final class Cinematics {
             return;
         }
         float darken = darkness(partialTick);
-        float storm = ClientWeather.rain() * Math.clamp((ClientWeather.heaviness - 0.3F) / 0.7F, 0.0F, 1.0F) * 0.55F
-                + ClientWeather.thunder() * 0.45F;
-        float vignette = Math.min(1.0F, storm * (float) (double) ClientConfig.VIGNETTE.get());
         float glare = WeatherClient.glare(partialTick);
         float exposure = (float) Math.pow(glare, 1.4) * 0.6F;
         ShaderInstance grade = PetrichorShaders.grade();
-        if (grade != null && (darken > 0.002F || vignette > 0.002F || exposure > 0.002F)) {
+        if (grade != null && (darken > 0.002F || exposure > 0.002F)) {
             RenderSystem.enableBlend();
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.setShader(() -> grade);
             grade.safeGetUniform("Darken").set(darken);
-            grade.safeGetUniform("Vignette").set(vignette);
-            grade.safeGetUniform("Tint").set(0.86F, 0.92F, 1.0F);
             grade.safeGetUniform("Exposure").set(exposure);
             grade.safeGetUniform("FlashColor").set(0.82F, 0.88F, 1.0F);
-            if (darken > 0.002F || vignette > 0.002F) {
+            if (darken > 0.002F) {
                 grade.safeGetUniform("Pass").set(0.0F);
                 RenderSystem.blendFunc(GlStateManager.SourceFactor.DST_COLOR, GlStateManager.DestFactor.ZERO);
                 fullScreen();

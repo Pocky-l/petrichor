@@ -26,7 +26,6 @@ import org.joml.Matrix4fStack;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.fx.RainFx;
-import com.pockyl.petrichor.client.render.Cinematics;
 import com.pockyl.petrichor.client.sound.Muffler;
 import com.pockyl.petrichor.client.sound.PetrichorSounds;
 import com.pockyl.petrichor.client.sound.RainSounds;
@@ -39,14 +38,13 @@ import java.util.List;
  * All lightning on the client: bolts the server sends (vanilla entities, drawn our way), distant bolts and cloud
  * flashes that exist only as scenery during thunderstorms, the light they throw on the world and the sky, and thunder
  * that arrives late from far away. With the cinematic options a strike is preceded by a short hush (the world darkens),
- * a close one overexposes the view and leaves an afterimage, and close thunder shakes the camera.
+ * and a close one overexposes the view and leaves an afterimage.
  */
 public final class Lightning {
     private static final double TICKS_PER_SECOND = 20.0;
     /** Strikes closer than this overexpose the view. */
     private static final float GLARE_RANGE = 180.0F;
-    /** Thunder closer than this shakes the camera. */
-    private static final float SHAKE_RANGE = 110.0F;
+
     private static final float DEFAULT_CLOUD_HEIGHT = 192.0F;
 
     private final List<Strike> strikes = new ArrayList<>();
@@ -60,7 +58,7 @@ public final class Lightning {
     private float previousGlare;
 
     /** @param highs how much of the highs reach the listener: distance takes them off */
-    private record Thunder(long due, double x, double y, double z, SoundEvent sound, float volume, float pitch, float highs, float distance) {
+    private record Thunder(long due, double x, double y, double z, SoundEvent sound, float volume, float pitch, float highs) {
     }
 
     /** Thunder played by this mod; vanilla thunder is replaced, ours must pass. Muffled indoors. */
@@ -172,7 +170,7 @@ public final class Lightning {
             loudness *= 0.6F;
             highs *= 0.7F;
         }
-        thunder.add(new Thunder(due, x, y, z, sound, volume * loudness, pitch, highs, distance));
+        thunder.add(new Thunder(due, x, y, z, sound, volume * loudness, pitch, highs));
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -188,9 +186,6 @@ public final class Lightning {
                 float enclosure = RainSounds.enclosure();
                 Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), t.volume() * (1.0F - enclosure * 0.3F), t.pitch(),
                         t.x(), t.y(), t.z(), t.highs() * (1.0F - enclosure * 0.75F)));
-                if (t.distance() < SHAKE_RANGE) {
-                    Cinematics.thunderShake(1.0F - t.distance() / SHAKE_RANGE);
-                }
                 it.remove();
             } else if (t.due() - now > 2000) {
                 it.remove();

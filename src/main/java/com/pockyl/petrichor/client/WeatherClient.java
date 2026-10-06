@@ -46,7 +46,7 @@ import com.pockyl.petrichor.client.fx.FxSpawner;
 import com.pockyl.petrichor.client.fx.Precipitation;
 import com.pockyl.petrichor.client.fx.RainFx;
 import com.pockyl.petrichor.client.fx.RainVeils;
-import com.pockyl.petrichor.client.fx.WallWater;
+import com.pockyl.petrichor.client.fx.WindowRain;
 import com.pockyl.petrichor.client.lightning.Lightning;
 import com.pockyl.petrichor.client.render.Atmosphere;
 import com.pockyl.petrichor.client.render.Cinematics;
@@ -66,7 +66,7 @@ public final class WeatherClient {
     private static final Precipitation PRECIPITATION = new Precipitation();
     private static final FxSpawner SPAWNER = new FxSpawner();
     private static final Lightning LIGHTNING = new Lightning();
-    private static final WallWater WALLS = new WallWater();
+    private static final WindowRain WINDOWS = new WindowRain();
     private static Puddles puddles;
     private static ByteBufferBuilder rainBytes;
     private static int ticks;
@@ -169,10 +169,10 @@ public final class WeatherClient {
         boolean rain = ClientConfig.RAIN.get();
         if (rain) {
             SPAWNER.tick(level, COLUMNS, puddles, FX, cam);
-            WALLS.tick(level, COLUMNS, puddles, FX, cam.x, cam.y, cam.z);
+            WINDOWS.tick(level, COLUMNS, puddles, FX, cam.x, cam.y, cam.z);
             RainSounds.tick(level, COLUMNS, puddles, cam);
         } else {
-            WALLS.clear();
+            WINDOWS.clear();
             RainSounds.stopAll();
         }
         LIGHTNING.tick(level, cam, FX, ClientWeather.thunder());
@@ -207,7 +207,7 @@ public final class WeatherClient {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientWeather.reset();
         FX.clear();
-        WALLS.clear();
+        WINDOWS.clear();
         LIGHTNING.clear();
         Cinematics.clear();
         RainSounds.stopAll();
@@ -251,10 +251,7 @@ public final class WeatherClient {
         ByteBufferBuilder rainBytes = rainBuffer();
         BufferBuilder drops = new BufferBuilder(rainBytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        Puddles puddles = puddles();
-        // Every drop followed to where it lands breaks up there: splashes on the ground, bursts and runs on walls.
-        PRECIPITATION.render(drops, COLUMNS, camX, camY, camZ, time, fog, LIGHTNING.flash(partialTick),
-                (hit, velX, velY, velZ, size, light) -> SPAWNER.impact(level, COLUMNS, puddles, FX, WALLS, hit, velX, velY, velZ, size, light));
+        PRECIPITATION.render(drops, COLUMNS, camX, camY, camZ, time, fog, LIGHTNING.flash(partialTick));
         FX.render(builder, drops, camX, camY, camZ, partialTick, left, up);
         MeshData mesh = builder.build();
         if (mesh != null) {
@@ -305,20 +302,20 @@ public final class WeatherClient {
                         partialTick);
             }
             // Before the translucent blocks: glass is drawn over its drops, and they show through it from inside.
-            renderWallWater(level, event, partialTick);
+            renderWindowRain(level, event, partialTick);
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
             LIGHTNING.renderBolts(event.getModelViewMatrix(), event.getCamera(), partialTick);
         }
     }
 
-    private static void renderWallWater(ClientLevel level, RenderLevelStageEvent event, float partialTick) {
+    private static void renderWindowRain(ClientLevel level, RenderLevelStageEvent event, float partialTick) {
         ShaderInstance shader = PetrichorShaders.bead();
-        if (shader == null || WALLS.count() == 0) {
+        if (shader == null || WINDOWS.count() == 0) {
             return;
         }
         Vec3 cam = event.getCamera().getPosition();
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        WALLS.render(builder, cam.x, cam.y, cam.z, partialTick);
+        WINDOWS.render(builder, cam.x, cam.y, cam.z, partialTick);
         MeshData mesh = builder.build();
         if (mesh == null) {
             return;
@@ -360,19 +357,6 @@ public final class WeatherClient {
     public static void onRenderGui(RenderGuiEvent.Pre event) {
         if (ourSky(Minecraft.getInstance().level)) {
             Cinematics.renderScreen(event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
-        }
-    }
-
-    @SubscribeEvent
-    public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
-        if (!ourSky(Minecraft.getInstance().level)) {
-            return;
-        }
-        float[] shake = Cinematics.shakeAngles((float) event.getPartialTick());
-        if (shake != null) {
-            event.setPitch(event.getPitch() + shake[0]);
-            event.setYaw(event.getYaw() + shake[1]);
-            event.setRoll(event.getRoll() + shake[2]);
         }
     }
 
@@ -454,8 +438,8 @@ public final class WeatherClient {
         event.getRight().add(String.format("Drops %d, effects %d, puddle chunks %d (%d quads), strikes %d",
                 PRECIPITATION.lastDrops(), FX.count(), puddles == null ? 0 : puddles.chunkCount(),
                 puddles == null ? 0 : puddles.lastQuads(), LIGHTNING.strikeCount()));
-        event.getRight().add(String.format("Wind %.2f, %.2f, drip sources %d, wall drops %d on %d faces", ClientWeather.windX(),
-                ClientWeather.windZ(), puddles == null ? 0 : puddles.emitterCount(), WALLS.count(), WALLS.faceCount()));
+        event.getRight().add(String.format("Wind %.2f, %.2f, drip sources %d, window drops %d on %d panes", ClientWeather.windX(),
+                ClientWeather.windZ(), puddles == null ? 0 : puddles.emitterCount(), WINDOWS.count(), WINDOWS.faceCount()));
         event.getRight().add("Rain sound: " + RainSounds.debugSummary());
         if (puddles != null && minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             event.getRight().add("Puddle: " + puddles.describe(hit.getBlockPos().getX(), hit.getBlockPos().getZ()));

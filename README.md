@@ -26,21 +26,17 @@
   ridges fade in layers; heavier showers drift across the land; the sky turns into a cloud deck with dark rolls and
   rain shafts on the horizon, lit up by lightning.
 - In snowy and dry land (deserts, badlands) the mod steps aside and the weather is vanilla.
-- **Every drop lives to the end**: follow one with your eye and it breaks up exactly where it lands - on the top of a
-  block, or, falling slanted in the wind, on the side of a wall. Rain never passes through walls; the lee side of a
-  building stays dry.
+- Rain never passes through walls: falling slanted in the wind, drops stop at the wall and the lee side of a building
+  stays dry.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
 
-### Water on walls and windows
+### Rain on windows
 
-- A drop hitting a wall bursts into a flattened crown, droplets bounce off it, and what is left **runs down the wall as
-  a separate drop**, leaving a wet streak - soaking into rough stone within a block, running far down planks and metal.
-  At the bottom it joins the ground or drips off the edge.
 - **Windows look like real rain on glass**: drops bead up where they land and grow as more rain hits them, until one
   breaks free and slides down in jerks - stopping, starting, wandering to the side, swallowing the beads in its way and
   leaving a trail of tiny ones behind. Every drop is a little lens that shows the world behind it upside down - also
   from inside the house. When the rain stops, the windows slowly dry.
-- The wind decides which walls get wet: the side facing the storm streams with water, the sheltered side barely.
+- The windows facing the storm stream with water, the sheltered ones only collect a few drops.
 
 ### Water on the ground
 
@@ -79,10 +75,8 @@
 - A close strike **overexposes the view**; afterwards the eyes need a moment in the dark, and the bolt lingers as a
   fading afterimage.
 - In the light of a flash every falling drop shines and freezes in place, like in a strobe.
-- **Close thunder shakes the camera**.
-- Heavy rain and thunderstorms close in the edges of the view with a cold vignette.
-- **Rain on the lens** in first person: look up into the rain or face the wind and drops land on the view, run down
-  and show the world upside down; under cover they dry.
+- Now and then, looking up into heavy rain in first person, a faint drop lands on the view like on a camera lens and
+  dries.
 
 ## Controls
 
@@ -103,9 +97,8 @@ Nothing to craft: the mod changes the weather.
 ## Configuration
 
 Client options (*Mods -> Petrichor -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
-splashes, fog, rainy atmosphere, puddles, runoff and drips, water on walls and windows, lightning and flashes, cinematic
-effects (darkening before a strike, flash glare and afterimage, thunder camera shake, storm vignette, rain on the lens)
-and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
+splashes, fog, rainy atmosphere, puddles, runoff and drips, rain on windows, lightning and flashes, cinematic effects
+(darkening before a strike, flash glare and afterimage, rare drops on the lens) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
 lightning strikes.
 
 The mod works on the client alone; installed on the server too, every player sees the same rain type and wetness.

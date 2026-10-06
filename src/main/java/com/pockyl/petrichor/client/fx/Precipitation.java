@@ -18,8 +18,7 @@ import com.pockyl.petrichor.world.DropPath;
  * heavier rain that sweep along with the wind.
  *
  * <p>A drop ends where its path meets the terrain - on the top of a block or, falling slanted, on the side of a wall -
- * and never comes out on the far side. Near the camera the moment of impact is found frame by frame and handed to an
- * {@link ImpactSink}, so each drop one follows with the eye breaks up exactly where it lands.
+ * and never comes out on the far side.
  */
 public final class Precipitation {
     private static final int CYCLE = 48;
@@ -33,19 +32,7 @@ public final class Precipitation {
     /** Drops closer than this (blocks) are checked against the terrain along their path, not only where they are. */
     private static final float PATH_CHECK = 20.0F;
 
-    /** Takes the drops that met the terrain this frame. */
-    @FunctionalInterface
-    public interface ImpactSink {
-        /**
-         * @param velX velocity of the drop in blocks per tick
-         * @param size the drop's size, about 0.75..1.25
-         */
-        void impact(DropPath.Hit hit, float velX, float velY, float velZ, float size, int light);
-    }
-
     private int lastDrops;
-    private double lastShift = Double.NaN;
-    private double lastAnchor = Double.NaN;
 
     public int lastDrops() {
         return lastDrops;
@@ -56,15 +43,13 @@ public final class Precipitation {
      * @param time  game ticks with the partial tick
      * @param flash lightning flash: a strobe that lights every drop and freezes its motion
      */
-    public void render(VertexConsumer rain, Columns columns, double camX, double camY, double camZ, double time, float[] fog, float flash,
-            ImpactSink sink) {
+    public void render(VertexConsumer rain, Columns columns, double camX, double camY, double camZ, double time, float[] fog, float flash) {
         ClientConfig.Quality quality = ClientConfig.quality();
         int radius = quality.rainRadius;
         float rainLevel = ClientWeather.localRain();
         float intensity = ClientWeather.localIntensity();
         if (rainLevel <= 0.0F) {
             lastDrops = 0;
-            lastShift = Double.NaN;
             return;
         }
         float budget = (float) (quality.maxDrops * ClientConfig.RAIN_DENSITY.get());
@@ -98,11 +83,6 @@ public final class Precipitation {
         float strobeLength = 1.0F - strobe * 0.65F;
         float strobeAlpha = 1.0F + strobe * 0.8F;
         double rainShift = ClientWeather.fallen(partialTick);
-        // Impacts are found between the last frame and this one; skipped when the drops jumped (new window, new world).
-        double shiftStep = rainShift - lastShift;
-        boolean detect = sink != null && anchor == lastAnchor && shiftStep > 0.0 && shiftStep < 3.0;
-        float impactRadius = quality.impactRadius;
-        float impactSq = impactRadius * impactRadius;
         int ccx = Mth.floor(camX);
         int ccz = Mth.floor(camZ);
         float radiusSq = radius * radius;
@@ -148,9 +128,6 @@ public final class Precipitation {
                     boolean gone = columnDistance < PATH_CHECK ? DropPath.blocked(columns, x, y, z, slantX, slantZ, fallen)
                             : y < columns.top(ix, iz);
                     if (gone) {
-                        if (detect && dist2 <= impactSq) {
-                            findImpact(columns, sink, cx + jx, cz + jz, anchor, phase, vary, slantX, slantZ, fallen, x, y, z);
-                        }
                         continue;
                     }
                     float hx = (float) (x - camX);
@@ -195,30 +172,5 @@ public final class Precipitation {
             }
         }
         lastDrops = drops;
-        lastShift = rainShift;
-        lastAnchor = anchor;
-    }
-
-    /** The drop is gone now: if it was still free in the last frame, it met the terrain in between. */
-    private void findImpact(Columns columns, ImpactSink sink, double startX, double startZ, double anchor, float phase, float vary,
-            float slantX, float slantZ, double fallen, double x, double y, double z) {
-        double before = (lastShift * (0.9 + vary * 0.2) + phase * CYCLE) % CYCLE;
-        if (before >= fallen) {
-            return;
-        }
-        double px = startX + slantX * before;
-        double py = anchor + CYCLE - before;
-        double pz = startZ + slantZ * before;
-        if (DropPath.blocked(columns, px, py, pz, slantX, slantZ, before)) {
-            return;
-        }
-        DropPath.Hit hit = DropPath.hit(columns, px, py, pz, x, y, z);
-        if (hit == null) {
-            return;
-        }
-        float speed = ClientWeather.fallSpeed * (0.9F + vary * 0.2F);
-        // Light of the open column the drop came through.
-        int light = columns.light(Mth.floor(hit.x() + hit.face().getStepX() * 0.5), Mth.floor(hit.z() + hit.face().getStepZ() * 0.5));
-        sink.impact(hit, slantX * speed, -speed, slantZ * speed, 0.75F + vary * 0.5F, light);
     }
 }

@@ -23,27 +23,15 @@ import com.pockyl.petrichor.world.SoundMaterial;
 import java.util.Arrays;
 
 /**
- * Water on the walls: what is left of the drops that hit the side of a block.
+ * Rain on windows. Drops stay where they land as beads; beads grow as more drops hit them, until one is heavy enough to
+ * break free. It slides down in jerks, stopping and starting, wandering a little to the side, swallowing the beads in
+ * its way (and getting faster for it), and leaves a trail of tiny beads behind. At the bottom of the window it drips
+ * off when there is open air below. When the rain stops, the glass slowly dries.
  *
- * <p>On a wall (stone, wood, metal) a drop runs straight down as a small separate drop, leaving a wet streak, and soaks
- * in on the way - fast on rough stone, slowly on smooth planks and metal. At the bottom of the wall it joins the ground,
- * or drips off when the wall ends above open air.
- *
- * <p>On glass it behaves like rain on a real window: drops stay where they land as beads; beads grow as more drops hit
- * them, until one is heavy enough to break free. It slides down in jerks, stopping and starting, wandering a little to
- * the side, swallowing the beads in its way (and getting faster for it), and leaves a trail of tiny beads behind. When
- * the rain stops, the window slowly dries.
- *
- * <p>Drops live on the faces of blocks that rain can reach. Every drop drawn by {@link Precipitation} that hits a wall
- * lands here; the much finer rain that is not drawn adds more, at a rate set by how much the wind drives the rain at
- * the face.
+ * <p>Drops live on the faces of glass blocks and panes that rain can reach, landing at a rate set by how hard it rains
+ * and how much the wind drives the rain at the face (a little reaches every side).
  */
-public final class WallWater {
-    public static final byte GLASS = 0;
-    public static final byte SMOOTH = 1;
-    public static final byte ROUGH = 2;
-    private static final byte NONE = -1;
-
+public final class WindowRain {
     private static final int SCAN_RADIUS = 14;
     private static final int SCAN_EVERY = 20;
     private static final int MAX_FACES = 4096;
@@ -62,8 +50,8 @@ public final class WallWater {
      * @param y0    lowest point the rain reaches (the ground or a roof in front may hide the lower part)
      * @param ground whether the ground in front meets the face at its bottom (otherwise the face ends above air)
      */
-    private record Face(int bx, int by, int bz, Direction dir, float plane, float u0, float u1, float y0, float y1, byte material,
-            int light, boolean ground) {
+    private record Face(int bx, int by, int bz, Direction dir, float plane, float u0, float u1, float y0, float y1, int light,
+            boolean ground) {
         boolean alongX() {
             return dir.getAxis() == Direction.Axis.X;
         }
@@ -101,7 +89,6 @@ public final class WallWater {
     private int[] pinned = new int[0];
     private float[] threshold = new float[0];
     private long[] face = new long[0];
-    private byte[] material = new byte[0];
     private byte[] dir = new byte[0];
     private boolean[] running = new boolean[0];
     private boolean[] dead = new boolean[0];
@@ -111,7 +98,7 @@ public final class WallWater {
     private final Long2IntOpenHashMap grid = new Long2IntOpenHashMap();
     private int[] next = new int[0];
 
-    public WallWater() {
+    public WindowRain() {
         grid.defaultReturnValue(-1);
     }
 
@@ -149,7 +136,6 @@ public final class WallWater {
         pinned = Arrays.copyOf(pinned, capacity);
         threshold = Arrays.copyOf(threshold, capacity);
         face = Arrays.copyOf(face, capacity);
-        material = Arrays.copyOf(material, capacity);
         dir = Arrays.copyOf(dir, capacity);
         running = Arrays.copyOf(running, capacity);
         dead = Arrays.copyOf(dead, capacity);
@@ -170,21 +156,9 @@ public final class WallWater {
     // Faces
     // ------------------------------------------------------------------------------------------------------------
 
-    private static byte materialOf(BlockState state) {
-        if (state.getFluidState().is(FluidTags.WATER) || state.isAir()) {
-            return NONE;
-        }
-        return switch (SoundMaterial.of(state)) {
-            case GLASS -> GLASS;
-            case WOOD, METAL -> SMOOTH;
-            case HARD, SOFT -> ROUGH;
-            default -> NONE;
-        };
-    }
-
     /**
-     * Finds the faces rain can reach around the camera: in each column, the part of each side that rises above the
-     * column next to it, where rain falls.
+     * Finds the glass faces rain can reach around the camera: in each column, the part of each side that rises above
+     * the column next to it, where rain falls (a roof or eaves in front keep it dry).
      */
     private void scan(ClientLevel level, Columns columns, double camX, double camY, double camZ) {
         faces.clear();
@@ -221,8 +195,7 @@ public final class WallWater {
     private void addFace(ClientLevel level, int bx, int by, int bz, Direction direction, float frontTop) {
         pos.set(bx, by, bz);
         BlockState state = level.getBlockState(pos);
-        byte kind = materialOf(state);
-        if (kind == NONE) {
+        if (state.isAir() || state.getFluidState().is(FluidTags.WATER) || SoundMaterial.of(state) != SoundMaterial.GLASS) {
             return;
         }
         VoxelShape shape = state.getCollisionShape(level, pos);
@@ -236,7 +209,7 @@ public final class WallWater {
         float u1 = (float) shape.max(across);
         float y0 = (float) shape.min(Direction.Axis.Y);
         float y1 = (float) shape.max(Direction.Axis.Y);
-        // Only faces that are walls: wide and tall enough to hold drops (fences and posts are not).
+        // Only panes wide and tall enough to hold drops.
         if (u1 - u0 < 0.5F || y1 - y0 < 0.5F || y1 > 1.0F) {
             return;
         }
@@ -250,49 +223,24 @@ public final class WallWater {
         pos.set(bx + direction.getStepX(), by, bz + direction.getStepZ());
         int packedLight = LevelRenderer.getLightColor(level, pos);
         boolean ground = frontTop >= by + y0 - 0.01F;
-        faces.put(faceKey(bx, by, bz, direction), new Face(bx, by, bz, direction, base + plane, uBase + u0, uBase + u1, low, by + y1, kind,
-                packedLight, ground));
+        faces.put(faceKey(bx, by, bz, direction), new Face(bx, by, bz, direction, base + plane, uBase + u0, uBase + u1, low, by + y1, packedLight,
+                ground));
     }
 
     // ------------------------------------------------------------------------------------------------------------
     // Impacts
     // ------------------------------------------------------------------------------------------------------------
 
-    /**
-     * A drawn drop hit the side of a block: its water stays on the face, if the face can hold it.
-     *
-     * @param face the face that was hit (its outward direction)
-     * @return the face's material, or -1 when the face holds no water (or is not known yet)
-     */
-    public byte impact(int bx, int by, int bz, Direction face, double hx, double hy, double hz, float size) {
-        Face f = faces.get(faceKey(bx, by, bz, face));
-        if (f == null || !ClientConfig.WALL_WATER.get()) {
-            return NONE;
-        }
-        double u = f.alongX() ? hz : hx;
-        if (u < f.u0() || u > f.u1() || hy < f.y0() || hy > f.y1()) {
-            return f.material();
-        }
-        float m = f.material() == GLASS ? (1.2F + random.nextFloat() * 1.3F) * size : (1.0F + random.nextFloat()) * size;
-        land(f, u, hy, m);
-        return f.material();
-    }
-
     private void land(Face f, double u, double wy, float m) {
         double wx = f.alongX() ? f.plane() : u;
         double wz = f.alongX() ? u : f.plane();
-        if (f.material() == GLASS) {
-            // On glass a new drop joins a bead it touches.
-            int other = nearest(f, (float) (wx - originX), (float) wy, (float) (wz - originZ), radius(m));
-            if (other >= 0) {
-                mass[other] += m;
-                return;
-            }
-        } else if (random.nextFloat() > 0.55F) {
-            // Rough walls drink most small drops at once; a share gathers into a drop that runs.
+        // A new drop joins a bead it touches.
+        int other = nearest(f, (float) (wx - originX), (float) wy, (float) (wz - originZ), radius(m));
+        if (other >= 0) {
+            mass[other] += m;
             return;
         }
-        if (count >= capacity || f.material() != GLASS && count >= capacity * 0.45F) {
+        if (count >= capacity) {
             return;
         }
         int i = count++;
@@ -307,10 +255,8 @@ public final class WallWater {
         pinned[i] = 0;
         threshold[i] = 7.0F + random.nextFloat() * 7.0F;
         face[i] = faceKey(f.bx(), f.by(), f.bz(), f.dir());
-        material[i] = f.material();
         dir[i] = (byte) f.dir().get2DDataValue();
-        // Off glass a drop does not hold on: it runs at once.
-        running[i] = f.material() != GLASS;
+        running[i] = false;
         dead[i] = false;
         light[i] = f.light();
         next[i] = -1;
@@ -325,8 +271,8 @@ public final class WallWater {
             clear();
             this.level = level;
         }
-        boolean enabled = ClientConfig.WALL_WATER.get();
-        setCapacity(enabled ? ClientConfig.quality().maxWallDrops : 0);
+        boolean enabled = ClientConfig.WINDOW_RAIN.get();
+        setCapacity(enabled ? ClientConfig.quality().maxWindowDrops : 0);
         if (!enabled) {
             return;
         }
@@ -348,30 +294,26 @@ public final class WallWater {
             if (dead[i]) {
                 continue;
             }
-            if (material[i] == GLASS) {
-                tickGlass(i, rain);
-            } else {
-                tickWall(i);
-            }
+            tick(i, rain);
         }
         compact();
         rebuildGrid();
     }
 
-    /** The fine rain that is not drawn as drops: it lands on every face the wind drives it at. */
+    /** Rain lands on every window, most on those the wind drives it at. */
     private void rainOnFaces() {
         float intensity = ClientWeather.localIntensity();
         float wind = (float) (double) ClientConfig.WIND.get();
         float fallSpeed = Math.max(ClientWeather.fallSpeed, 0.05F);
         float slantX = ClientWeather.windX() * wind / fallSpeed;
         float slantZ = ClientWeather.windZ() * wind / fallSpeed;
-        float density = (float) (double) ClientConfig.WALL_WATER_DENSITY.get() * Math.min(1.5F, ClientWeather.splash);
+        float density = (float) (double) ClientConfig.WINDOW_RAIN_DENSITY.get() * Math.min(1.5F, ClientWeather.splash);
         for (Face f : faceList) {
             // Rain driven at the face; a little reaches every side through eddies around the building.
             float into = -(slantX * f.dir().getStepX() + slantZ * f.dir().getStepZ());
-            float exposure = 0.12F + 0.88F * Math.clamp(into * 3.0F, 0.0F, 1.0F);
+            float exposure = 0.3F + 0.7F * Math.clamp(into * 3.0F, 0.0F, 1.0F);
             float area = (f.u1() - f.u0()) * (f.y1() - f.y0());
-            float rate = (f.material() == GLASS ? 0.55F : 0.012F) * intensity * exposure * area * density;
+            float rate = 0.6F * intensity * exposure * area * density;
             int n = (int) rate;
             if (random.nextFloat() < rate - n) {
                 n++;
@@ -380,13 +322,13 @@ public final class WallWater {
                 double u = f.u0() + random.nextFloat() * (f.u1() - f.u0());
                 double wy = f.y0() + random.nextFloat() * (f.y1() - f.y0());
                 // Fine rain makes small beads; now and then a bigger drop.
-                float m = f.material() == GLASS ? 0.25F + random.nextFloat() * random.nextFloat() * 2.2F : 0.8F + random.nextFloat();
+                float m = 0.25F + random.nextFloat() * random.nextFloat() * 2.2F;
                 land(f, u, wy, m);
             }
         }
     }
 
-    private void tickGlass(int i, float rain) {
+    private void tick(int i, float rain) {
         float r = radius(mass[i]);
         if (!running[i]) {
             // A bead dries slowly once the rain stops; in the rain the window stays wet.
@@ -438,22 +380,6 @@ public final class WallWater {
         }
     }
 
-    private void tickWall(int i) {
-        // A drop on a wall runs steadily and soaks in: rough stone drinks it within a block or so.
-        float soak = material[i] == ROUGH ? 0.035F : 0.012F;
-        mass[i] -= soak * (0.6F + mass[i] * 0.4F);
-        if (mass[i] <= 0.15F) {
-            dead[i] = true;
-            return;
-        }
-        float target = (material[i] == ROUGH ? 0.035F : 0.06F) * (0.7F + mass[i] * 0.2F);
-        fall[i] += (target - fall[i]) * 0.3F;
-        float wander = Noise.value(across(i) * 5.0, y[i] * 3.0, SEED_WANDER) - 0.5F;
-        drift[i] = drift[i] * 0.85F + wander * 0.002F;
-        move(i, fall[i], drift[i]);
-        streak[i] = Math.min(material[i] == ROUGH ? 0.3F : 0.55F, streak[i] + fall[i]);
-    }
-
     private float across(int i) {
         return dir[i] == Direction.EAST.get2DDataValue() || dir[i] == Direction.WEST.get2DDataValue() ? z[i] : x[i];
     }
@@ -476,7 +402,7 @@ public final class WallWater {
         if (u < f.u0() || u > f.u1()) {
             int step = u < f.u0() ? -1 : 1;
             Face side = faces.get(faceKey(f.bx() + (alongX ? 0 : step), f.by(), f.bz() + (alongX ? step : 0), f.dir()));
-            if (side != null && side.material() == f.material()) {
+            if (side != null) {
                 face[i] = faceKey(side.bx(), side.by(), side.bz(), side.dir());
                 f = side;
             } else {
@@ -495,16 +421,12 @@ public final class WallWater {
         Face below = faces.get(faceKey(f.bx(), f.by() - 1, f.bz(), f.dir()));
         if (below != null && below.y1() >= f.y0() - 0.02F && Math.abs(below.plane() - f.plane()) < 0.01F) {
             face[i] = faceKey(below.bx(), below.by(), below.bz(), below.dir());
-            material[i] = below.material();
             light[i] = below.light();
-            if (below.material() != GLASS) {
-                running[i] = true;
-            }
             return;
         }
         dead[i] = true;
         if (!f.ground()) {
-            // The wall ends above open air: the drop hangs on the edge and falls.
+            // The window ends above open air: the drop hangs on the edge and falls.
             pendingDrip(i, f);
         }
     }
@@ -626,7 +548,6 @@ public final class WallWater {
         pinned[j] = 0;
         threshold[j] = 7.0F + random.nextFloat() * 7.0F;
         face[j] = face[i];
-        material[j] = material[i];
         dir[j] = dir[i];
         running[j] = false;
         dead[j] = false;
@@ -689,7 +610,6 @@ public final class WallWater {
                 pinned[w] = pinned[i];
                 threshold[w] = threshold[i];
                 face[w] = face[i];
-                material[w] = material[i];
                 dir[w] = dir[i];
                 running[w] = running[i];
                 dead[w] = false;
@@ -720,7 +640,7 @@ public final class WallWater {
     // ------------------------------------------------------------------------------------------------------------
 
     /**
-     * Writes every drop as a quad lying on its face, positions relative to the camera, in the particle vertex format
+     * Writes every drop as a quad lying on its window, positions relative to the camera, in the particle vertex format
      * for the {@code petrichor_bead} shader: UV -1..1 across a drop; V above 1.5 marks the wet streak behind it.
      */
     public int render(VertexConsumer out, double camX, double camY, double camZ, float partialTick) {
@@ -756,9 +676,7 @@ public final class WallWater {
                 quad(out, cx, cy + half - r, cz, ax, az, r, half, -1.0F, 1.0F, -1.0F, 1.0F, alpha, light[i]);
                 float tail = streak[i];
                 if (tail > 0.02F) {
-                    float w = material[i] == GLASS ? r * 0.45F : r * 0.85F;
-                    float a = material[i] == GLASS ? 0.35F : 0.55F;
-                    quad(out, cx, cy + r * 0.5F + tail * 0.5F, cz, ax, az, w, tail * 0.5F, -1.0F, 1.0F, 3.0F, 2.0F, a, light[i]);
+                    quad(out, cx, cy + r * 0.5F + tail * 0.5F, cz, ax, az, r * 0.45F, tail * 0.5F, -1.0F, 1.0F, 3.0F, 2.0F, 0.35F, light[i]);
                 }
             } else {
                 quad(out, cx, cy, cz, ax, az, r, r, -1.0F, 1.0F, -1.0F, 1.0F, alpha, light[i]);

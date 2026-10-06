@@ -24,14 +24,16 @@ import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
 
 /**
- * Rain on the lens, in first person: drops land on the view when you look up into the rain or face the wind, bead up,
- * and the bigger ones run down in jerks, swallowing the small ones and leaving a few behind. Each shows the picture
- * behind it upside down. Under cover they stop coming and dry up.
+ * Rain on the lens, in first person - a rare, quiet touch that must never get in the way of playing: now and then,
+ * mostly when you look up into heavy rain, a faint drop lands on the view, maybe slides down a little, and dries. It
+ * shows the picture behind it upside down.
  *
  * <p>Positions are in screen heights: y from 0 at the top to 1 at the bottom, x from 0 to the aspect ratio.
  */
 final class LensDrops {
-    private static final int MAX = 72;
+    private static final int MAX = 6;
+    /** How visible a drop is at most: a hint, not a stain. */
+    private static final float OPACITY = 0.45F;
     private static final int FULL_BRIGHT = 0xF000F0;
 
     private final RandomSource random = RandomSource.create();
@@ -68,11 +70,11 @@ final class LensDrops {
             spawn(minecraft);
         }
         for (int i = 0; i < count; i++) {
-            // Out of the rain the lens dries in a few seconds; in the rain drops last until they run off.
-            fade[i] -= exposed ? 0.0025F : 0.012F;
+            // A drop dries within a few seconds, faster under cover.
+            fade[i] -= exposed ? 0.006F : 0.015F;
             if (running[i]) {
                 run(i);
-            } else if (radius[i] > 0.016F) {
+            } else if (radius[i] > 0.011F) {
                 running[i] = true;
             }
         }
@@ -89,8 +91,8 @@ final class LensDrops {
 
     private void spawn(Minecraft minecraft) {
         Vector3f look = minecraft.gameRenderer.getMainCamera().getLookVector();
-        // Looking up catches the falling rain; facing the wind catches what it drives.
-        float up = Math.max(0.0F, look.y() + 0.15F);
+        // Looking up catches the falling rain; facing the wind a little of what it drives.
+        float up = Math.max(0.0F, look.y());
         float windX = ClientWeather.windX();
         float windZ = ClientWeather.windZ();
         float wind = Mth.sqrt(windX * windX + windZ * windZ);
@@ -101,18 +103,16 @@ final class LensDrops {
                 facing = Math.max(0.0F, -(look.x() * windX + look.z() * windZ) / (horizontal * wind)) * Math.min(1.0F, wind * 3.0F);
             }
         }
-        float rate = ClientWeather.localIntensity() * ClientWeather.splash * (0.03F + 0.9F * up + 0.45F * facing) * 0.35F;
-        int n = (int) rate;
-        if (random.nextFloat() < rate - n) {
-            n++;
-        }
-        for (int k = 0; k < n && count < MAX; k++) {
+        // About one drop in half a minute looking straight up into a downpour, almost never otherwise.
+        float rate = Math.min(1.0F, ClientWeather.localIntensity()) * Math.min(1.0F, ClientWeather.heaviness + 0.2F)
+                * (0.08F * up * up + 0.02F * facing) * 0.025F;
+        if (random.nextFloat() < rate && count < MAX) {
             int i = count++;
             x[i] = random.nextFloat() * aspect;
             y[i] = random.nextFloat() * 0.95F;
             // Mostly small beads, now and then a fat drop.
             float size = random.nextFloat();
-            radius[i] = 0.004F + size * size * size * 0.02F;
+            radius[i] = 0.004F + size * size * size * 0.01F;
             fall[i] = 0.0F;
             fade[i] = 1.0F;
             slid[i] = 0.0F;
@@ -211,7 +211,7 @@ final class LensDrops {
         Matrix4f pose = graphics.pose().last().pose();
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         for (int i = 0; i < count; i++) {
-            float a = Math.min(1.0F, fade[i] * 3.0F);
+            float a = Math.min(1.0F, fade[i] * 3.0F) * OPACITY;
             float cx = x[i] * scale;
             float cy = (y[i] + fall[i] * (partialTick - 1.0F)) * scale;
             float r = radius[i] * scale;
@@ -234,7 +234,7 @@ final class LensDrops {
         RenderSystem.setShader(() -> shader);
         RenderSystem.setShaderTexture(0, screen.getColorTextureId());
         shader.safeGetUniform("Refraction").set(1.0F);
-        shader.safeGetUniform("LensPower").set(2.6F);
+        shader.safeGetUniform("LensPower").set(1.8F);
         shader.safeGetUniform("SkyColor").set(0.75F, 0.8F, 0.88F);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
