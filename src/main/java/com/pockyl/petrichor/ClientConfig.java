@@ -8,11 +8,11 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public final class ClientConfig {
     /** Budgets that scale with the hardware. Individual options below multiply on top of these. */
     public enum Quality {
-        // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets, reflectionSteps
-        LOW(14, 2200, 32, 1000, 25, false, 0),
-        MEDIUM(20, 5000, 48, 2000, 50, true, 16),
-        HIGH(28, 9000, 64, 3500, 90, true, 28),
-        ULTRA(36, 15000, 96, 5000, 140, true, 48);
+        // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets, reflectionSteps, impactRadius, maxWallDrops
+        LOW(14, 2200, 32, 1000, 25, false, 0, 8, 400),
+        MEDIUM(20, 5000, 48, 2000, 50, true, 16, 12, 1200),
+        HIGH(28, 9000, 64, 3500, 90, true, 28, 16, 2500),
+        ULTRA(36, 15000, 96, 5000, 140, true, 48, 20, 4000);
 
         public final int rainRadius;
         public final int maxDrops;
@@ -22,9 +22,13 @@ public final class ClientConfig {
         public final boolean rivulets;
         /** Ray-march steps of the puddle reflections; 0 reflects only the sky. */
         public final int reflectionSteps;
+        /** Drops within this many blocks are followed to the exact spot where they land. */
+        public final int impactRadius;
+        /** Drops of water on walls and windows. */
+        public final int maxWallDrops;
 
         Quality(int rainRadius, int maxDrops, int puddleRadius, int maxEffects, int splashBudget, boolean rivulets,
-                int reflectionSteps) {
+                int reflectionSteps, int impactRadius, int maxWallDrops) {
             this.rainRadius = rainRadius;
             this.maxDrops = maxDrops;
             this.puddleRadius = puddleRadius;
@@ -32,6 +36,8 @@ public final class ClientConfig {
             this.splashBudget = splashBudget;
             this.rivulets = rivulets;
             this.reflectionSteps = reflectionSteps;
+            this.impactRadius = impactRadius;
+            this.maxWallDrops = maxWallDrops;
         }
     }
 
@@ -112,6 +118,16 @@ public final class ClientConfig {
             .translation(key("dripDensity"))
             .defineInRange("dripDensity", 1.0, 0.1, 3.0);
 
+    public static final ModConfigSpec.BooleanValue WALL_WATER = BUILDER
+            .comment("Rain hitting walls breaks up and runs down them as separate drops; on glass the drops bead up, merge and "
+                    + "slide down in jerks, leaving trails, and refract the world behind them.")
+            .translation(key("wallWater"))
+            .define("wallWater", true);
+    public static final ModConfigSpec.DoubleValue WALL_WATER_DENSITY = BUILDER
+            .comment("Multiplier for the number of drops on walls and windows.")
+            .translation(key("wallWaterDensity"))
+            .defineInRange("wallWaterDensity", 1.0, 0.1, 3.0);
+
     static {
         BUILDER.pop();
         BUILDER.translation(key("lightning")).push("lightning");
@@ -138,6 +154,34 @@ public final class ClientConfig {
             .comment("Frequency of distant, purely visual lightning and flashes inside the clouds during thunderstorms. 0 disables.")
             .translation(key("distant"))
             .defineInRange("distantLightning", 1.0, 0.0, 3.0);
+
+    static {
+        BUILDER.pop();
+        BUILDER.translation(key("cinematic")).push("cinematic");
+    }
+
+    public static final ModConfigSpec.BooleanValue HUSH = BUILDER
+            .comment("The world darkens for a moment before lightning strikes nearby, as if holding its breath.")
+            .translation(key("hush"))
+            .define("darkenBeforeStrike", true);
+    public static final ModConfigSpec.BooleanValue EXPOSURE = BUILDER
+            .comment("A close strike overexposes the view for an instant, the eyes then need a moment to see in the dark again, "
+                    + "and the bolt lingers as a fading afterimage.")
+            .translation(key("exposure"))
+            .define("flashExposure", true);
+    public static final ModConfigSpec.DoubleValue SHAKE = BUILDER
+            .comment("How much close thunder shakes the camera. 0 disables.")
+            .translation(key("shake"))
+            .defineInRange("thunderShake", 1.0, 0.0, 2.0);
+    public static final ModConfigSpec.DoubleValue VIGNETTE = BUILDER
+            .comment("Storm mood: darker, colder edges of the view in heavy rain and thunderstorms. 0 disables.")
+            .translation(key("vignette"))
+            .defineInRange("stormVignette", 1.0, 0.0, 2.0);
+    public static final ModConfigSpec.BooleanValue LENS_DROPS = BUILDER
+            .comment("In first person, rain lands on the view like on a camera lens when you look up or into the wind, and the "
+                    + "drops run down and dry when you get under cover.")
+            .translation(key("lensDrops"))
+            .define("lensDrops", true);
 
     static {
         BUILDER.pop();

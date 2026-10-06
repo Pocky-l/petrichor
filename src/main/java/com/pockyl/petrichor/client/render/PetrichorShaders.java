@@ -8,13 +8,18 @@ import com.pockyl.petrichor.Petrichor;
 
 import java.io.IOException;
 
-/** The mod's core shaders: drops and effects, puddles and wet ground, water spilling over steps, the rainy air. */
+/**
+ * The mod's core shaders: drops and effects, puddles and wet ground, water spilling over steps, the rainy air, drops on
+ * walls and the lens, the cinematic screen grade.
+ */
 public final class PetrichorShaders {
     private static ShaderInstance rain;
     private static ShaderInstance puddle;
     private static ShaderInstance sheet;
     private static ShaderInstance veil;
     private static ShaderInstance atmosphere;
+    private static ShaderInstance bead;
+    private static ShaderInstance grade;
 
     private PetrichorShaders() {
     }
@@ -31,6 +36,10 @@ public final class PetrichorShaders {
                     DefaultVertexFormat.PARTICLE), shader -> veil = shader);
             event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_atmosphere"),
                     DefaultVertexFormat.POSITION), shader -> atmosphere = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_bead"),
+                    DefaultVertexFormat.PARTICLE), shader -> bead = shader);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), Petrichor.id("petrichor_grade"),
+                    DefaultVertexFormat.POSITION), shader -> grade = shader);
         } catch (IOException e) {
             Petrichor.LOGGER.error("Failed to load Petrichor shaders", e);
         }
@@ -54,5 +63,13 @@ public final class PetrichorShaders {
 
     public static ShaderInstance atmosphere() {
         return atmosphere;
+    }
+
+    public static ShaderInstance bead() {
+        return bead;
+    }
+
+    public static ShaderInstance grade() {
+        return grade;
     }
 }

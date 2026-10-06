@@ -2,6 +2,7 @@ package com.pockyl.petrichor.gametest;
 
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.FriendlyByteBuf;
@@ -16,6 +17,7 @@ import com.pockyl.petrichor.weather.RainSchedule;
 import com.pockyl.petrichor.weather.RainType;
 import com.pockyl.petrichor.weather.StormData;
 import com.pockyl.petrichor.weather.Wetness;
+import com.pockyl.petrichor.world.DropPath;
 import com.pockyl.petrichor.world.PuddleField;
 import com.pockyl.petrichor.world.RunoffSolver;
 import com.pockyl.petrichor.world.SoundMaterial;
@@ -229,6 +231,25 @@ public final class ModGameTests {
             }
         }
         helper.assertTrue(roofTotal == 9, "All rain on the roof leaves over its edges, got " + roofTotal);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void dropsMeetWallsAndTops(GameTestHelper helper) {
+        // Flat ground at y 0 with a wall in the column x = 5 rising to y 10.
+        DropPath.Tops tops = (x, z) -> x == 5 ? 10.0F : 0.0F;
+        DropPath.Hit side = DropPath.hit(tops, 3.0, 8.0, 0.5, 5.25, 3.5, 0.5);
+        helper.assertTrue(side != null && side.face() == Direction.WEST, "A slanted drop hits the side of the wall");
+        helper.assertTrue(Math.abs(side.x() - 5.0) < 1.0E-6 && Math.abs(side.y() - 4.0) < 0.01, "It hits where its path crosses the face");
+        DropPath.Hit ground = DropPath.hit(tops, 1.5, 3.0, 0.5, 2.0, -1.0, 0.5);
+        helper.assertTrue(ground != null && ground.face() == Direction.UP && Math.abs(ground.y()) < 1.0E-6, "A drop lands on the ground");
+        DropPath.Hit top = DropPath.hit(tops, 4.6, 11.3, 0.5, 5.4, 9.7, 0.5);
+        helper.assertTrue(top != null && top.face() == Direction.UP && Math.abs(top.y() - 10.0) < 1.0E-6,
+                "Crossing above the wall's top, the drop lands on it");
+        helper.assertTrue(DropPath.hit(tops, 1.5, 5.0, 0.5, 1.6, 4.0, 0.5) == null, "A free path meets nothing");
+        helper.assertTrue(DropPath.blocked(tops, 6.5, 5.0, 0.5, 0.5F, 0.0F, 40.0), "No drop comes out on the far side of a wall");
+        helper.assertTrue(!DropPath.blocked(tops, 2.5, 5.0, 0.5, 0.5F, 0.0F, 40.0), "In front of the wall the rain falls freely");
+        helper.assertTrue(DropPath.blocked(tops, 5.5, 9.0, 0.5, 0.0F, 0.0F, 40.0), "Inside the wall a drop is gone");
         helper.succeed();
     }
 

@@ -1,8 +1,6 @@
 package com.pockyl.petrichor.client.render;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -28,8 +26,6 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL30;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
@@ -87,7 +83,6 @@ public final class Puddles implements AutoCloseable {
     private final ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 18);
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
     private ClientLevel level;
-    private RenderTarget scene;
     private int idleTicks;
     private int checkCursor;
     private int lastQuads;
@@ -149,10 +144,6 @@ public final class Puddles implements AutoCloseable {
     public void close() {
         clear();
         bytes.close();
-        if (scene != null) {
-            scene.destroyBuffers();
-            scene = null;
-        }
     }
 
     public int chunkCount() {
@@ -898,9 +889,7 @@ public final class Puddles implements AutoCloseable {
 
         ShaderInstance puddle = PetrichorShaders.puddle();
         boolean drawPuddles = puddle != null && ClientConfig.PUDDLES.get() && wetness > 0.002F;
-        if (drawPuddles && steps > 0) {
-            captureScene(minecraft.getMainRenderTarget());
-        }
+        RenderTarget scene = drawPuddles && steps > 0 ? SceneCopy.world() : null;
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
@@ -953,22 +942,6 @@ public final class Puddles implements AutoCloseable {
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
         RenderSystem.disableBlend();
-    }
-
-    /** Copies colour and depth of what is drawn so far, for the reflections in the puddles. */
-    private void captureScene(RenderTarget main) {
-        if (scene == null) {
-            scene = new TextureTarget(main.width, main.height, true, Minecraft.ON_OSX);
-            scene.setFilterMode(GL11.GL_LINEAR);
-        } else if (scene.width != main.width || scene.height != main.height) {
-            scene.resize(main.width, main.height, Minecraft.ON_OSX);
-            scene.setFilterMode(GL11.GL_LINEAR);
-        }
-        GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, main.frameBufferId);
-        GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, scene.frameBufferId);
-        GlStateManager._glBlitFrameBuffer(0, 0, main.width, main.height, 0, 0, scene.width, scene.height,
-                GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
-        main.bindWrite(false);
     }
 
     private static int draw(ChunkPuddles chunk, VertexBuffer buffer, int quads, Uniform offset, Vec3 cam, Frustum frustum) {

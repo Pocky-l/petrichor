@@ -26,6 +26,7 @@ import org.joml.Matrix4fStack;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.fx.RainFx;
+import com.pockyl.petrichor.client.render.Cinematics;
 import com.pockyl.petrichor.client.sound.Muffler;
 import com.pockyl.petrichor.client.sound.PetrichorSounds;
 import com.pockyl.petrichor.client.sound.RainSounds;
@@ -37,11 +38,15 @@ import java.util.List;
 /**
  * All lightning on the client: bolts the server sends (vanilla entities, drawn our way), distant bolts and cloud
  * flashes that exist only as scenery during thunderstorms, the light they throw on the world and the sky, and thunder
- * that arrives late from far away.
+ * that arrives late from far away. With the cinematic options a strike is preceded by a short hush (the world darkens),
+ * a close one overexposes the view and leaves an afterimage, and close thunder shakes the camera.
  */
 public final class Lightning {
-    /** Blocks per tick of sound at 343 m/s. */
     private static final double TICKS_PER_SECOND = 20.0;
+    /** Strikes closer than this overexpose the view. */
+    private static final float GLARE_RANGE = 180.0F;
+    /** Thunder closer than this shakes the camera. */
+    private static final float SHAKE_RANGE = 110.0F;
     private static final float DEFAULT_CLOUD_HEIGHT = 192.0F;
 
     private final List<Strike> strikes = new ArrayList<>();
@@ -49,9 +54,13 @@ public final class Lightning {
     private final RandomSource random = RandomSource.create();
     private float flash;
     private float previousFlash;
+    private float hush;
+    private float previousHush;
+    private float glare;
+    private float previousGlare;
 
     /** @param highs how much of the highs reach the listener: distance takes them off */
-    private record Thunder(long due, double x, double y, double z, SoundEvent sound, float volume, float pitch, float highs) {
+    private record Thunder(long due, double x, double y, double z, SoundEvent sound, float volume, float pitch, float highs, float distance) {
     }
 
     /** Thunder played by this mod; vanilla thunder is replaced, ours must pass. Muffled indoors. */
@@ -75,11 +84,31 @@ public final class Lightning {
         thunder.clear();
         flash = 0.0F;
         previousFlash = 0.0F;
+        hush = previousHush = 0.0F;
+        glare = previousGlare = 0.0F;
     }
 
     /** Flash brightness for lighting, with the partial tick. */
     public float flash(float partialTick) {
         return Mth.lerp(partialTick, previousFlash, flash);
+    }
+
+    /** How much the world darkens in the moment before a strike, 0..1. */
+    public float hush(float partialTick) {
+        return Mth.lerp(partialTick, previousHush, hush);
+    }
+
+    /** The light of close strikes only, for the overexposure of the view, 0..1. */
+    public float glare(float partialTick) {
+        return Mth.lerp(partialTick, previousGlare, glare);
+    }
+
+    private static float leadTicks(RandomSource random, float min, float spread) {
+        return ClientConfig.HUSH.get() ? min + random.nextFloat() * spread : 0.0F;
+    }
+
+    private static float afterimageTicks(float distance) {
+        return ClientConfig.EXPOSURE.get() && distance < GLARE_RANGE ? 34.0F * (1.0F - distance / GLARE_RANGE) + 6.0F : 0.0F;
     }
 
     public int strikeCount() {
@@ -100,9 +129,11 @@ public final class Lightning {
         float offZ = (shapeRandom.nextFloat() - 0.5F) * height * 0.35F;
         BoltShape shape = BoltShape.groundStrike(seed, offX, height, offZ);
         float distance = (float) cam.distanceTo(bolt.position());
+        // A real bolt has already struck on the server: the hush before it stays short.
+        float lead = leadTicks(random, 6.0F, 3.0F);
         strikes.add(new Strike(Strike.Kind.GROUND, bolt.getX(), groundY, bolt.getZ(), shape, bolt.getX() + offX, groundY + height,
-                bolt.getZ() + offZ, 40.0F, distance, true, random));
-        scheduleThunder(level, bolt.getX(), groundY + 10.0, bolt.getZ(), distance, false);
+                bolt.getZ() + offZ, 40.0F, distance, true, lead, afterimageTicks(distance), random));
+        scheduleThunder(level, bolt.getX(), groundY + 10.0, bolt.getZ(), distance, false, lead);
     }
 
     private static float cloudHeight(ClientLevel level) {
@@ -110,14 +141,14 @@ public final class Lightning {
         return Float.isNaN(cloud) ? DEFAULT_CLOUD_HEIGHT : cloud;
     }
 
-    private void scheduleThunder(ClientLevel level, double x, double y, double z, float distance, boolean cloud) {
+    private void scheduleThunder(ClientLevel level, double x, double y, double z, float distance, boolean cloud, float lead) {
         if (!ClientConfig.DELAYED_THUNDER.get()) {
             return;
         }
         double blocksPerTick = ClientConfig.SOUND_SPEED.get() / TICKS_PER_SECOND;
         long now = level.getGameTime();
         float volume = (float) (double) ClientConfig.THUNDER_VOLUME.get();
-        long due = now + Math.round(distance / blocksPerTick);
+        long due = now + Math.round(lead + distance / blocksPerTick);
         // Recordings by distance: the crack of a strike nearby, a clap rolling away, the low grumble of a far storm.
         SoundEvent sound;
         float loudness;
@@ -141,7 +172,7 @@ public final class Lightning {
             loudness *= 0.6F;
             highs *= 0.7F;
         }
-        thunder.add(new Thunder(due, x, y, z, sound, volume * loudness, pitch, highs));
+        thunder.add(new Thunder(due, x, y, z, sound, volume * loudness, pitch, highs, distance));
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -157,6 +188,9 @@ public final class Lightning {
                 float enclosure = RainSounds.enclosure();
                 Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), t.volume() * (1.0F - enclosure * 0.3F), t.pitch(),
                         t.x(), t.y(), t.z(), t.highs() * (1.0F - enclosure * 0.75F)));
+                if (t.distance() < SHAKE_RANGE) {
+                    Cinematics.thunderShake(1.0F - t.distance() / SHAKE_RANGE);
+                }
                 it.remove();
             } else if (t.due() - now > 2000) {
                 it.remove();
@@ -164,7 +198,11 @@ public final class Lightning {
         }
 
         previousFlash = flash;
+        previousHush = hush;
+        previousGlare = glare;
         float sum = 0.0F;
+        float hushSum = 0.0F;
+        float glareSum = 0.0F;
         for (Iterator<Strike> it = strikes.iterator(); it.hasNext(); ) {
             Strike strike = it.next();
             strike.age += 1.0F;
@@ -174,7 +212,15 @@ public final class Lightning {
             }
             float scale = 1.0F / (1.0F + (strike.distance / 100.0F) * (strike.distance / 100.0F));
             float kind = strike.kind == Strike.Kind.GROUND ? 1.0F : strike.kind == Strike.Kind.CLOUD ? 0.6F : 0.35F;
-            sum += strike.flash(strike.age) * Math.max(scale, 0.05F) * kind;
+            float light = strike.flash(strike.age);
+            sum += light * Math.max(scale, 0.05F) * kind;
+            // The nearer and bigger the strike to come, the deeper the hush; a far flash in the clouds barely dims.
+            float near = 1.0F / (1.0F + (strike.distance / 220.0F) * (strike.distance / 220.0F));
+            hushSum = Math.max(hushSum, strike.hush(strike.age) * (0.12F + 0.3F * near) * kind);
+            if (strike.kind == Strike.Kind.GROUND && strike.distance < GLARE_RANGE) {
+                float close = 1.0F - strike.distance / GLARE_RANGE;
+                glareSum += light * close * close;
+            }
             if (strike.kind == Strike.Kind.GROUND && strike.real && !strike.impactDone && strike.age >= strike.leaderTicks) {
                 strike.impactDone = true;
                 if (strike.distance < 64.0F) {
@@ -183,7 +229,10 @@ public final class Lightning {
             }
         }
         boolean hidden = Minecraft.getInstance().options.hideLightningFlash().get();
-        flash = hidden ? 0.0F : Math.min(1.0F, sum) * (float) (double) ClientConfig.FLASH.get();
+        float brightness = (float) (double) ClientConfig.FLASH.get();
+        flash = hidden ? 0.0F : Math.min(1.0F, sum) * brightness;
+        hush = Math.min(1.0F, hushSum);
+        glare = hidden || !ClientConfig.EXPOSURE.get() ? 0.0F : Math.min(1.0F, glareSum) * brightness;
 
         if (thunderLevel > 0.3F) {
             spawnScenery(level, cam, thunderLevel);
@@ -204,8 +253,10 @@ public final class Lightning {
             double x = cam.x + Mth.cos(angle) * distance;
             double z = cam.z + Mth.sin(angle) * distance;
             double y = cloud + random.nextFloat() * 20.0F;
-            strikes.add(new Strike(Strike.Kind.SHEET, x, y, z, null, x, y, z, 50.0F + random.nextFloat() * 40.0F, distance, false, random));
-            scheduleThunder(level, x, y, z, distance, true);
+            float lead = leadTicks(random, 6.0F, 10.0F);
+            strikes.add(new Strike(Strike.Kind.SHEET, x, y, z, null, x, y, z, 50.0F + random.nextFloat() * 40.0F, distance, false, lead, 0.0F,
+                    random));
+            scheduleThunder(level, x, y, z, distance, true, lead);
         }
         if (random.nextDouble() < rate / (20.0 * 28.0)) {
             float distance = 90.0F + random.nextFloat() * Math.max(60.0F, Math.min(view, 380.0F) - 90.0F);
@@ -217,9 +268,10 @@ public final class Lightning {
             float dir = random.nextFloat() * Mth.TWO_PI;
             BoltShape shape = BoltShape.cloudDischarge(random.nextLong(), Mth.cos(dir) * run, (random.nextFloat() - 0.5F) * 10.0F,
                     Mth.sin(dir) * run);
+            float lead = leadTicks(random, 8.0F, 10.0F);
             strikes.add(new Strike(Strike.Kind.CLOUD, x, y, z, shape, x + Mth.cos(dir) * run * 0.5, y + 6.0, z + Mth.sin(dir) * run * 0.5,
-                    60.0F, distance, false, random));
-            scheduleThunder(level, x, y, z, distance, true);
+                    60.0F, distance, false, lead, 0.0F, random));
+            scheduleThunder(level, x, y, z, distance, true, lead);
         }
         if (random.nextDouble() < rate / (20.0 * 20.0)) {
             float min = 140.0F;
@@ -236,9 +288,10 @@ public final class Lightning {
             float offX = (random.nextFloat() - 0.5F) * height * 0.35F;
             float offZ = (random.nextFloat() - 0.5F) * height * 0.35F;
             BoltShape shape = BoltShape.groundStrike(random.nextLong(), offX, height, offZ);
+            float lead = leadTicks(random, 12.0F, 12.0F);
             strikes.add(new Strike(Strike.Kind.GROUND, x, ground, z, shape, x + offX, ground + height, z + offZ, 45.0F, distance, false,
-                    random));
-            scheduleThunder(level, x, ground + 10.0, z, distance, false);
+                    lead, afterimageTicks(distance), random));
+            scheduleThunder(level, x, ground + 10.0, z, distance, false, lead);
         }
     }
 
@@ -265,7 +318,7 @@ public final class Lightning {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (Strike strike : strikes) {
-            if (strike.shape != null) {
+            if (strike.shape != null && strike.age + partialTick >= 0.0F) {
                 channel(builder, strike, cam, strike.age + partialTick);
             }
         }

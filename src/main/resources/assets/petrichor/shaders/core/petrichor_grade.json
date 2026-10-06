@@ -1,0 +1,14 @@
+{
+    "vertex": "petrichor:petrichor_grade",
+    "fragment": "petrichor:petrichor_grade",
+    "samplers": [],
+    "uniforms": [
+        { "name": "Pass", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "Darken", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "Vignette", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "Tint", "type": "float", "count": 3, "values": [ 1.0, 1.0, 1.0 ] },
+        { "name": "Exposure", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "FlashColor", "type": "float", "count": 3, "values": [ 0.85, 0.9, 1.0 ] },
+        { "name": "ScreenSize", "type": "float", "count": 2, "values": [ 1.0, 1.0 ] }
+    ]
+}

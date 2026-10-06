@@ -1,5 +1,6 @@
 package com.pockyl.petrichor.client;
 
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -30,10 +31,12 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 
 import com.pockyl.petrichor.ClientConfig;
@@ -43,11 +46,14 @@ import com.pockyl.petrichor.client.fx.FxSpawner;
 import com.pockyl.petrichor.client.fx.Precipitation;
 import com.pockyl.petrichor.client.fx.RainFx;
 import com.pockyl.petrichor.client.fx.RainVeils;
+import com.pockyl.petrichor.client.fx.WallWater;
 import com.pockyl.petrichor.client.lightning.Lightning;
 import com.pockyl.petrichor.client.render.Atmosphere;
+import com.pockyl.petrichor.client.render.Cinematics;
 import com.pockyl.petrichor.client.render.PetrichorEffects;
 import com.pockyl.petrichor.client.render.PetrichorShaders;
 import com.pockyl.petrichor.client.render.Puddles;
+import com.pockyl.petrichor.client.render.SceneCopy;
 import com.pockyl.petrichor.client.sound.RainSounds;
 
 /**
@@ -60,6 +66,7 @@ public final class WeatherClient {
     private static final Precipitation PRECIPITATION = new Precipitation();
     private static final FxSpawner SPAWNER = new FxSpawner();
     private static final Lightning LIGHTNING = new Lightning();
+    private static final WallWater WALLS = new WallWater();
     private static Puddles puddles;
     private static ByteBufferBuilder rainBytes;
     private static int ticks;
@@ -92,6 +99,16 @@ public final class WeatherClient {
 
     public static float flash(float partialTick) {
         return LIGHTNING.flash(partialTick);
+    }
+
+    /** How much the world darkens in the moment before a strike. */
+    public static float hush(float partialTick) {
+        return LIGHTNING.hush(partialTick);
+    }
+
+    /** Light of close strikes, which overexposes the view. */
+    public static float glare(float partialTick) {
+        return LIGHTNING.glare(partialTick);
     }
 
     /**
@@ -152,11 +169,14 @@ public final class WeatherClient {
         boolean rain = ClientConfig.RAIN.get();
         if (rain) {
             SPAWNER.tick(level, COLUMNS, puddles, FX, cam);
+            WALLS.tick(level, COLUMNS, puddles, FX, cam.x, cam.y, cam.z);
             RainSounds.tick(level, COLUMNS, puddles, cam);
         } else {
+            WALLS.clear();
             RainSounds.stopAll();
         }
         LIGHTNING.tick(level, cam, FX, ClientWeather.thunder());
+        Cinematics.tick(level, cam);
         if (ClientConfig.BOLTS.get()) {
             // Vanilla bolts set a full-white sky flash; the graded flash of the lightning system replaces it.
             level.setSkyFlashTime(0);
@@ -187,7 +207,9 @@ public final class WeatherClient {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientWeather.reset();
         FX.clear();
+        WALLS.clear();
         LIGHTNING.clear();
+        Cinematics.clear();
         RainSounds.stopAll();
         if (puddles != null) {
             puddles.clear();
@@ -229,7 +251,10 @@ public final class WeatherClient {
         ByteBufferBuilder rainBytes = rainBuffer();
         BufferBuilder drops = new BufferBuilder(rainBytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        PRECIPITATION.render(drops, COLUMNS, camX, camY, camZ, time, fog);
+        Puddles puddles = puddles();
+        // Every drop followed to where it lands breaks up there: splashes on the ground, bursts and runs on walls.
+        PRECIPITATION.render(drops, COLUMNS, camX, camY, camZ, time, fog, LIGHTNING.flash(partialTick),
+                (hit, velX, velY, velZ, size, light) -> SPAWNER.impact(level, COLUMNS, puddles, FX, WALLS, hit, velX, velY, velZ, size, light));
         FX.render(builder, drops, camX, camY, camZ, partialTick, left, up);
         MeshData mesh = builder.build();
         if (mesh != null) {
@@ -272,14 +297,82 @@ public final class WeatherClient {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         RenderLevelStageEvent.Stage stage = event.getStage();
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY) {
+            SceneCopy.newFrame();
             LIGHTNING.renderSky(event.getModelViewMatrix(), event.getCamera(), partialTick);
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
             if (puddles != null) {
                 puddles.render(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum(),
                         partialTick);
             }
+            // Before the translucent blocks: glass is drawn over its drops, and they show through it from inside.
+            renderWallWater(level, event, partialTick);
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
             LIGHTNING.renderBolts(event.getModelViewMatrix(), event.getCamera(), partialTick);
+        }
+    }
+
+    private static void renderWallWater(ClientLevel level, RenderLevelStageEvent event, float partialTick) {
+        ShaderInstance shader = PetrichorShaders.bead();
+        if (shader == null || WALLS.count() == 0) {
+            return;
+        }
+        Vec3 cam = event.getCamera().getPosition();
+        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        WALLS.render(builder, cam.x, cam.y, cam.z, partialTick);
+        MeshData mesh = builder.build();
+        if (mesh == null) {
+            return;
+        }
+        // The drops show the world behind them: a copy of what is drawn so far.
+        TextureTarget scene = SceneCopy.world();
+        Vec3 sky = level.getSkyColor(cam, partialTick);
+        LightTexture lightTexture = Minecraft.getInstance().gameRenderer.lightTexture();
+        Matrix4fStack stack = RenderSystem.getModelViewStack();
+        stack.pushMatrix();
+        stack.set(event.getModelViewMatrix());
+        RenderSystem.applyModelViewMatrix();
+        lightTexture.turnOnLightLayer();
+        RenderSystem.setShader(() -> shader);
+        RenderSystem.setShaderTexture(0, scene.getColorTextureId());
+        shader.safeGetUniform("Refraction").set(1.0F);
+        shader.safeGetUniform("LensPower").set(2.4F);
+        shader.safeGetUniform("SkyColor").set(Math.min(1.0F, (float) sky.x * 1.3F + 0.15F), Math.min(1.0F, (float) sky.y * 1.3F + 0.15F),
+                Math.min(1.0F, (float) sky.z * 1.3F + 0.18F));
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.disableCull();
+        BufferUploader.drawWithShader(mesh);
+        RenderSystem.enableCull();
+        RenderSystem.depthMask(true);
+        RenderSystem.disableBlend();
+        lightTexture.turnOffLightLayer();
+        stack.popMatrix();
+        RenderSystem.applyModelViewMatrix();
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Cinematic
+    // ------------------------------------------------------------------------------------------------------------
+
+    @SubscribeEvent
+    public static void onRenderGui(RenderGuiEvent.Pre event) {
+        if (ourSky(Minecraft.getInstance().level)) {
+            Cinematics.renderScreen(event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
+        if (!ourSky(Minecraft.getInstance().level)) {
+            return;
+        }
+        float[] shake = Cinematics.shakeAngles((float) event.getPartialTick());
+        if (shake != null) {
+            event.setPitch(event.getPitch() + shake[0]);
+            event.setYaw(event.getYaw() + shake[1]);
+            event.setRoll(event.getRoll() + shake[2]);
         }
     }
 
@@ -361,8 +454,8 @@ public final class WeatherClient {
         event.getRight().add(String.format("Drops %d, effects %d, puddle chunks %d (%d quads), strikes %d",
                 PRECIPITATION.lastDrops(), FX.count(), puddles == null ? 0 : puddles.chunkCount(),
                 puddles == null ? 0 : puddles.lastQuads(), LIGHTNING.strikeCount()));
-        event.getRight().add(String.format("Wind %.2f, %.2f, drip sources %d", ClientWeather.windX(), ClientWeather.windZ(),
-                puddles == null ? 0 : puddles.emitterCount()));
+        event.getRight().add(String.format("Wind %.2f, %.2f, drip sources %d, wall drops %d on %d faces", ClientWeather.windX(),
+                ClientWeather.windZ(), puddles == null ? 0 : puddles.emitterCount(), WALLS.count(), WALLS.faceCount()));
         event.getRight().add("Rain sound: " + RainSounds.debugSummary());
         if (puddles != null && minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             event.getRight().add("Puddle: " + puddles.describe(hit.getBlockPos().getX(), hit.getBlockPos().getZ()));

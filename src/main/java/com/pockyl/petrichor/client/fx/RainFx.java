@@ -21,6 +21,8 @@ public final class RainFx {
     public static final byte DRIP = 3;
     public static final byte MIST = 4;
     public static final byte SPARK = 5;
+    /** A splash on a wall: a crown standing out of the face, its normal kept in the velocity fields. */
+    public static final byte WALL_SPLASH = 6;
 
     /** What a falling drip hits. */
     public static final byte LAND_GROUND = 0;
@@ -194,6 +196,36 @@ public final class RainFx {
         }
     }
 
+    /**
+     * A drop hitting a wall at a slant: a flattened crown thrown out of the face, and droplets bouncing off - the
+     * part of the drop's speed along the wall carries on, the part into the wall comes back weakened.
+     *
+     * @param nx      outward normal of the face
+     * @param groundY where the droplets fall to
+     */
+    public void wallSplash(double wx, double wy, double wz, float nx, float nz, float velX, float velY, float velZ, float scale, int packedLight,
+            int droplets, double groundY) {
+        int crown = add(WALL_SPLASH, wx + nx * 0.01, wy, wz + nz * 0.01, nx, 0.0F, nz, scale * (0.5F + random.nextFloat() * 0.35F), 0.26F,
+                3 + random.nextInt(2), packedLight);
+        if (crown < 0) {
+            return;
+        }
+        float into = velX * nx + velZ * nz;
+        float alongX = velX - into * nx;
+        float alongZ = velZ - into * nz;
+        for (int d = 0; d < droplets; d++) {
+            float bounce = -into * (0.25F + random.nextFloat() * 0.3F) + 0.02F + random.nextFloat() * 0.03F;
+            float spread = 0.35F + random.nextFloat() * 0.3F;
+            float sideways = (random.nextFloat() - 0.5F) * 0.08F * scale;
+            int i = add(DROPLET, wx + nx * 0.03, wy, wz + nz * 0.03,
+                    nx * bounce + alongX * spread - nz * sideways, (0.02F + random.nextFloat() * 0.05F) * scale + velY * 0.1F,
+                    nz * bounce + alongZ * spread + nx * sideways, 0.55F + random.nextFloat() * 0.45F, 0.6F, 14, packedLight);
+            if (i >= 0) {
+                ground[i] = (float) groundY;
+            }
+        }
+    }
+
     public void ripple(double wx, double wy, double wz, float scale, int packedLight) {
         add(RIPPLE, wx, wy, wz, 0.0F, 0.0F, 0.0F, scale * (0.7F + random.nextFloat() * 0.6F), 0.5F, 10 + random.nextInt(5), packedLight);
     }
@@ -317,6 +349,11 @@ public final class RainFx {
                     float a = alpha[i] * (1.0F - t * 0.6F);
                     upright(out, cx, cy, cz, 0.11F * size[i], 0.17F * size[i], FxAtlas.SPLASH + frame, a, light[i]);
                 }
+                case WALL_SPLASH -> {
+                    int frame = Math.min(FxAtlas.SPLASH_FRAMES - 1, (int) (t * FxAtlas.SPLASH_FRAMES));
+                    float a = alpha[i] * (1.0F - t * 0.6F);
+                    crown(out, cx, cy, cz, vx[i], vz[i], 0.1F * size[i], 0.09F * size[i], FxAtlas.SPLASH + frame, a, light[i]);
+                }
                 case RIPPLE -> {
                     float r = (0.06F + t * 0.38F) * size[i];
                     float a = alpha[i] * (1.0F - t) * (1.0F - t);
@@ -389,6 +426,32 @@ public final class RainFx {
         vertex(out, cx + rx, cy, cz + rz, u1, v1, a, packedLight);
         vertex(out, cx + rx, cy + height, cz + rz, u1, v0, a, packedLight);
         vertex(out, cx - rx, cy + height, cz - rz, u0, v0, a, packedLight);
+    }
+
+    /** A splash crown whose base sits on a wall and which stands out along the wall's normal, turned to the camera. */
+    private static void crown(VertexConsumer out, float cx, float cy, float cz, float nx, float nz, float half, float height, int tile,
+            float a, int packedLight) {
+        // Side vector: across the normal and the line of sight.
+        float sx = -nz * cy;
+        float sy = nz * cx - nx * cz;
+        float sz = nx * cy;
+        float len = Mth.sqrt(sx * sx + sy * sy + sz * sz);
+        if (len < 1.0E-4F) {
+            return;
+        }
+        sx = sx / len * half;
+        sy = sy / len * half;
+        sz = sz / len * half;
+        float tx = nx * height;
+        float tz = nz * height;
+        float u0 = FxAtlas.u0(tile);
+        float v0 = FxAtlas.v0(tile);
+        float u1 = FxAtlas.u1(tile);
+        float v1 = FxAtlas.v1(tile);
+        vertex(out, cx - sx, cy - sy, cz - sz, u0, v1, a, packedLight);
+        vertex(out, cx + sx, cy + sy, cz + sz, u1, v1, a, packedLight);
+        vertex(out, cx + sx + tx, cy + sy, cz + sz + tz, u1, v0, a, packedLight);
+        vertex(out, cx - sx + tx, cy - sy, cz - sz + tz, u0, v0, a, packedLight);
     }
 
     private static void flat(VertexConsumer out, float cx, float cy, float cz, float half, int tile, float a, int packedLight) {
