@@ -44,7 +44,7 @@
   taps, a tent thuds, a thick roof rumbles. Rain beats on the windows the wind drives it against.
 - **Muffling**: rain behind walls, windows and roofs sounds muffled (a low-pass filter), not just quieter - step inside
   and the storm becomes a cosy murmur; open the door and it rushes in.
-- Water **trickling** from edges and pouring off roofs, single drops landing on stone, wood, metal or a puddle.
+- Single drops falling off eaves and leaves land on stone, wood, metal or a puddle - and keep dripping after the rain.
 - Rain far away in every open direction and the **wind** in storms give the world its size.
 
 ### Lightning and thunder
@@ -121,8 +121,6 @@ The jar is written to `build/libs/`.
   - [Rain in a barn](https://freesound.org/s/414162/) by felix.blume
   - [rain medium on roof or large wood shed](https://freesound.org/s/451156/) by kyles
   - [Strong Rain on Roof from Inside of the Room](https://freesound.org/s/428603/) by Erbsland-Music
-  - [Rain gutter zleb 003](https://freesound.org/s/652260/) by frenkfurth
-  - [downspout-rainwater1](https://freesound.org/s/124975/) by alienistcog
   - [Wind gusting from window](https://freesound.org/s/574556/) by TRP
   - [eau qui coule - water dripping](https://freesound.org/s/843505/) by vfrattaroli
   - [water dripping from gutter to ground](https://freesound.org/s/180948/) by jc144940

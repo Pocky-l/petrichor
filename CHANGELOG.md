@@ -12,6 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Splashes, rings on water, spray from leaves and mobs, mist in heavy rain.
 - Puddles with reflections and ripples, wet and drying ground, water running off edges and dripping from roofs and leaves.
 - A rain soundscape placed in the world: every surface (earth, stone, wood, metal, glass, wool, puddles, water) sounds
-  like itself, light and heavy rain sound different, roofs drum by material, rain beats on windows, water trickles,
-  drops fall, and rain behind walls sounds muffled.
+  like itself, light and heavy rain sound different, roofs drum by material, rain beats on windows, drops fall,
+  and rain behind walls sounds muffled.
 - Branching lightning with delayed thunder recorded at different distances, muffled indoors.

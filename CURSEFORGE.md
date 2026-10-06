@@ -32,7 +32,7 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
   taps, a tent thuds, a thick roof rumbles. Rain beats on the windows the wind drives it against.
 - **Muffling**: rain behind walls, windows and roofs sounds muffled (a low-pass filter), not just quieter - step inside
   and the storm becomes a cosy murmur; open the door and it rushes in.
-- Water **trickling** from edges and pouring off roofs, single drops landing on stone, wood, metal or a puddle.
+- Single drops falling off eaves and leaves land on stone, wood, metal or a puddle - and keep dripping after the rain.
 - Rain far away in every open direction and the **wind** in storms give the world its size.
 
 ### Lightning and thunder

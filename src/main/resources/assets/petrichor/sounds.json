@@ -238,24 +238,6 @@
     ],
     "subtitle": "subtitles.petrichor.rain_roof"
   },
-  "water.trickle": {
-    "sounds": [
-      {
-        "name": "petrichor:water/trickle",
-        "attenuation_distance": 14
-      }
-    ],
-    "subtitle": "subtitles.petrichor.water_trickle"
-  },
-  "water.pour": {
-    "sounds": [
-      {
-        "name": "petrichor:water/pour",
-        "attenuation_distance": 16
-      }
-    ],
-    "subtitle": "subtitles.petrichor.water_trickle"
-  },
   "drop.puddle": {
     "sounds": [
       {

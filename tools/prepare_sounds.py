@@ -54,9 +54,7 @@ SOURCES = {
     414162: ("felix.blume", "Rain in a barn"),
     451156: ("kyles", "rain medium on roof or large wood shed"),
     428603: ("Erbsland-Music", "Strong Rain on Roof from Inside of the Room"),
-    # Running water and wind.
-    652260: ("frenkfurth", "Rain gutter zleb 003"),
-    124975: ("alienistcog", "downspout-rainwater1"),
+    # Wind.
     574556: ("TRP", "Wind gusting from window"),
     # Drops.
     843505: ("vfrattaroli", "eau qui coule - water dripping"),
@@ -334,10 +332,6 @@ def main():
     loops_from(484723, "roof/fabric_light", 14, -24, variants=1)
     loops_from(817155, "roof/fabric_heavy", 14, -20, variants=1)
     loops_from(428603, "roof/thick", 16, -24, variants=1, rumble_cut=45.0, air_cut=2500.0, air_cut_amount=0.5, rate=32000)
-
-    # Water running off: a trickle along a gutter or edge, a stream pouring down.
-    loops_from(652260, "water/trickle", 14, -24, variants=1, rumble_cut=200.0)
-    loops_from(124975, "water/pour", 14, -22, variants=1, rumble_cut=150.0)
 
     # Single drops by what they land on.
     drops_from([180948, 843505, 770443, 442480], "drop/puddle", 8, length=0.3, min_decay=11.0)

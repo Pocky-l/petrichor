@@ -32,7 +32,7 @@ import java.util.List;
  *   <li><b>surfaces</b> - stone, planks, metal, glass, wool, water and puddles near the listener each get their own
  *   sources with recordings of rain on that very material, light and heavy;</li>
  *   <li><b>shelter</b> - the roof right above (tin drums, planks knock, a skylight taps, a tent thuds, a thick roof
- *   rumbles), windows struck by the wind-driven rain, tree crowns, water running off edges;</li>
+ *   rumbles), windows struck by the wind-driven rain, tree crowns;</li>
  *   <li><b>space</b> - rain far away in every open direction and the wind, which make the world feel big outside and
  *   fade to a muffled murmur inside.</li>
  * </ul>
@@ -46,7 +46,6 @@ final class Soundscape {
     private static final int CANOPY_SOURCES = 3;
     private static final int CANOPY_RANGE = 10;
     private static final int WINDOW_SOURCES = 2;
-    private static final int RUNOFF_SOURCES = 2;
     private static final int FAR_SOURCES = 4;
     private static final int SCAN_INTERVAL = 5;
 
@@ -54,8 +53,6 @@ final class Soundscape {
     private static final float LEAF_GAIN = 0.32F;
     private static final float ROOF_GAIN = 0.5F;
     private static final float WINDOW_GAIN = 0.42F;
-    private static final float TRICKLE_GAIN = 0.32F;
-    private static final float POUR_GAIN = 0.38F;
     private static final float FAR_GAIN = 0.2F;
     private static final float WIND_GAIN = 0.26F;
     /** Surfaces with their own sources, and how loud rain on each is. */
@@ -82,12 +79,10 @@ final class Soundscape {
     private final Voice[][] accents = new Voice[ACCENTS.length][ACCENT_SECTORS];
     private final Voice[] canopy = new Voice[CANOPY_SOURCES];
     private final Voice[] windows = new Voice[WINDOW_SOURCES];
-    private final Voice[] runoff = new Voice[RUNOFF_SOURCES];
     private final Voice[] far = new Voice[FAR_SOURCES];
     private final Voice overhead = new Voice(2, false);
     private final Voice wind = new Voice(1, true);
     private final float[] windowHit = new float[WINDOW_SOURCES];
-    private final float[] runoffFlow = new float[RUNOFF_SOURCES];
     private Roof roof = Roof.NONE;
     private float enclosure;
     private int ticks;
@@ -101,7 +96,6 @@ final class Soundscape {
     private final double[][][] accentNear = new double[ACCENTS.length][ACCENT_SECTORS][4];
     private final double[][][] accentCentroid = new double[ACCENTS.length][ACCENT_SECTORS][4];
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-    private final List<Puddles.Emitter> emitters = new ArrayList<>();
 
     Soundscape() {
         for (int i = 0; i < SECTORS; i++) {
@@ -117,9 +111,6 @@ final class Soundscape {
         }
         for (int i = 0; i < WINDOW_SOURCES; i++) {
             windows[i] = new Voice(1, false);
-        }
-        for (int i = 0; i < RUNOFF_SOURCES; i++) {
-            runoff[i] = new Voice(2, false);
         }
         for (int i = 0; i < FAR_SOURCES; i++) {
             far[i] = new Voice(1, true);
@@ -144,7 +135,6 @@ final class Soundscape {
                 scanEnclosure(level, columns, eye);
                 scanFar(level, columns, eye);
             }
-            case 3 -> scanRunoff(level, puddles, eye);
             default -> {
                 if (ticks % 20 == 4) {
                     scanWindows(level, columns, eye);
@@ -219,18 +209,6 @@ final class Soundscape {
             Voice voice = windows[i];
             voice.drive(0, PetrichorSounds.WINDOW, voice.amount * voice.occlusion * loud * WINDOW_GAIN * windowHit[i]
                     * (0.45F + 0.55F * Math.min(1.0F, s)));
-        }
-
-        // Water running off keeps going for a while after the rain.
-        float after = RainSounds.afterRain();
-        for (int i = 0; i < RUNOFF_SOURCES; i++) {
-            Voice voice = runoff[i];
-            float flow = runoffFlow[i];
-            float wet = rain * Math.min(1.0F, 0.3F + s) + after * 3.0F;
-            float trickle = voice.amount * voice.occlusion * volume * TRICKLE_GAIN * Mth.clamp(flow / 8.0F, 0.25F, 1.0F) * Math.min(1.0F, wet);
-            float pour = voice.amount * voice.occlusion * volume * POUR_GAIN * Mth.clamp((flow - 5.0F) / 8.0F, 0.0F, 1.0F) * rain * s;
-            voice.drive(0, PetrichorSounds.TRICKLE, trickle);
-            voice.drive(1, PetrichorSounds.POUR, pour);
         }
 
         for (Voice voice : far) {
@@ -661,59 +639,6 @@ final class Soundscape {
     }
 
     // ------------------------------------------------------------------------------------------------------------
-    // Running water
-    // ------------------------------------------------------------------------------------------------------------
-
-    /** The two edges near the listener where the most water runs off. */
-    private void scanRunoff(ClientLevel level, Puddles puddles, Vec3 eye) {
-        emitters.clear();
-        puddles.emittersNear(eye.x, eye.z, 12, emitters);
-        Puddles.Emitter[] best = new Puddles.Emitter[RUNOFF_SOURCES];
-        float[] score = new float[RUNOFF_SOURCES];
-        for (Puddles.Emitter emitter : emitters) {
-            double dx = emitter.x() - eye.x;
-            double dy = (emitter.hangY() + emitter.groundY()) * 0.5 - eye.y;
-            double dz = emitter.z() - eye.z;
-            double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (distance > 12.0) {
-                continue;
-            }
-            float value = (float) (Math.pow(emitter.flow(), 0.8) / (1.0 + distance / 3.0));
-            for (int i = 0; i < RUNOFF_SOURCES; i++) {
-                if (best[i] != null && Math.abs(best[i].x() - emitter.x()) + Math.abs(best[i].z() - emitter.z()) < 3.0F) {
-                    if (value > score[i]) {
-                        best[i] = emitter;
-                        score[i] = value;
-                    }
-                    value = -1.0F;
-                    break;
-                }
-            }
-            if (value < 0.0F) {
-                continue;
-            }
-            int weakest = score[0] <= score[1] ? 0 : 1;
-            if (best[weakest] == null || value > score[weakest]) {
-                best[weakest] = emitter;
-                score[weakest] = value;
-            }
-        }
-        for (int i = 0; i < RUNOFF_SOURCES; i++) {
-            Voice voice = runoff[i];
-            Puddles.Emitter emitter = best[i];
-            if (emitter == null) {
-                voice.amount = 0.0F;
-                runoffFlow[i] = 0.0F;
-                continue;
-            }
-            double y = (emitter.hangY() + emitter.groundY()) * 0.5;
-            voice.place(emitter.x(), y, emitter.z(), 1.0F);
-            runoffFlow[i] = (float) Math.pow(emitter.flow(), 0.8);
-            apply(voice, occlusion(level, eye, emitter.x(), y, emitter.z()));
-        }
-    }
-
-    // ------------------------------------------------------------------------------------------------------------
     // Space: enclosure, far rain
     // ------------------------------------------------------------------------------------------------------------
 
@@ -775,9 +700,6 @@ final class Soundscape {
         for (Voice voice : windows) {
             voice.stop();
         }
-        for (Voice voice : runoff) {
-            voice.stop();
-        }
         for (Voice voice : far) {
             voice.stop();
         }
@@ -808,8 +730,8 @@ final class Soundscape {
         for (Voice voice : windows) {
             windowCount += voice.amount > 0.0F ? 1 : 0;
         }
-        out.append(String.format("| leaves %.1f | roof %s %.1f | windows %d | runoff %.0f %.0f | enclosed %.1f", leaves,
-                roof.name().toLowerCase(), overhead.amount, windowCount, runoffFlow[0], runoffFlow[1], enclosure));
+        out.append(String.format("| leaves %.1f | roof %s %.1f | windows %d | enclosed %.1f", leaves,
+                roof.name().toLowerCase(), overhead.amount, windowCount, enclosure));
         return out.toString();
     }
 }
