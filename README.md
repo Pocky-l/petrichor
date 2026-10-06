@@ -32,9 +32,9 @@
 
 ### Rain on windows
 
-- **Windows look like real rain on glass**: drops bead up where they land and grow as more rain hits them, until one
-  breaks free and slides down in jerks - stopping, starting, wandering to the side, swallowing the beads in its way and
-  leaving a trail of tiny ones behind. Every drop is a little lens that shows the world behind it upside down - also
+- **Rain on the glass, in pixels like the rest of Minecraft**: drops bead up where they land and grow as more rain
+  hits them, until one breaks free and slides down in jerks - stopping, starting, wandering to the side, swallowing the
+  beads in its way and leaving a trail of tiny ones behind. Every drop shows the world behind it upside down - also
   from inside the house. When the rain stops, the windows slowly dry.
 - The windows facing the storm stream with water, the sheltered ones only collect a few drops.
 
@@ -75,8 +75,6 @@
 - A close strike **overexposes the view**; afterwards the eyes need a moment in the dark, and the bolt lingers as a
   fading afterimage.
 - In the light of a flash every falling drop shines and freezes in place, like in a strobe.
-- Now and then, looking up into heavy rain in first person, a faint drop lands on the view like on a camera lens and
-  dries.
 
 ## Controls
 
@@ -98,7 +96,7 @@ Nothing to craft: the mod changes the weather.
 
 Client options (*Mods -> Petrichor -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
 splashes, fog, rainy atmosphere, puddles, runoff and drips, rain on windows, lightning and flashes, cinematic effects
-(darkening before a strike, flash glare and afterimage, rare drops on the lens) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
+(darkening before a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
 lightning strikes.
 
 The mod works on the client alone; installed on the server too, every player sees the same rain type and wetness.

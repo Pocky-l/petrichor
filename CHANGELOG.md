@@ -13,10 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Snowy and dry land keeps the vanilla weather.
 - Splashes, rings on water, spray from leaves and mobs, mist in heavy rain.
 - Rain no longer passes through walls when the wind slants it.
-- Rain on windows: drops bead up on the glass, merge, slide down in jerks leaving trails and show the world behind
-  them upside down.
+- Rain on windows: pixel drops bead up on the glass, merge, slide down in jerks leaving trails and show the world
+  behind them upside down.
 - Cinematic storm: the view darkens before a strike, close flashes overexpose it and leave an afterimage, drops freeze
-  in the flash, and a rare faint drop lands on the lens in first person.
+  in the flash.
 - Puddles with reflections and ripples, wet and drying ground, water running off edges and dripping from roofs and leaves.
 - A rain soundscape placed in the world: every surface (earth, stone, wood, metal, glass, wool, puddles, water) sounds
   like itself, light and heavy rain sound different, roofs drum by material, rain beats on windows, drops fall,

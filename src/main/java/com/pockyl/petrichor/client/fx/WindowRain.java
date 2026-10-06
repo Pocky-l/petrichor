@@ -41,6 +41,8 @@ public final class WindowRain {
     private static final int SEED_RUN = 0x0D22_0001;
     private static final int SEED_WANDER = 0x0D22_0002;
     private static final double RENDER_RANGE = 26.0;
+    /** Pixels per block of the grid drops are drawn on, the size of a block texture's pixel. */
+    private static final int PIXELS = 16;
 
     /**
      * A face of a block where rain can land: the face plane, its extent and what it is made of.
@@ -640,60 +642,78 @@ public final class WindowRain {
     // ------------------------------------------------------------------------------------------------------------
 
     /**
-     * Writes every drop as a quad lying on its window, positions relative to the camera, in the particle vertex format
-     * for the {@code petrichor_bead} shader: UV -1..1 across a drop; V above 1.5 marks the wet streak behind it.
+     * Writes every drop as pixel art lying on its window, positions relative to the camera, in the particle vertex
+     * format for the {@code petrichor_bead} shader. Drops are made of whole pixels of the block texture grid (1/16 of a
+     * block) and move from pixel to pixel; the colour's red and green carry the drop's width and height in pixels
+     * (sixteenths), UV -1..1 covers a drop and V 2..3 the trail a running drop leaves.
      */
     public int render(VertexConsumer out, double camX, double camY, double camZ, float partialTick) {
-        float ox = (float) (originX - camX);
-        float oz = (float) (originZ - camZ);
         int drawn = 0;
         for (int i = 0; i < count; i++) {
             if (dead[i]) {
                 continue;
             }
-            float cx = x[i] + ox;
-            float cy = (float) (y[i] - camY);
-            float cz = z[i] + oz;
-            if (cx * cx + cy * cy + cz * cz > RENDER_RANGE * RENDER_RANGE) {
+            double wx = x[i] + originX;
+            double wy = y[i] + fall[i] * (1.0F - partialTick);
+            double wz = z[i] + originZ;
+            double dx = wx - camX;
+            double dy = wy - camY;
+            double dz = wz - camZ;
+            if (dx * dx + dy * dy + dz * dz > RENDER_RANGE * RENDER_RANGE) {
                 continue;
             }
-            // Smooth motion between ticks.
-            cy += fall[i] * (1.0F - partialTick);
             Direction d = Direction.from2DDataValue(dir[i]);
-            float nx = d.getStepX();
-            float nz = d.getStepZ();
-            cx += nx * LIFT;
-            cz += nz * LIFT;
-            // Across the face: for a face along x that is z, for a face along z it is x.
-            float ax = nx == 0 ? 1.0F : 0.0F;
-            float az = nx == 0 ? 0.0F : 1.0F;
-            float r = radius(mass[i]);
-            float alpha = Math.min(1.0F, mass[i] * 4.0F);
+            boolean alongX = d.getAxis() == Direction.Axis.X;
+            float plane = (float) ((alongX ? wx - camX : wz - camZ) + (alongX ? d.getStepX() : d.getStepZ()) * LIFT);
+            double across = alongX ? wz : wx;
+            double acrossCam = alongX ? camZ : camX;
+            int width = pixels(mass[i]);
+            int height = width;
             if (running[i]) {
-                // A running drop is drawn out along its way, its wet streak above it.
-                float stretch = 1.0F + Math.min(1.1F, fall[i] * 28.0F);
-                float half = r * stretch;
-                quad(out, cx, cy + half - r, cz, ax, az, r, half, -1.0F, 1.0F, -1.0F, 1.0F, alpha, light[i]);
-                float tail = streak[i];
-                if (tail > 0.02F) {
-                    quad(out, cx, cy + r * 0.5F + tail * 0.5F, cz, ax, az, r * 0.45F, tail * 0.5F, -1.0F, 1.0F, 3.0F, 2.0F, 0.35F, light[i]);
-                }
-            } else {
-                quad(out, cx, cy, cz, ax, az, r, r, -1.0F, 1.0F, -1.0F, 1.0F, alpha, light[i]);
+                width = Math.max(2, width);
+                height = width + 1;
+            }
+            // Snapped to the pixel grid: the drop's centre picks the pixels it covers.
+            double left = Math.floor(across * PIXELS - width * 0.5 + 0.5) / PIXELS;
+            double bottom = Math.floor(wy * PIXELS - (running[i] ? 0.5 : height * 0.5 - 0.5)) / PIXELS;
+            float alpha = Math.min(1.0F, mass[i] * 4.0F);
+            float u0 = (float) (left - acrossCam);
+            float y0 = (float) (bottom - camY);
+            quad(out, alongX, plane, u0, y0, width, height, -1.0F, 1.0F, -1.0F, 1.0F, alpha, light[i]);
+            int trail = Math.min(6, (int) (streak[i] * PIXELS));
+            if (running[i] && trail > 0) {
+                // A one-pixel column of water above the drop.
+                float column = u0 + (width / 2) / (float) PIXELS;
+                quad(out, alongX, plane, column, y0 + height / (float) PIXELS, 1, trail, -1.0F, 1.0F, 3.0F, 2.0F, 0.35F, light[i]);
             }
             drawn++;
         }
         return drawn;
     }
 
-    /** A quad centred on the point, {@code halfU} across the face and {@code halfV} up it. */
-    private static void quad(VertexConsumer out, float cx, float cy, float cz, float ax, float az, float halfU, float halfV, float uMin,
+    /** Size of a drop in pixels: a single pixel bead up to a fat drop four pixels wide. */
+    private static int pixels(float m) {
+        return m < 1.2F ? 1 : m < 5.0F ? 2 : m < 11.0F ? 3 : 4;
+    }
+
+    /**
+     * A quad lying in the face plane: {@code width} x {@code height} pixels from the lower left corner ({@code u0}
+     * across the face, {@code y0} up), relative to the camera.
+     */
+    private static void quad(VertexConsumer out, boolean alongX, float plane, float u0, float y0, int width, int height, float uMin,
             float uMax, float vMin, float vMax, float a, int packedLight) {
-        float ux = ax * halfU;
-        float uz = az * halfU;
-        out.addVertex(cx - ux, cy - halfV, cz - uz).setUv(uMin, vMin).setColor(1.0F, 1.0F, 1.0F, a).setLight(packedLight);
-        out.addVertex(cx + ux, cy - halfV, cz + uz).setUv(uMax, vMin).setColor(1.0F, 1.0F, 1.0F, a).setLight(packedLight);
-        out.addVertex(cx + ux, cy + halfV, cz + uz).setUv(uMax, vMax).setColor(1.0F, 1.0F, 1.0F, a).setLight(packedLight);
-        out.addVertex(cx - ux, cy + halfV, cz - uz).setUv(uMin, vMax).setColor(1.0F, 1.0F, 1.0F, a).setLight(packedLight);
+        float u1 = u0 + width / (float) PIXELS;
+        float y1 = y0 + height / (float) PIXELS;
+        float r = width / (float) PIXELS;
+        float g = height / (float) PIXELS;
+        corner(out, alongX, plane, u0, y0, uMin, vMin, r, g, a, packedLight);
+        corner(out, alongX, plane, u1, y0, uMax, vMin, r, g, a, packedLight);
+        corner(out, alongX, plane, u1, y1, uMax, vMax, r, g, a, packedLight);
+        corner(out, alongX, plane, u0, y1, uMin, vMax, r, g, a, packedLight);
+    }
+
+    private static void corner(VertexConsumer out, boolean alongX, float plane, float u, float y, float tu, float tv, float r, float g,
+            float a, int packedLight) {
+        out.addVertex(alongX ? plane : u, y, alongX ? u : plane).setUv(tu, tv).setColor(r, g, 0.0F, a).setLight(packedLight);
     }
 }

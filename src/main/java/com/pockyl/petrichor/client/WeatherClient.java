@@ -176,7 +176,7 @@ public final class WeatherClient {
             RainSounds.stopAll();
         }
         LIGHTNING.tick(level, cam, FX, ClientWeather.thunder());
-        Cinematics.tick(level, cam);
+        Cinematics.tick();
         if (ClientConfig.BOLTS.get()) {
             // Vanilla bolts set a full-white sky flash; the graded flash of the lightning system replaces it.
             level.setSkyFlashTime(0);
@@ -331,7 +331,6 @@ public final class WeatherClient {
         lightTexture.turnOnLightLayer();
         RenderSystem.setShader(() -> shader);
         RenderSystem.setShaderTexture(0, scene.getColorTextureId());
-        shader.safeGetUniform("Refraction").set(1.0F);
         shader.safeGetUniform("LensPower").set(2.4F);
         shader.safeGetUniform("SkyColor").set(Math.min(1.0F, (float) sky.x * 1.3F + 0.15F), Math.min(1.0F, (float) sky.y * 1.3F + 0.15F),
                 Math.min(1.0F, (float) sky.z * 1.3F + 0.18F));

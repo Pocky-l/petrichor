@@ -20,9 +20,9 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
 
 ### Rain on windows
 
-- **Windows look like real rain on glass**: drops bead up where they land and grow as more rain hits them, until one
-  breaks free and slides down in jerks - stopping, starting, wandering to the side, swallowing the beads in its way and
-  leaving a trail of tiny ones behind. Every drop is a little lens that shows the world behind it upside down - also
+- **Rain on the glass, in pixels like the rest of Minecraft**: drops bead up where they land and grow as more rain
+  hits them, until one breaks free and slides down in jerks - stopping, starting, wandering to the side, swallowing the
+  beads in its way and leaving a trail of tiny ones behind. Every drop shows the world behind it upside down - also
   from inside the house. When the rain stops, the windows slowly dry.
 - The windows facing the storm stream with water, the sheltered ones only collect a few drops.
 
@@ -63,8 +63,6 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
 - A close strike **overexposes the view**; afterwards the eyes need a moment in the dark, and the bolt lingers as a
   fading afterimage.
 - In the light of a flash every falling drop shines and freezes in place, like in a strobe.
-- Now and then, looking up into heavy rain in first person, a faint drop lands on the view like on a camera lens and
-  dries.
 
 ## Configuration
 

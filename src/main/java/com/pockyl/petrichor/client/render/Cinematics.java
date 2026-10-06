@@ -9,19 +9,16 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 
 import com.pockyl.petrichor.client.WeatherClient;
 
 /**
  * The storm seen through a camera: the world holds its breath and darkens before a strike, a close flash overexposes
- * the view and leaves the eyes in the dark for a moment, and in first person a rare drop of rain lands on the lens.
+ * the view and leaves the eyes in the dark for a moment.
  */
 public final class Cinematics {
-    private static final LensDrops LENS = new LensDrops();
     /** How bright the last close flash was, remembered by the eyes: it fades slowly. */
     private static float adaptation;
     private static float previousAdaptation;
@@ -31,14 +28,12 @@ public final class Cinematics {
 
     public static void clear() {
         adaptation = previousAdaptation = 0.0F;
-        LENS.clear();
     }
 
-    public static void tick(ClientLevel level, Vec3 cam) {
+    public static void tick() {
         previousAdaptation = adaptation;
         float glare = WeatherClient.glare(1.0F);
         adaptation = Math.max(glare, adaptation * 0.955F);
-        LENS.tick(level, cam);
     }
 
     /** Darkening of the view: the hush before a strike, and the moment the eyes need after a close flash. */
@@ -87,7 +82,6 @@ public final class Cinematics {
             RenderSystem.enableDepthTest();
             RenderSystem.disableBlend();
         }
-        LENS.render(graphics, partialTick);
     }
 
     private static void fullScreen() {

@@ -166,11 +166,6 @@ public final class ClientConfig {
                     + "and the bolt lingers as a fading afterimage.")
             .translation(key("exposure"))
             .define("flashExposure", true);
-    public static final ModConfigSpec.BooleanValue LENS_DROPS = BUILDER
-            .comment("In first person, now and then a faint drop of rain lands on the view like on a camera lens when you look "
-                    + "up into the rain, runs down and dries.")
-            .translation(key("lensDrops"))
-            .define("lensDrops", true);
 
     static {
         BUILDER.pop();
