@@ -29,6 +29,7 @@ import org.joml.Matrix4f;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
+import com.pockyl.petrichor.client.compat.ShaderPacks;
 import com.pockyl.petrichor.client.fx.RainFx;
 import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.PuddleField;
@@ -875,7 +876,8 @@ public final class Puddles implements AutoCloseable {
 
     public void render(Matrix4f modelView, Matrix4f projection, Vec3 cam, Frustum frustum, float partialTick) {
         lastQuads = 0;
-        if (chunks.isEmpty() || level == null) {
+        // Iris hides unknown shaders while a pack is active, and packs bring their own wet surfaces and reflections.
+        if (chunks.isEmpty() || level == null || ShaderPacks.inUse()) {
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();

@@ -62,6 +62,14 @@ Everything can be tuned in *Mods -> Petrichor -> Config*, with quality presets f
 client alone; on the server too, every player sees the same weather. Muffling is turned off automatically with
 [Sound Physics Remastered](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered).
 
+## Compatibility
+
+- **Shader packs** ([Iris](https://modrinth.com/mod/iris), Oculus): the rain, splashes, drips and distant curtains are drawn through the pack's
+  weather program, so they take on the pack's look and lighting. The mod's own sky haze and puddles step aside while a
+  pack is active - packs bring their own fog, wet surfaces and reflections. Sounds, lightning and the cinematic storm
+  work as usual.
+- [Sodium](https://modrinth.com/mod/sodium) works.
+
 ## Requirements
 
 [NeoForge](https://neoforged.net) 1.21.1.

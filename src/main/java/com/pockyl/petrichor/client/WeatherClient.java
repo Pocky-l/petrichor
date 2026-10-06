@@ -13,6 +13,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.FogRenderer;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.AbstractTexture;
@@ -39,6 +40,7 @@ import org.joml.Vector3f;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.Petrichor;
+import com.pockyl.petrichor.client.compat.ShaderPacks;
 import com.pockyl.petrichor.client.fx.FxAtlas;
 import com.pockyl.petrichor.client.fx.FxSpawner;
 import com.pockyl.petrichor.client.fx.Precipitation;
@@ -216,7 +218,10 @@ public final class WeatherClient {
     /** Draws the rain and its effects in place of the vanilla rain. */
     public static boolean renderWeather(ClientLevel level, float partialTick, LightTexture lightTexture, double camX, double camY,
             double camZ) {
-        ShaderInstance shader = PetrichorShaders.rain();
+        // With a shader pack the vanilla particle shader is used: Iris swaps it for the pack's weather program, while
+        // the mod's own shaders would not be drawn at all.
+        boolean shaderPack = ShaderPacks.inUse();
+        ShaderInstance shader = shaderPack ? GameRenderer.getParticleShader() : PetrichorShaders.rain();
         if (shader == null) {
             return false;
         }
@@ -257,7 +262,7 @@ public final class WeatherClient {
             RenderSystem.defaultBlendFunc();
         }
 
-        ShaderInstance veil = PetrichorShaders.veil();
+        ShaderInstance veil = shaderPack ? GameRenderer.getParticleShader() : PetrichorShaders.veil();
         if (veil != null) {
             RenderSystem.setShader(() -> veil);
             RenderSystem.setShaderTexture(0, RainVeils.TEXTURE);

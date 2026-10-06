@@ -24,6 +24,7 @@ import org.lwjgl.opengl.GL30;
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
 import com.pockyl.petrichor.client.WeatherClient;
+import com.pockyl.petrichor.client.compat.ShaderPacks;
 
 /**
  * The air of a rainy day, drawn over the world from its depth buffer before the rain itself (shader
@@ -42,8 +43,9 @@ public final class Atmosphere {
     /** Whether the atmosphere draws the rain's haze this frame (otherwise the vanilla fog is pulled in). */
     public static boolean active() {
         Minecraft minecraft = Minecraft.getInstance();
+        // A shader pack draws its own sky and fog (and would hide this pass anyway).
         if (!ClientConfig.ATMOSPHERE.get() || PetrichorShaders.atmosphere() == null || ClientWeather.rain() <= 0.001F
-                || ClientConfig.FOG.get() <= 0.0) {
+                || ClientConfig.FOG.get() <= 0.0 || ShaderPacks.inUse()) {
             return false;
         }
         Camera camera = minecraft.gameRenderer.getMainCamera();

@@ -20,3 +20,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   like itself, light and heavy rain sound different, roofs drum by material, rain beats on windows, drops fall,
   and rain behind walls sounds muffled.
 - Branching lightning with delayed thunder recorded at different distances, muffled indoors.
+- Works with shader packs ([Iris](https://modrinth.com/mod/iris)): the rain is drawn through the pack's weather program; the mod's haze and
+  puddles give way to the pack's own.
