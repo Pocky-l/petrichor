@@ -13,14 +13,20 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
@@ -79,6 +85,10 @@ public final class Puddles implements AutoCloseable {
     private static final int BUILDS_PER_TICK = 2;
     private static final int CHECKS_PER_TICK = 3;
     private static final float LIFT = 0.002F;
+    /** Shader-pack puddles are made of cells this many to a block side (4 = cells of 4x4 texture pixels). */
+    private static final int WATER_CELLS = 4;
+    private static final int WATER_BUILDS_PER_TICK = 4;
+    private static final ResourceLocation WATER_SPRITE = ResourceLocation.withDefaultNamespace("block/water_still");
 
     private final Long2ObjectOpenHashMap<ChunkPuddles> chunks = new Long2ObjectOpenHashMap<>();
     private final ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 18);
@@ -100,8 +110,21 @@ public final class Puddles implements AutoCloseable {
         final int chunkZ;
         VertexBuffer puddles;
         VertexBuffer sheets;
+        /** Puddles as water cells for a shader pack (see {@link #buildWater}). */
+        VertexBuffer water;
         int puddleQuads;
         int sheetQuads;
+        int waterQuads;
+        /** {@link #waterKey()} the water mesh was built for, 0 when it has to be built. */
+        int waterKey;
+        /**
+         * Per surface (top and sheltered layer per column) as last meshed: height (NaN = none), light, and per corner the
+         * puddle field and wetness. The shader-pack water mesh is rebuilt from these when the wetness changes.
+         */
+        final float[] surfaceY = new float[512];
+        final int[] surfaceLight = new int[512];
+        final float[] cornerField = new float[512 * 4];
+        final float[] cornerWet = new float[512 * 4];
         AABB bounds;
         final float[] field = new float[256];
         final float[] top = new float[256];
@@ -120,6 +143,16 @@ public final class Puddles implements AutoCloseable {
             this.chunkX = chunkX;
             this.chunkZ = chunkZ;
             Arrays.fill(lastTop, Float.NaN);
+            Arrays.fill(surfaceY, Float.NaN);
+        }
+
+        void closeWater() {
+            if (water != null) {
+                water.close();
+                water = null;
+            }
+            waterQuads = 0;
+            waterKey = 0;
         }
 
         void close() {
@@ -131,6 +164,7 @@ public final class Puddles implements AutoCloseable {
                 sheets.close();
                 sheets = null;
             }
+            closeWater();
         }
     }
 
@@ -221,6 +255,7 @@ public final class Puddles implements AutoCloseable {
             checkChanged(level);
         }
         settle(level, ClientWeather.intensity());
+        updateWater(level);
     }
 
     private static boolean neighbourhoodLoaded(ClientLevel level, int cx, int cz) {
@@ -360,6 +395,8 @@ public final class Puddles implements AutoCloseable {
         chunk.builtOnce = true;
         chunk.settling = moving;
 
+        Arrays.fill(chunk.surfaceY, Float.NaN);
+        chunk.waterKey = 0;
         BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
         int quads = 0;
         float[] cornerFlow = new float[3];
@@ -385,11 +422,15 @@ public final class Puddles implements AutoCloseable {
                     int wx = Math.floorMod(originX + lx, 256);
                     int wz = Math.floorMod(originZ + lz, 256);
                     boolean flowing = layer == 0;
+                    chunk.surfaceY[c] = y;
+                    chunk.surfaceLight[c] = light;
                     for (int k = 0; k < 4; k++) {
                         int cornerX = gx + CORNER_X[k];
                         int cornerZ = gz + CORNER_Z[k];
                         float cornerField = surfaces.corner(surfaces.field, cornerX, cornerZ, top);
                         float cornerWet = cornerState(chunk, grid, surfaces, cornerX, cornerZ, top);
+                        chunk.cornerField[c * 4 + k] = cornerField;
+                        chunk.cornerWet[c * 4 + k] = cornerWet;
                         if (flowing) {
                             cornerFlow(grid, flowX, flowZ, cornerX, cornerZ, top, cornerFlow);
                         } else {
@@ -412,6 +453,169 @@ public final class Puddles implements AutoCloseable {
         }
         chunk.puddleQuads = quads;
         chunk.puddles = upload(chunk.puddles, builder.build());
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Shader packs
+    // ------------------------------------------------------------------------------------------------------------
+
+    /** What a water mesh depends on: the wetness (in steps), the coverage setting and the pack's id of water. Never 0. */
+    private static int waterKey() {
+        int wetness = Math.round(ClientWeather.wetness() * 40.0F);
+        int coverage = Math.round((float) (double) ClientConfig.PUDDLE_COVERAGE.get() * 20.0F);
+        return ((wetness * 64 + coverage) * 4099 + ShaderPacks.blockId(Blocks.WATER.defaultBlockState()) + 2) | 1 << 30;
+    }
+
+    /** With a shader pack, keeps the water meshes in step with the wetness; without one, frees them. */
+    private void updateWater(ClientLevel level) {
+        if (!ShaderPacks.inUse() || !ClientConfig.PUDDLES.get()) {
+            for (ChunkPuddles chunk : chunks.values()) {
+                if (chunk.waterKey != 0) {
+                    chunk.closeWater();
+                }
+            }
+            return;
+        }
+        int key = waterKey();
+        int built = 0;
+        for (ChunkPuddles chunk : chunks.values()) {
+            if (chunk.waterKey != key && built < WATER_BUILDS_PER_TICK) {
+                buildWater(level, chunk, key);
+                built++;
+            }
+        }
+    }
+
+    /**
+     * Puddles for a shader pack, which cannot run the puddle shader: water cells of a quarter block, cut out with the same
+     * field, threshold and ragged edges the shader uses, tagged as water so the pack draws them with its own water
+     * (reflections, ripples). Built while the pack is active, so Iris lays the vertices out in its terrain format.
+     */
+    private void buildWater(ClientLevel level, ChunkPuddles chunk, int key) {
+        chunk.waterKey = key;
+        float threshold = PuddleField.threshold(ClientWeather.wetness(), (float) (double) ClientConfig.PUDDLE_COVERAGE.get());
+        int waterId = ShaderPacks.blockId(Blocks.WATER.defaultBlockState());
+        TextureAtlasSprite sprite = Minecraft.getInstance().getModelManager().getAtlas(TextureAtlas.LOCATION_BLOCKS).getSprite(WATER_SPRITE);
+        int originX = chunk.chunkX << 4;
+        int originZ = chunk.chunkZ << 4;
+        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+        float step = 1.0F / WATER_CELLS;
+        int quads = 0;
+        for (int c = 0; c < 512; c++) {
+            float y = chunk.surfaceY[c];
+            if (Float.isNaN(y)) {
+                continue;
+            }
+            int k = c * 4;
+            // Corners in CORNER_X/Z order: (0,0), (0,1), (1,1), (1,0).
+            float f00 = chunk.cornerField[k];
+            float f01 = chunk.cornerField[k + 1];
+            float f11 = chunk.cornerField[k + 2];
+            float f10 = chunk.cornerField[k + 3];
+            float w00 = chunk.cornerWet[k];
+            float w01 = chunk.cornerWet[k + 1];
+            float w11 = chunk.cornerWet[k + 2];
+            float w10 = chunk.cornerWet[k + 3];
+            // The noise moves the field by at most 0.17 and the wetness edge by 0.35.
+            if (Math.max(Math.max(f00, f01), Math.max(f11, f10)) + 0.17F < threshold
+                    || Math.max(Math.max(w00, w01), Math.max(w11, w10)) + 0.35F < 0.75F) {
+                continue;
+            }
+            int lx = c & 15;
+            int lz = (c >> 4) & 15;
+            pos.set(originX + lx, Mth.floor(y), originZ + lz);
+            int color = 0xFF000000 | BiomeColors.getAverageWaterColor(level, pos);
+            int light = chunk.surfaceLight[c];
+            boolean tagged = false;
+            for (int sz = 0; sz < WATER_CELLS; sz++) {
+                for (int sx = 0; sx < WATER_CELLS; sx++) {
+                    float u = (sx + 0.5F) * step;
+                    float v = (sz + 0.5F) * step;
+                    float wx = originX + lx + u;
+                    float wz = originZ + lz + v;
+                    float field = Mth.lerp(v, Mth.lerp(u, f00, f10), Mth.lerp(u, f01, f11));
+                    float wet = Mth.lerp(v, Mth.lerp(u, w00, w10), Mth.lerp(u, w01, w11));
+                    float detail = noise(wx * 0.9F, wz * 0.9F) * 0.6F + noise(wx * 2.7F + 11.0F, wz * 2.7F + 5.0F) * 0.4F;
+                    float ragged = wet + (noise(wx * 2.0F + 17.0F, wz * 2.0F) - 0.5F) * 0.7F * (1.0F - wet * wet);
+                    if (field + (detail - 0.5F) * 0.34F < threshold || ragged < 0.75F) {
+                        continue;
+                    }
+                    if (!tagged) {
+                        ShaderPacks.beginFluid(builder, waterId, pos.getX(), pos.getY(), pos.getZ());
+                        tagged = true;
+                    }
+                    float x0 = lx + sx * step;
+                    float z0 = lz + sz * step;
+                    float u0 = sprite.getU(sx * step);
+                    float u1 = sprite.getU((sx + 1) * step);
+                    float v0 = sprite.getV(sz * step);
+                    float v1 = sprite.getV((sz + 1) * step);
+                    // Counter-clockwise seen from above: the normal points up (Iris derives it from the winding).
+                    builder.addVertex(x0, y, z0).setColor(color).setUv(u0, v0).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
+                    builder.addVertex(x0, y, z0 + step).setColor(color).setUv(u0, v1).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
+                    builder.addVertex(x0 + step, y, z0 + step).setColor(color).setUv(u1, v1).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
+                    builder.addVertex(x0 + step, y, z0).setColor(color).setUv(u1, v0).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
+                    quads++;
+                }
+            }
+            if (tagged) {
+                ShaderPacks.endBlock(builder);
+            }
+        }
+        chunk.waterQuads = quads;
+        chunk.water = upload(chunk.water, builder.build());
+    }
+
+    /** Smooth value noise 0..1 over world coordinates, repeating every 256 blocks. */
+    private static float noise(float x, float z) {
+        int ix = Mth.floor(x);
+        int iz = Mth.floor(z);
+        float fx = x - ix;
+        float fz = z - iz;
+        fx = fx * fx * (3.0F - 2.0F * fx);
+        fz = fz * fz * (3.0F - 2.0F * fz);
+        float a = hash(ix, iz);
+        float b = hash(ix + 1, iz);
+        float c = hash(ix, iz + 1);
+        float d = hash(ix + 1, iz + 1);
+        return Mth.lerp(fz, Mth.lerp(fx, a, b), Mth.lerp(fx, c, d));
+    }
+
+    private static float hash(int x, int z) {
+        int h = (x & 255) * 374761393 + (z & 255) * 668265263;
+        h = (h ^ (h >>> 13)) * 1274126177;
+        return ((h ^ (h >>> 16)) & 0xFFFF) / 65535.0F;
+    }
+
+    /**
+     * With a shader pack: draws the water puddles with the translucent terrain shader, which Iris swaps for the pack's
+     * water program. Called after the translucent blocks, where the pack draws its own water.
+     */
+    public void renderWater(Matrix4f modelView, Matrix4f projection, Vec3 cam, Frustum frustum) {
+        if (chunks.isEmpty() || !ShaderPacks.inUse() || !ClientConfig.PUDDLES.get()) {
+            return;
+        }
+        RenderType type = RenderType.translucent();
+        type.setupRenderState();
+        ShaderInstance shader = RenderSystem.getShader();
+        if (shader == null) {
+            type.clearRenderState();
+            return;
+        }
+        RenderSystem.enablePolygonOffset();
+        RenderSystem.polygonOffset(-1.0F, -10.0F);
+        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, Minecraft.getInstance().getWindow());
+        shader.apply();
+        for (ChunkPuddles chunk : chunks.values()) {
+            if (chunk.waterQuads > 0) {
+                lastQuads += draw(chunk, chunk.water, chunk.waterQuads, shader.CHUNK_OFFSET, cam, frustum);
+            }
+        }
+        VertexBuffer.unbind();
+        shader.clear();
+        RenderSystem.polygonOffset(0.0F, 0.0F);
+        RenderSystem.disablePolygonOffset();
+        type.clearRenderState();
     }
 
     /** Mean wetness state of the surfaces around a block corner, taking cells of neighbouring chunks from those chunks. */

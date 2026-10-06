@@ -299,6 +299,11 @@ public final class WeatherClient {
                 puddles.render(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum(),
                         partialTick);
             }
+        } else if (stage == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            if (puddles != null) {
+                puddles.renderWater(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition(),
+                        event.getFrustum());
+            }
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
             LIGHTNING.renderBolts(event.getModelViewMatrix(), event.getCamera(), partialTick);
         }
