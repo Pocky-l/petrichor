@@ -18,14 +18,6 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
   stays dry.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
 
-### Rain on windows
-
-- **Rain on the glass, in pixels like the rest of Minecraft**: drops bead up where they land and grow as more rain
-  hits them, until one breaks free and slides down in jerks - stopping, starting, wandering to the side, swallowing the
-  beads in its way and leaving a trail of tiny ones behind. Every drop shows the world behind it upside down - also
-  from inside the house. When the rain stops, the windows slowly dry.
-- The windows facing the storm stream with water, the sheltered ones only collect a few drops.
-
 ### Water on the ground
 
 - **Puddles** gather in hollows and on flat ground, reflect the sky and the world, ripple under the rain and dry out

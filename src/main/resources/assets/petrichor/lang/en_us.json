@@ -59,8 +59,6 @@
   "petrichor.configuration.rivulets": "Rivulets",
   "petrichor.configuration.drips": "Drips from edges and leaves",
   "petrichor.configuration.dripDensity": "Drip density",
-  "petrichor.configuration.windowRain": "Rain on windows",
-  "petrichor.configuration.windowRainDensity": "Window drop density",
   "petrichor.configuration.bolts": "Realistic bolts",
   "petrichor.configuration.delayedThunder": "Delayed thunder",
   "petrichor.configuration.soundSpeed": "Speed of sound",

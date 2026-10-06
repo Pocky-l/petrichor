@@ -59,8 +59,6 @@
   "petrichor.configuration.rivulets": "Ручейки",
   "petrichor.configuration.drips": "Капли с краёв и листвы",
   "petrichor.configuration.dripDensity": "Количество капель",
-  "petrichor.configuration.windowRain": "Дождь на окнах",
-  "petrichor.configuration.windowRainDensity": "Количество капель на окнах",
   "petrichor.configuration.bolts": "Реалистичные молнии",
   "petrichor.configuration.delayedThunder": "Гром с задержкой",
   "petrichor.configuration.soundSpeed": "Скорость звука",

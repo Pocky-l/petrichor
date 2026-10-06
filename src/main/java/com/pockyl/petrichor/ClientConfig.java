@@ -8,11 +8,11 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public final class ClientConfig {
     /** Budgets that scale with the hardware. Individual options below multiply on top of these. */
     public enum Quality {
-        // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets, reflectionSteps, maxWindowDrops
-        LOW(14, 2200, 32, 1000, 25, false, 0, 400),
-        MEDIUM(20, 5000, 48, 2000, 50, true, 16, 1200),
-        HIGH(28, 9000, 64, 3500, 90, true, 28, 2500),
-        ULTRA(36, 15000, 96, 5000, 140, true, 48, 4000);
+        // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets, reflectionSteps
+        LOW(14, 2200, 32, 1000, 25, false, 0),
+        MEDIUM(20, 5000, 48, 2000, 50, true, 16),
+        HIGH(28, 9000, 64, 3500, 90, true, 28),
+        ULTRA(36, 15000, 96, 5000, 140, true, 48);
 
         public final int rainRadius;
         public final int maxDrops;
@@ -22,11 +22,9 @@ public final class ClientConfig {
         public final boolean rivulets;
         /** Ray-march steps of the puddle reflections; 0 reflects only the sky. */
         public final int reflectionSteps;
-        /** Drops of water on windows. */
-        public final int maxWindowDrops;
 
         Quality(int rainRadius, int maxDrops, int puddleRadius, int maxEffects, int splashBudget, boolean rivulets,
-                int reflectionSteps, int maxWindowDrops) {
+                int reflectionSteps) {
             this.rainRadius = rainRadius;
             this.maxDrops = maxDrops;
             this.puddleRadius = puddleRadius;
@@ -34,7 +32,6 @@ public final class ClientConfig {
             this.splashBudget = splashBudget;
             this.rivulets = rivulets;
             this.reflectionSteps = reflectionSteps;
-            this.maxWindowDrops = maxWindowDrops;
         }
     }
 
@@ -114,16 +111,6 @@ public final class ClientConfig {
             .comment("Multiplier for the number of falling drips.")
             .translation(key("dripDensity"))
             .defineInRange("dripDensity", 1.0, 0.1, 3.0);
-
-    public static final ModConfigSpec.BooleanValue WINDOW_RAIN = BUILDER
-            .comment("Rain on windows: drops bead up on the glass, merge and slide down in jerks leaving trails, and show the "
-                    + "world behind them; the glass dries slowly after the rain.")
-            .translation(key("windowRain"))
-            .define("windowRain", true);
-    public static final ModConfigSpec.DoubleValue WINDOW_RAIN_DENSITY = BUILDER
-            .comment("Multiplier for the number of drops on windows.")
-            .translation(key("windowRainDensity"))
-            .defineInRange("windowRainDensity", 1.0, 0.1, 3.0);
 
     static {
         BUILDER.pop();

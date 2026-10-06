@@ -30,14 +30,6 @@
   stays dry.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
 
-### Rain on windows
-
-- **Rain on the glass, in pixels like the rest of Minecraft**: drops bead up where they land and grow as more rain
-  hits them, until one breaks free and slides down in jerks - stopping, starting, wandering to the side, swallowing the
-  beads in its way and leaving a trail of tiny ones behind. Every drop shows the world behind it upside down - also
-  from inside the house. When the rain stops, the windows slowly dry.
-- The windows facing the storm stream with water, the sheltered ones only collect a few drops.
-
 ### Water on the ground
 
 - **Puddles** gather in hollows and on flat ground, reflect the sky and the world, ripple under the rain and dry out
@@ -95,8 +87,8 @@ Nothing to craft: the mod changes the weather.
 ## Configuration
 
 Client options (*Mods -> Petrichor -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
-splashes, fog, rainy atmosphere, puddles, runoff and drips, rain on windows, lightning and flashes, cinematic effects
-(darkening before a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
+splashes, fog, rainy atmosphere, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
+a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
 lightning strikes.
 
 The mod works on the client alone; installed on the server too, every player sees the same rain type and wetness.

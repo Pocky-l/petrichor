@@ -8,8 +8,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 
 /**
- * A copy of what is drawn so far, colour and depth, for effects that look through water: reflections in puddles and
- * the world seen through drops on windows. Taken at most once per frame, by the first effect that needs it.
+ * A copy of what is drawn so far, colour and depth, for the reflections in puddles. Taken at most once per frame.
  */
 public final class SceneCopy {
     private static TextureTarget world;

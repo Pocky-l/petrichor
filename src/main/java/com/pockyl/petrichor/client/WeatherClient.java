@@ -1,6 +1,5 @@
 package com.pockyl.petrichor.client;
 
-import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -36,7 +35,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 
 import com.pockyl.petrichor.ClientConfig;
@@ -46,7 +44,6 @@ import com.pockyl.petrichor.client.fx.FxSpawner;
 import com.pockyl.petrichor.client.fx.Precipitation;
 import com.pockyl.petrichor.client.fx.RainFx;
 import com.pockyl.petrichor.client.fx.RainVeils;
-import com.pockyl.petrichor.client.fx.WindowRain;
 import com.pockyl.petrichor.client.lightning.Lightning;
 import com.pockyl.petrichor.client.render.Atmosphere;
 import com.pockyl.petrichor.client.render.Cinematics;
@@ -66,7 +63,6 @@ public final class WeatherClient {
     private static final Precipitation PRECIPITATION = new Precipitation();
     private static final FxSpawner SPAWNER = new FxSpawner();
     private static final Lightning LIGHTNING = new Lightning();
-    private static final WindowRain WINDOWS = new WindowRain();
     private static Puddles puddles;
     private static ByteBufferBuilder rainBytes;
     private static int ticks;
@@ -169,10 +165,8 @@ public final class WeatherClient {
         boolean rain = ClientConfig.RAIN.get();
         if (rain) {
             SPAWNER.tick(level, COLUMNS, puddles, FX, cam);
-            WINDOWS.tick(level, COLUMNS, puddles, FX, cam.x, cam.y, cam.z);
             RainSounds.tick(level, COLUMNS, puddles, cam);
         } else {
-            WINDOWS.clear();
             RainSounds.stopAll();
         }
         LIGHTNING.tick(level, cam, FX, ClientWeather.thunder());
@@ -207,7 +201,6 @@ public final class WeatherClient {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientWeather.reset();
         FX.clear();
-        WINDOWS.clear();
         LIGHTNING.clear();
         Cinematics.clear();
         RainSounds.stopAll();
@@ -301,51 +294,9 @@ public final class WeatherClient {
                 puddles.render(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum(),
                         partialTick);
             }
-            // Before the translucent blocks: glass is drawn over its drops, and they show through it from inside.
-            renderWindowRain(level, event, partialTick);
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
             LIGHTNING.renderBolts(event.getModelViewMatrix(), event.getCamera(), partialTick);
         }
-    }
-
-    private static void renderWindowRain(ClientLevel level, RenderLevelStageEvent event, float partialTick) {
-        ShaderInstance shader = PetrichorShaders.bead();
-        if (shader == null || WINDOWS.count() == 0) {
-            return;
-        }
-        Vec3 cam = event.getCamera().getPosition();
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        WINDOWS.render(builder, cam.x, cam.y, cam.z, partialTick);
-        MeshData mesh = builder.build();
-        if (mesh == null) {
-            return;
-        }
-        // The drops show the world behind them: a copy of what is drawn so far.
-        TextureTarget scene = SceneCopy.world();
-        Vec3 sky = level.getSkyColor(cam, partialTick);
-        LightTexture lightTexture = Minecraft.getInstance().gameRenderer.lightTexture();
-        Matrix4fStack stack = RenderSystem.getModelViewStack();
-        stack.pushMatrix();
-        stack.set(event.getModelViewMatrix());
-        RenderSystem.applyModelViewMatrix();
-        lightTexture.turnOnLightLayer();
-        RenderSystem.setShader(() -> shader);
-        RenderSystem.setShaderTexture(0, scene.getColorTextureId());
-        shader.safeGetUniform("LensPower").set(2.4F);
-        shader.safeGetUniform("SkyColor").set(Math.min(1.0F, (float) sky.x * 1.3F + 0.15F), Math.min(1.0F, (float) sky.y * 1.3F + 0.15F),
-                Math.min(1.0F, (float) sky.z * 1.3F + 0.18F));
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.disableCull();
-        BufferUploader.drawWithShader(mesh);
-        RenderSystem.enableCull();
-        RenderSystem.depthMask(true);
-        RenderSystem.disableBlend();
-        lightTexture.turnOffLightLayer();
-        stack.popMatrix();
-        RenderSystem.applyModelViewMatrix();
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -437,8 +388,8 @@ public final class WeatherClient {
         event.getRight().add(String.format("Drops %d, effects %d, puddle chunks %d (%d quads), strikes %d",
                 PRECIPITATION.lastDrops(), FX.count(), puddles == null ? 0 : puddles.chunkCount(),
                 puddles == null ? 0 : puddles.lastQuads(), LIGHTNING.strikeCount()));
-        event.getRight().add(String.format("Wind %.2f, %.2f, drip sources %d, window drops %d on %d panes", ClientWeather.windX(),
-                ClientWeather.windZ(), puddles == null ? 0 : puddles.emitterCount(), WINDOWS.count(), WINDOWS.faceCount()));
+        event.getRight().add(String.format("Wind %.2f, %.2f, drip sources %d", ClientWeather.windX(), ClientWeather.windZ(),
+                puddles == null ? 0 : puddles.emitterCount()));
         event.getRight().add("Rain sound: " + RainSounds.debugSummary());
         if (puddles != null && minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             event.getRight().add("Puddle: " + puddles.describe(hit.getBlockPos().getX(), hit.getBlockPos().getZ()));
