@@ -6,7 +6,9 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -48,6 +50,8 @@ final class Soundscape {
     private static final int WINDOW_SOURCES = 2;
     private static final int FAR_SOURCES = 4;
     private static final int SCAN_INTERVAL = 5;
+    /** How far up solid layers above the listener are counted. */
+    private static final int BURIED_SCAN = 24;
 
     private static final float GROUND_GAIN = 0.3F;
     private static final float LEAF_GAIN = 0.32F;
@@ -85,6 +89,9 @@ final class Soundscape {
     private final float[] windowHit = new float[WINDOW_SOURCES];
     private Roof roof = Roof.NONE;
     private float enclosure;
+    /** How much of the outdoors reaches the ear, 0 (a cave, a sealed cellar) .. 1, as measured and eased. */
+    private float outsideTarget = 1.0F;
+    private float outside = 1.0F;
     private int ticks;
 
     // Scan scratch.
@@ -122,7 +129,16 @@ final class Soundscape {
         return enclosure;
     }
 
+    /**
+     * How much of the outdoors reaches the ear: 1 outside and in buildings, fading out underground. Wind, far rain,
+     * thunder and rain heard through walls only exist where it is above 0.
+     */
+    float outside() {
+        return outside;
+    }
+
     void tick(ClientLevel level, Columns columns, Puddles puddles, Vec3 eye) {
+        outside += (outsideTarget - outside) * 0.1F;
         int phase = ticks++ % SCAN_INTERVAL;
         // The scan is spread over the interval so no tick does all of it.
         switch (phase) {
@@ -173,7 +189,7 @@ final class Soundscape {
             heavy = 1.0F;
         }
         for (Voice voice : bed) {
-            float base = voice.amount * voice.occlusion * loud * GROUND_GAIN;
+            float base = voice.amount * reach(voice) * loud * GROUND_GAIN;
             voice.drive(0, PetrichorSounds.GROUND_LIGHT, base * light);
             voice.drive(1, PetrichorSounds.GROUND_MEDIUM, base * medium);
             voice.drive(2, PetrichorSounds.GROUND_HEAVY, base * heavy);
@@ -186,7 +202,7 @@ final class Soundscape {
         for (int m = 0; m < ACCENTS.length; m++) {
             SoundEvent[] pair = ACCENT_SOUNDS[m];
             for (Voice voice : accents[m]) {
-                float base = voice.amount * voice.occlusion * loud * ACCENT_GAIN[m];
+                float base = voice.amount * reach(voice) * loud * ACCENT_GAIN[m];
                 drivePair(voice, pair, base, lightShare, heavyShare);
             }
         }
@@ -194,14 +210,14 @@ final class Soundscape {
         // Leaves: a drizzle only whispers in the crowns, a downpour roars.
         float leafLoud = loud * Math.min(1.0F, 0.25F + s * 0.85F);
         for (Voice voice : canopy) {
-            voice.drive(0, PetrichorSounds.LEAVES, voice.amount * voice.occlusion * leafLoud * LEAF_GAIN);
+            voice.drive(0, PetrichorSounds.LEAVES, voice.amount * reach(voice) * leafLoud * LEAF_GAIN);
         }
 
         SoundEvent[] roofPair = roofSounds(roof);
         if (roofPair == null || !ClientConfig.ROOF.get()) {
             overhead.silence();
         } else {
-            float base = overhead.amount * loud * ROOF_GAIN * (roof == Roof.THICK ? 0.8F : 1.0F);
+            float base = overhead.amount * outside * loud * ROOF_GAIN * (roof == Roof.THICK ? 0.8F : 1.0F);
             drivePair(overhead, roofPair, base, lightShare, heavyShare);
         }
 
@@ -212,10 +228,18 @@ final class Soundscape {
         }
 
         for (Voice voice : far) {
-            voice.drive(0, PetrichorSounds.FAR, voice.amount * voice.occlusion * loud * FAR_GAIN * (0.5F + 0.5F * Math.min(1.0F, s)));
+            voice.drive(0, PetrichorSounds.FAR, voice.amount * voice.occlusion * outside * loud * FAR_GAIN * (0.5F + 0.5F * Math.min(1.0F, s)));
         }
 
         playWind(eye, rain);
+    }
+
+    /**
+     * Volume left after what stands between the ear and a voice. Rain in plain sight is heard from anywhere (a cave
+     * mouth); rain behind walls only near the outdoors, not through the rock of a cave.
+     */
+    private float reach(Voice voice) {
+        return voice.occlusion >= 0.99F ? voice.occlusion : voice.occlusion * outside;
     }
 
     /** A light and a heavy recording crossfading; a surface with a single recording swells with the intensity instead. */
@@ -233,7 +257,8 @@ final class Soundscape {
         float wx = ClientWeather.windX();
         float wz = ClientWeather.windZ();
         float speed = Mth.sqrt(wx * wx + wz * wz);
-        float strength = (float) Math.pow(Mth.clamp((speed - 0.05F) / 0.25F, 0.0F, 1.0F), 1.2) * rain;
+        // The wind blows outdoors: underground it is not heard at all.
+        float strength = (float) Math.pow(Mth.clamp((speed - 0.05F) / 0.25F, 0.0F, 1.0F), 1.2) * rain * outside;
         if (strength <= 0.0F) {
             wind.silence();
             return;
@@ -656,6 +681,24 @@ final class Soundscape {
         int ez = Mth.floor(eye.z);
         boolean covered = columns.height(ex, ez) > eye.y + 0.5;
         enclosure = walls / 8.0F * 0.6F + (covered ? 0.4F : 0.0F);
+
+        // Outdoors is where the sky light reaches, or under no more than a building's floors and roof; below that, rock.
+        int ey = Mth.floor(eye.y);
+        pos.set(ex, ey, ez);
+        float sky = Mth.clamp((level.getBrightness(LightLayer.SKY, pos) - 3) / 8.0F, 0.0F, 1.0F);
+        int top = Math.min(level.getHeight(Heightmap.Types.MOTION_BLOCKING, ex, ez), ey + 1 + BURIED_SCAN);
+        int layers = 0;
+        for (int y = ey + 1; y < top; y++) {
+            pos.set(ex, y, ez);
+            if (level.getBlockState(pos).canOcclude()) {
+                layers++;
+            }
+        }
+        if (top == ey + 1 + BURIED_SCAN) {
+            layers = BURIED_SCAN;
+        }
+        float shallow = Mth.clamp(1.0F - (layers - 2) / 4.0F, 0.0F, 1.0F);
+        outsideTarget = Math.max(sky, shallow);
     }
 
     /** Rain far away in four directions, as far as the land is open and rained on. */
@@ -730,8 +773,8 @@ final class Soundscape {
         for (Voice voice : windows) {
             windowCount += voice.amount > 0.0F ? 1 : 0;
         }
-        out.append(String.format("| leaves %.1f | roof %s %.1f | windows %d | enclosed %.1f", leaves,
-                roof.name().toLowerCase(), overhead.amount, windowCount, enclosure));
+        out.append(String.format("| leaves %.1f | roof %s %.1f | windows %d | enclosed %.1f | outside %.2f", leaves,
+                roof.name().toLowerCase(), overhead.amount, windowCount, enclosure, outside));
         return out.toString();
     }
 }

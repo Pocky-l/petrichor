@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   darkening before a strike are only seen where the sky can be seen, and fade in and out at cave mouths and windows.
 - The rain's haze, grey fog and curtains of rain in the middle distance no longer fill caves and enclosed rooms
   during rain.
+- Wind, distant rain and thunder are no longer heard underground; rain behind walls and on the ground above fades
+  out in caves instead of being heard through the rock. Buildings and cave mouths keep their sound.
 
 ## [1.0.0] - 2026-10-06
 ### Added

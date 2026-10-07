@@ -186,10 +186,13 @@ public final class Lightning {
         for (Iterator<Thunder> it = thunder.iterator(); it.hasNext(); ) {
             Thunder t = it.next();
             if (now >= t.due()) {
-                // Heard from indoors, thunder loses its crack and keeps its rumble.
+                // Heard from indoors, thunder loses its crack and keeps its rumble; deep underground it is not heard.
                 float enclosure = RainSounds.enclosure();
-                Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), t.volume() * (1.0F - enclosure * 0.3F), t.pitch(),
-                        t.x(), t.y(), t.z(), t.highs() * (1.0F - enclosure * 0.75F)));
+                float volume = t.volume() * (1.0F - enclosure * 0.3F) * RainSounds.outside();
+                if (volume > 0.01F) {
+                    Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), volume, t.pitch(), t.x(), t.y(), t.z(),
+                            t.highs() * (1.0F - enclosure * 0.75F)));
+                }
                 it.remove();
             } else if (t.due() - now > 2000) {
                 it.remove();

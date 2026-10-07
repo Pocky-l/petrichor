@@ -98,6 +98,11 @@ public final class RainSounds {
         return SOUNDSCAPE.enclosure();
     }
 
+    /** How much of the outdoors reaches the ear: 1 outside and in buildings, 0 deep underground. */
+    public static float outside() {
+        return SOUNDSCAPE.outside();
+    }
+
     // ------------------------------------------------------------------------------------------------------------
     // Ticking
     // ------------------------------------------------------------------------------------------------------------
@@ -226,7 +231,8 @@ public final class RainSounds {
                 return false;
             }
             highs = 0.12F;
-            volume *= 0.45F;
+            // Behind a wall it is muffled; through the rock above a cave it is not heard.
+            volume *= 0.45F * SOUNDSCAPE.outside();
         }
         if (volume < 0.01F) {
             return false;
