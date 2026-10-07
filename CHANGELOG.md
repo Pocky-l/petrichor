@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lightning no longer flashes the screen underground or deep indoors: flashes, the glare of close strikes and the
   darkening before a strike are only seen where the sky can be seen, and fade in and out at cave mouths and windows.
 - The rain's haze, grey fog and curtains of rain in the middle distance no longer fill caves and enclosed rooms
-  during rain.
+  during rain; the curtains now stand on the ground the rain reaches and follow the land.
 - Wind, distant rain and thunder are no longer heard underground; rain behind walls and on the ground above fades
   out in caves instead of being heard through the rock, and rise smoothly as you walk out of a cave, the wind
   blowing in from the exit. Buildings keep their sound.
