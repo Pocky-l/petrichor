@@ -4,6 +4,12 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-07
+### Fixed
+- Lightning no longer flashes the screen underground or deep indoors: flashes, the glare of close strikes and the
+  darkening before a strike are only seen where the sky can be seen, and fade in and out at cave mouths and windows.
+- The rain's haze and grey fog no longer fill caves and enclosed rooms during rain.
+
 ## [1.0.0] - 2026-10-06
 ### Added
 - Rain types (drizzle, rain, downpour, thunderstorm) that blend into each other, with gusts and wind.

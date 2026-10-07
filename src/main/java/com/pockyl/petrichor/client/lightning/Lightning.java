@@ -177,7 +177,11 @@ public final class Lightning {
     // Ticking
     // ------------------------------------------------------------------------------------------------------------
 
-    public void tick(ClientLevel level, Vec3 cam, RainFx fx, float thunderLevel) {
+    /**
+     * @param skyView how much of the sky the camera sees (0 underground): flashes, the glare and the hush are only seen
+     *                where the sky can be
+     */
+    public void tick(ClientLevel level, Vec3 cam, RainFx fx, float thunderLevel, float skyView) {
         long now = level.getGameTime();
         for (Iterator<Thunder> it = thunder.iterator(); it.hasNext(); ) {
             Thunder t = it.next();
@@ -225,9 +229,9 @@ public final class Lightning {
         }
         boolean hidden = Minecraft.getInstance().options.hideLightningFlash().get();
         float brightness = (float) (double) ClientConfig.FLASH.get();
-        flash = hidden ? 0.0F : Math.min(1.0F, sum) * brightness;
-        hush = Math.min(1.0F, hushSum);
-        glare = hidden || !ClientConfig.EXPOSURE.get() ? 0.0F : Math.min(1.0F, glareSum) * brightness;
+        flash = hidden ? 0.0F : Math.min(1.0F, sum) * brightness * skyView;
+        hush = Math.min(1.0F, hushSum) * skyView;
+        glare = hidden || !ClientConfig.EXPOSURE.get() ? 0.0F : Math.min(1.0F, glareSum) * brightness * skyView;
 
         if (thunderLevel > 0.3F) {
             spawnScenery(level, cam, thunderLevel);

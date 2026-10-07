@@ -18,9 +18,11 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -68,6 +70,9 @@ public final class WeatherClient {
     private static Puddles puddles;
     private static ByteBufferBuilder rainBytes;
     private static int ticks;
+    /** How much of the sky the camera sees, 0 (deep indoors, underground) .. 1 (outdoors), eased. */
+    private static float skyView = 1.0F;
+    private static float previousSkyView = 1.0F;
 
     private WeatherClient() {
     }
@@ -122,6 +127,23 @@ public final class WeatherClient {
         return true;
     }
 
+    /**
+     * How much of the sky the camera sees, from the sky light where it stands: 0 deep indoors or underground, 1
+     * outdoors. What lights or hazes the whole view (lightning flashes, the rain's haze and fog) fades with it, so a
+     * storm overhead does not flicker in a cave.
+     */
+    public static float skyView(float partialTick) {
+        return Mth.lerp(partialTick, previousSkyView, skyView);
+    }
+
+    private static void tickSkyView(ClientLevel level, Camera camera) {
+        previousSkyView = skyView;
+        int light = level.getBrightness(LightLayer.SKY, camera.getBlockPosition());
+        // Full sky light is the open; around a window or a cave mouth some of the sky still shows.
+        float target = Mth.clamp((light - 5) / 9.0F, 0.0F, 1.0F);
+        skyView += (target - skyView) * 0.15F;
+    }
+
     /** How overcast the light is: follows the rain, heavier rain is gloomier. */
     public static float gloom() {
         return ClientWeather.rain() * Math.min(1.0F, 0.45F + ClientWeather.density * 0.25F) * (float) Math.min(1.0, ClientConfig.FOG.get());
@@ -158,6 +180,7 @@ public final class WeatherClient {
         ClientWeather.tick(level);
         Camera camera = minecraft.gameRenderer.getMainCamera();
         Vec3 cam = camera.getPosition();
+        tickSkyView(level, camera);
         COLUMNS.begin(level, ticks);
         FX.setCapacity(ClientConfig.quality().maxEffects);
         FX.recenter(cam.x, cam.z);
@@ -171,7 +194,7 @@ public final class WeatherClient {
         } else {
             RainSounds.stopAll();
         }
-        LIGHTNING.tick(level, cam, FX, ClientWeather.thunder());
+        LIGHTNING.tick(level, cam, FX, ClientWeather.thunder(), skyView);
         Cinematics.tick();
         if (ClientConfig.BOLTS.get()) {
             // Vanilla bolts set a full-white sky flash; the graded flash of the lightning system replaces it.
@@ -330,7 +353,7 @@ public final class WeatherClient {
         if (!ourSky(level) || event.getMode() != FogRenderer.FogMode.FOG_TERRAIN || event.getType() != FogType.NONE) {
             return;
         }
-        float rain = ClientWeather.rain();
+        float rain = ClientWeather.rain() * skyView((float) event.getPartialTick());
         double strength = ClientConfig.FOG.get();
         // The atmosphere draws the haze itself; the vanilla fog only hides the edge of the world as usual.
         if (rain <= 0.0F || strength <= 0.0 || Atmosphere.active()) {
@@ -361,7 +384,7 @@ public final class WeatherClient {
         float r = event.getRed();
         float g = event.getGreen();
         float b = event.getBlue();
-        float rain = ClientWeather.rain() * (float) Math.min(1.0, ClientConfig.FOG.get());
+        float rain = ClientWeather.rain() * skyView((float) event.getPartialTick()) * (float) Math.min(1.0, ClientConfig.FOG.get());
         if (rain > 0.0F) {
             // Rain washes the colour out towards a deep, neutral grey.
             float luma = r * 0.3F + g * 0.59F + b * 0.11F;

@@ -44,7 +44,8 @@ public final class Atmosphere {
     public static boolean active() {
         Minecraft minecraft = Minecraft.getInstance();
         // A shader pack draws its own sky and fog (and would hide this pass anyway).
-        if (!ClientConfig.ATMOSPHERE.get() || PetrichorShaders.atmosphere() == null || ClientWeather.rain() <= 0.001F
+        // Underground or deep indoors the rain's haze is outside, behind the walls.
+        if (!ClientConfig.ATMOSPHERE.get() || PetrichorShaders.atmosphere() == null || ClientWeather.rain() * WeatherClient.skyView(1.0F) <= 0.001F
                 || ClientConfig.FOG.get() <= 0.0 || ShaderPacks.inUse()) {
             return false;
         }
@@ -88,7 +89,7 @@ public final class Atmosphere {
         shader.safeGetUniform("Haze").set(haze());
         shader.safeGetUniform("Falloff").set(1.0F / 40.0F);
         shader.safeGetUniform("BaseY").set((float) level.getSeaLevel());
-        shader.safeGetUniform("Strength").set(rain);
+        shader.safeGetUniform("Strength").set(rain * WeatherClient.skyView(partialTick));
         // A drizzle only greys the sky; a downpour hides it behind a heavy deck.
         shader.safeGetUniform("Overcast").set(Math.min(1.0F, 0.55F + 0.45F * heaviness) * fog);
         shader.safeGetUniform("Gloom").set(Math.max(Math.clamp((heaviness - 0.4F) / 0.6F, 0.0F, 1.0F), ClientWeather.thunder() * 0.9F));
