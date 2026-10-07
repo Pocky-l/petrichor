@@ -23,8 +23,8 @@ public final class RainVeils {
     private static final int SEGMENTS = 56;
     /** Longest stretch of a ring between two ground samples, so the curtains follow the land. */
     private static final float SEGMENT_LENGTH = 3.0F;
-    /** Height over the ground in which a curtain fades in. */
-    private static final float FADE_IN = 10.0F;
+    /** Height over the ground in which a curtain fades in: at eye level it is already dense. */
+    private static final float FADE_IN = 2.0F;
     /** Blocks covered by one width / height of the texture next to the camera; far rings use coarser streaks. */
     private static final float TILE_WIDTH = 7.0F;
     private static final float TILE_HEIGHT = 14.0F;
@@ -100,8 +100,8 @@ public final class RainVeils {
                 float g0 = previousGround;
                 float g1 = ground(columns, camX, camY, camZ, radius, a1);
                 previousGround = g1;
-                float m0 = Math.max(g0 + FADE_IN, 6.0F);
-                float m1 = Math.max(g1 + FADE_IN, 6.0F);
+                float m0 = g0 + FADE_IN;
+                float m1 = g1 + FADE_IN;
                 if (m0 >= top && m1 >= top) {
                     // Higher land than the curtain: no rain hangs there.
                     continue;
