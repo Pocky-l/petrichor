@@ -92,6 +92,10 @@ final class Soundscape {
     /** How much of the outdoors reaches the ear, 0 (a cave, a sealed cellar) .. 1, as measured and eased. */
     private float outsideTarget = 1.0F;
     private float outside = 1.0F;
+    /** Direction towards more sky light (the way out of a cave), zero when there is none to follow. */
+    private double exitX;
+    private double exitY;
+    private double exitZ;
     private int ticks;
 
     // Scan scratch.
@@ -235,11 +239,11 @@ final class Soundscape {
     }
 
     /**
-     * Volume left after what stands between the ear and a voice. Rain in plain sight is heard from anywhere (a cave
-     * mouth); rain behind walls only near the outdoors, not through the rock of a cave.
+     * Volume left after what stands between the ear and a voice, and after how far the listener is from the outdoors:
+     * walking out of a cave, the rain rises from silence.
      */
     private float reach(Voice voice) {
-        return voice.occlusion >= 0.99F ? voice.occlusion : voice.occlusion * outside;
+        return voice.occlusion * outside;
     }
 
     /** A light and a heavy recording crossfading; a surface with a single recording swells with the intensity instead. */
@@ -263,10 +267,15 @@ final class Soundscape {
             wind.silence();
             return;
         }
-        // The wind comes from upwind; indoors it is a muffled moan outside.
+        // The wind comes from upwind; indoors it is a muffled moan outside; in a cave it blows in through the way out.
         double ux = speed > 0.0F ? -wx / speed : 1.0;
+        double uy = 0.2;
         double uz = speed > 0.0F ? -wz / speed : 0.0;
-        wind.place(eye.x + ux * 10.0, eye.y + 2.0, eye.z + uz * 10.0, strength);
+        double inside = 1.0 - outside;
+        ux += (exitX - ux) * inside;
+        uy += (exitY - uy) * inside;
+        uz += (exitZ - uz) * inside;
+        wind.place(eye.x + ux * 10.0, eye.y + uy * 10.0, eye.z + uz * 10.0, strength);
         wind.highs = 1.0F - enclosure * 0.85F;
         float gust = (float) Math.sqrt(Math.max(0.25F, RainSounds.gust()));
         float windVolume = (float) (double) ClientConfig.WIND_VOLUME.get();
@@ -685,7 +694,12 @@ final class Soundscape {
         // Outdoors is where the sky light reaches, or under no more than a building's floors and roof; below that, rock.
         int ey = Mth.floor(eye.y);
         pos.set(ex, ey, ez);
-        float sky = Mth.clamp((level.getBrightness(LightLayer.SKY, pos) - 3) / 8.0F, 0.0F, 1.0F);
+        int light = level.getBrightness(LightLayer.SKY, pos);
+        // Sky light drops by one per block into a cave: the outdoors fades in over the last 14 blocks to the exit,
+        // from silence, gently at first.
+        float sky = Mth.clamp((light - 1) / 14.0F, 0.0F, 1.0F);
+        sky *= sky;
+        aimExit(level, ex, ey, ez, light);
         int top = Math.min(level.getHeight(Heightmap.Types.MOTION_BLOCKING, ex, ez), ey + 1 + BURIED_SCAN);
         int layers = 0;
         for (int y = ey + 1; y < top; y++) {
@@ -697,8 +711,29 @@ final class Soundscape {
         if (top == ey + 1 + BURIED_SCAN) {
             layers = BURIED_SCAN;
         }
-        float shallow = Mth.clamp(1.0F - (layers - 2) / 4.0F, 0.0F, 1.0F);
+        // A building's floor and roof keep the outdoors close; a cave ceiling of rock does not.
+        float shallow = layers <= 2 ? 1.0F : 0.0F;
         outsideTarget = Math.max(sky, shallow);
+    }
+
+    /** Points {@link #exitX} etc. up the slope of the sky light: towards the cave mouth, the door, the window. */
+    private void aimExit(ClientLevel level, int x, int y, int z, int light) {
+        double gx = skyLight(level, x + 2, y, z) - skyLight(level, x - 2, y, z);
+        double gy = skyLight(level, x, y + 2, z) - skyLight(level, x, y - 2, z);
+        double gz = skyLight(level, x, y, z + 2) - skyLight(level, x, y, z - 2);
+        double length = Math.sqrt(gx * gx + gy * gy + gz * gz);
+        if (length < 0.5 || light <= 0) {
+            exitX = exitY = exitZ = 0.0;
+            return;
+        }
+        exitX = gx / length;
+        exitY = gy / length;
+        exitZ = gz / length;
+    }
+
+    private int skyLight(ClientLevel level, int x, int y, int z) {
+        pos.set(x, y, z);
+        return level.getBrightness(LightLayer.SKY, pos);
     }
 
     /** Rain far away in four directions, as far as the land is open and rained on. */

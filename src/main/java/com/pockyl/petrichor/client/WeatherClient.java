@@ -139,8 +139,9 @@ public final class WeatherClient {
     private static void tickSkyView(ClientLevel level, Camera camera) {
         previousSkyView = skyView;
         int light = level.getBrightness(LightLayer.SKY, camera.getBlockPosition());
-        // Full sky light is the open; around a window or a cave mouth some of the sky still shows.
-        float target = Mth.clamp((light - 5) / 9.0F, 0.0F, 1.0F);
+        // Sky light drops by one per block into a cave: the sky's light fades in over the last 14 blocks to the exit.
+        float target = Mth.clamp((light - 1) / 14.0F, 0.0F, 1.0F);
+        target *= target;
         skyView += (target - skyView) * 0.15F;
     }
 

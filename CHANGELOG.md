@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The rain's haze, grey fog and curtains of rain in the middle distance no longer fill caves and enclosed rooms
   during rain.
 - Wind, distant rain and thunder are no longer heard underground; rain behind walls and on the ground above fades
-  out in caves instead of being heard through the rock. Buildings and cave mouths keep their sound.
+  out in caves instead of being heard through the rock, and rise smoothly as you walk out of a cave, the wind
+  blowing in from the exit. Buildings keep their sound.
 
 ## [1.0.0] - 2026-10-06
 ### Added
