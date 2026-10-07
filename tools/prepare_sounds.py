@@ -1,6 +1,7 @@
 """Builds the sounds of Petrichor from CC0 field recordings on Freesound.
 
-Usage: python tools/prepare_sounds.py   (from the mod folder; needs numpy, scipy, soundfile)
+Usage: python tools/prepare_sounds.py [underwater]   (from the mod folder; needs numpy, scipy, soundfile;
+"underwater" rebuilds only the sounds heard under water)
 
 The recordings (all Creative Commons 0, see SOURCES) are downloaded into tools/.cache (not committed).
 
@@ -78,6 +79,8 @@ SOURCES = {
     584946: ("richwise", "Distant rumbles"),
     581123: ("Fission9", "Distant Thunder 2"),
     243782: ("bastipictures", "peal of thunder - distant"),
+    # Under water.
+    530167: ("Osiruswaltz", "Underwater Beneath Waterfall or Rain (Loopable)"),
     # Footsteps.
     861369: ("ChristopherJngs", "Splashing Footsteps Shallow Water"),
 }
@@ -290,6 +293,44 @@ def footsteps(sound_id, count):
         write(f"step/puddle{k + 1}", normalize(step * fade, -16))
 
 
+def underwater_rain(name, seconds, drops_per_second, rms_db, rush=None, seed=1):
+    """Rain on the water surface heard from below, as a seamless loop.
+
+    Under water a raindrop is mostly the bubble it traps: a short ringing ping (Minnaert resonance, small bubbles
+    high, big ones lower) after a soft click of the impact; light rain is a sparse crackle of such pings, heavy rain a
+    dense fizz over a rush. {rush}: a recording of water heard under water, laid under the drops.
+    """
+    rng = np.random.default_rng(seed)
+    n = int(seconds * RATE)
+    out = np.zeros(n + RATE)
+    for _ in range(int(seconds * drops_per_second)):
+        at = rng.integers(0, n)
+        loud = rng.lognormal(0.0, 0.6)
+        # The impact: a click of a millisecond or two.
+        click = int(RATE * rng.uniform(0.0008, 0.002))
+        out[at:at + click] += rng.standard_normal(click) * np.exp(-np.linspace(0, 6, click)) * 0.25 * loud
+        if rng.random() < 0.7:
+            # The bubble: its pitch from its size, rings for a few dozen periods.
+            freq = math.exp(rng.uniform(math.log(1800.0), math.log(9000.0)))
+            ring = 25.0 / (math.pi * freq)
+            length = int(min(0.08, ring * 5) * RATE)
+            t = np.arange(length) / RATE
+            chirp = freq * (1.0 + 0.15 * t / max(t[-1], 1e-6))
+            ping = np.sin(2 * math.pi * np.cumsum(chirp) / RATE) * np.exp(-t / ring)
+            out[at:at + length] += ping * loud * rng.uniform(0.4, 1.0)
+    # Wrap the tails of drops near the end around to the start: the loop has no seam.
+    out[:RATE] += out[n:n + RATE]
+    out = out[:n]
+    # Water swallows the highest highs.
+    out = filt(out, "low", 10000.0, order=2)
+    out = filt(out, "high", 300.0)
+    if rush is not None:
+        bed = soften(source(rush), rumble_cut=40.0, air_cut=3000.0, air_cut_amount=0.5, lowpass=2500.0)
+        bed = make_loop(bed, seconds, 3.0, steadiest(bed, seconds + 3.0))
+        out = out / (np.sqrt(np.mean(out ** 2)) + 1e-12) + 0.8 * bed / (np.sqrt(np.mean(bed ** 2)) + 1e-12)
+    write(name, normalize(out, rms_db))
+
+
 def clean(folder):
     path = os.path.join(OUT, folder)
     if os.path.isdir(path):
@@ -355,6 +396,17 @@ def main():
 
     footsteps(861369, 6)
 
+    underwater()
+
+
+def underwater():
+    clean("underwater")
+    # Rain on the surface heard from below: a sparse crackle of drops, and a dense fizz over a rush.
+    underwater_rain("underwater/rain_light", 12, 22, -27, seed=3)
+    underwater_rain("underwater/rain_heavy", 12, 260, -21, rush=530167, seed=7)
+
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    underwater() if sys.argv[1:] == ["underwater"] else main()

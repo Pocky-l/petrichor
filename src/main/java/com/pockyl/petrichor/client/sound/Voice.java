@@ -14,6 +14,8 @@ import net.minecraft.util.RandomSource;
 final class Voice {
     private static final float AUDIBLE = 0.004F;
     private static final RandomSource RANDOM = RandomSource.create();
+    /** How far the listener's head is under water, 0..1: the air above reaches the ear dull and faint. */
+    static float submerged;
 
     private final boolean distant;
     private final LoopSound[] loops;
@@ -26,6 +28,8 @@ final class Voice {
     /** Volume factor and highs from what stands between the listener and the place. */
     float occlusion = 1.0F;
     float highs = 1.0F;
+    /** A sound in the water itself, heard as it is under water. */
+    boolean underwater;
 
     Voice(int slots, boolean distant) {
         this.distant = distant;
@@ -43,6 +47,11 @@ final class Voice {
     /** Plays {@code sound} in {@code slot} at this volume; null or a different sound fades the slot's loop out. */
     void drive(int slot, SoundEvent sound, float volume) {
         SoundManager sounds = Minecraft.getInstance().getSoundManager();
+        float highs = this.highs;
+        if (!underwater) {
+            volume *= 1.0F - 0.7F * submerged;
+            highs *= 1.0F - 0.95F * submerged;
+        }
         LoopSound loop = loops[slot];
         if (loop != null && (loop.isStopped() || !sounds.isActive(loop))) {
             loop = null;

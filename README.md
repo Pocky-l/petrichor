@@ -52,6 +52,9 @@
   and the storm becomes a cosy murmur; open the door and it rushes in.
 - Single drops falling off eaves and leaves land on stone, wood, metal or a puddle - and keep dripping after the rain.
 - Rain far away in every open direction and the **wind** in storms give the world its size.
+- **Under water** the world above turns dull and faint, and the rain on the surface overhead crackles and fizzes the
+  way it really sounds under water. Underground, wind, thunder and distant rain fall silent and rise again as you
+  walk out of a cave.
 
 ### Lightning and thunder
 
@@ -164,6 +167,7 @@ The jar is written to `build/libs/`.
   - [Distant Thunder 2](https://freesound.org/s/581123/) by Fission9
   - [peal of thunder - distant](https://freesound.org/s/243782/) by bastipictures
   - [Splashing Footsteps Shallow Water](https://freesound.org/s/861369/) by ChristopherJngs
+  - [Underwater Beneath Waterfall or Rain](https://freesound.org/s/530167/) by Osiruswaltz
 
 <!-- more-mods:start -->
 ## More mods by Pocky

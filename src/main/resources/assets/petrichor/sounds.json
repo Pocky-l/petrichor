@@ -419,5 +419,23 @@
       "petrichor:thunder/far4"
     ],
     "subtitle": "subtitles.entity.lightning_bolt.thunder"
+  },
+  "underwater.rain.light": {
+    "sounds": [
+      {
+        "name": "petrichor:underwater/rain_light",
+        "attenuation_distance": 24
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_underwater"
+  },
+  "underwater.rain.heavy": {
+    "sounds": [
+      {
+        "name": "petrichor:underwater/rain_heavy",
+        "attenuation_distance": 24
+      }
+    ],
+    "subtitle": "subtitles.petrichor.rain_underwater"
   }
 }

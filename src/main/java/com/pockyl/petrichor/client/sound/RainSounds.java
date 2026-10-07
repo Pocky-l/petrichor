@@ -98,6 +98,11 @@ public final class RainSounds {
         return SOUNDSCAPE.enclosure();
     }
 
+    /** How far the listener's head is under water, 0..1: sounds from the air above are dull and faint. */
+    public static float submerged() {
+        return SOUNDSCAPE.submerged();
+    }
+
     /** How much of the outdoors reaches the ear: 1 outside and in buildings, 0 deep underground. */
     public static float outside() {
         return SOUNDSCAPE.outside();
@@ -234,6 +239,9 @@ public final class RainSounds {
             // Behind a wall it is muffled; through the rock above a cave it is not heard.
             volume *= 0.45F * SOUNDSCAPE.outside();
         }
+        float submerged = SOUNDSCAPE.submerged();
+        volume *= 1.0F - 0.7F * submerged;
+        highs *= 1.0F - 0.95F * submerged;
         if (volume < 0.01F) {
             return false;
         }

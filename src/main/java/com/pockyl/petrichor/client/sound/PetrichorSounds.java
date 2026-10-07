@@ -40,6 +40,10 @@ public final class PetrichorSounds {
     public static final SoundEvent ROOF_FABRIC_HEAVY = event("roof.rain.fabric_heavy");
     public static final SoundEvent ROOF_THICK = event("roof.rain.thick");
 
+    // Rain on the water surface heard from under water.
+    public static final SoundEvent UNDERWATER_LIGHT = event("underwater.rain.light");
+    public static final SoundEvent UNDERWATER_HEAVY = event("underwater.rain.heavy");
+
     // One-shots.
     public static final SoundEvent DROP_PUDDLE = event("drop.puddle");
     public static final SoundEvent DROP_HARD = event("drop.hard");
