@@ -5,7 +5,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.LightLayer;
@@ -38,9 +37,7 @@ import java.util.List;
  *   sources with recordings of rain on that very material, light and heavy;</li>
  *   <li><b>shelter</b> - the roof right above (tin drums, planks knock, a skylight taps, a tent thuds, a thick roof
  *   rumbles), windows struck by the wind-driven rain, tree crowns;</li>
- *   <li><b>under water</b> - with the head under water everything above is dull and faint, and the rain on the
- *   surface overhead is heard as it sounds in the water: the crackle of the bubbles each drop traps, a fizz in a
- *   downpour;</li>
+ *   <li><b>under water</b> - with the head under water everything above is dull and faint;</li>
  *   <li><b>space</b> - rain far away in every open direction and the wind, which make the world feel big outside and
  *   fade to a muffled murmur inside.</li>
  * </ul>
@@ -65,9 +62,6 @@ final class Soundscape {
     private static final float WINDOW_GAIN = 0.42F;
     private static final float FAR_GAIN = 0.2F;
     private static final float WIND_GAIN = 0.26F;
-    private static final float UNDERWATER_GAIN = 0.55F;
-    /** Water surface overhead deeper than this is not heard. */
-    private static final float UNDERWATER_DEPTH = 16.0F;
     /** Surfaces with their own sources, and how loud rain on each is. */
     private static final SoundMaterial[] ACCENTS = {SoundMaterial.HARD, SoundMaterial.WOOD, SoundMaterial.METAL, SoundMaterial.GLASS,
             SoundMaterial.FABRIC, SoundMaterial.WATER, SoundMaterial.PUDDLE};
@@ -95,7 +89,6 @@ final class Soundscape {
     private final Voice[] far = new Voice[FAR_SOURCES];
     private final Voice overhead = new Voice(2, false);
     private final Voice wind = new Voice(1, true);
-    private final Voice underwater = new Voice(2, false);
     private float submerged;
     private final float[] windowHit = new float[WINDOW_SOURCES];
     private Roof roof = Roof.NONE;
@@ -137,7 +130,6 @@ final class Soundscape {
         for (int i = 0; i < FAR_SOURCES; i++) {
             far[i] = new Voice(1, true);
         }
-        underwater.underwater = true;
     }
 
     /** How far the listener's head is under water, 0..1. */
@@ -171,7 +163,6 @@ final class Soundscape {
             case 1 -> {
                 scanCanopy(level, columns, eye);
                 scanRoof(level, columns, eye);
-                scanWaterAbove(level, columns, eye);
             }
             case 2 -> {
                 scanEnclosure(level, columns, eye);
@@ -258,16 +249,7 @@ final class Soundscape {
         }
 
         playWind(eye, rain);
-
-        if (submerged <= 0.01F) {
-            underwater.silence();
-        } else {
-            // Light rain is a sparse crackle under water, heavy rain a fizz: the same crossfade as the surfaces.
-            drivePair(underwater, UNDERWATER, underwater.amount * submerged * loud * UNDERWATER_GAIN, lightShare, heavyShare);
-        }
     }
-
-    private static final SoundEvent[] UNDERWATER = {PetrichorSounds.UNDERWATER_LIGHT, PetrichorSounds.UNDERWATER_HEAVY};
 
     /**
      * Volume left after what stands between the ear and a voice, and after how far the listener is from the outdoors:
@@ -630,56 +612,6 @@ final class Soundscape {
         overhead.highs = layers > 1 && roof != Roof.THICK ? 0.5F : 1.0F;
     }
 
-    /**
-     * Rain-hit water surface over the listener's head: how much of it there is around, how near, and where the
-     * nearest of it is. The deeper the listener dives, the fainter it gets.
-     */
-    private void scanWaterAbove(ClientLevel level, Columns columns, Vec3 eye) {
-        int ex = Mth.floor(eye.x);
-        int ez = Mth.floor(eye.z);
-        int count = 0;
-        int total = 0;
-        double best = Double.MAX_VALUE;
-        double sx = eye.x;
-        double sy = eye.y;
-        double sz = eye.z;
-        for (int oz = -8; oz <= 8; oz += 2) {
-            for (int ox = -8; ox <= 8; ox += 2) {
-                total++;
-                int x = ex + ox;
-                int z = ez + oz;
-                if (columns.precipitation(x, z) != Columns.RAIN) {
-                    continue;
-                }
-                float surface = columns.top(x, z);
-                double depth = surface - eye.y;
-                if (depth < 0.0 || depth > UNDERWATER_DEPTH) {
-                    continue;
-                }
-                pos.set(x, columns.height(x, z) - 1, z);
-                if (!level.getFluidState(pos).is(FluidTags.WATER)) {
-                    continue;
-                }
-                count++;
-                double distance = ox * ox + oz * oz + depth * depth;
-                if (distance < best) {
-                    best = distance;
-                    sx = x + 0.5;
-                    sy = surface;
-                    sz = z + 0.5;
-                }
-            }
-        }
-        if (count == 0) {
-            underwater.amount = 0.0F;
-            return;
-        }
-        float near = 1.0F - (float) Math.max(0.0, sy - eye.y) / UNDERWATER_DEPTH;
-        underwater.place(sx, sy, sz, Math.min(1.0F, count / (float) total * 1.6F) * near * near);
-        underwater.occlusion = 1.0F;
-        underwater.highs = 1.0F;
-    }
-
     /** Windows next to the listener that the rain beats on from outside, the wind driving it against them. */
     private void scanWindows(ClientLevel level, Columns columns, Vec3 eye) {
         int ex = Mth.floor(eye.x);
@@ -864,7 +796,6 @@ final class Soundscape {
         }
         overhead.stop();
         wind.stop();
-        underwater.stop();
     }
 
     String debugSummary() {

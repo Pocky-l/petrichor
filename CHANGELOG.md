@@ -6,8 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1] - 2026-10-07
 ### Added
-- Rain heard from under water: everything above turns dull and faint, and the rain on the surface overhead
-  crackles (light rain) or fizzes (downpour) like it does in real water, fading as you dive deeper.
+- Under water the rain, drips and thunder above sound dull and faint.
 ### Fixed
 - Lightning no longer flashes the screen underground or deep indoors: flashes, the glare of close strikes and the
   darkening before a strike are only seen where the sky can be seen, and fade in and out at cave mouths and windows.
