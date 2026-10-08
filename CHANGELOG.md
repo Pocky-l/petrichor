@@ -4,6 +4,13 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1+1.20.1] - Unreleased
+### Changed
+- Ported to Minecraft 1.20.1 (Forge). Everything of 1.0.1 for Minecraft 1.21.1 is included.
+- The config editor (*Mods -> Petrichor: Rain & Storms -> Config*) is a simple screen of the mod's own, since Forge for
+  1.20.1 has none: switches for options, text fields for numbers (shown in red while a number is out of range).
+- Shader packs work through [Oculus](https://www.curseforge.com/minecraft/mc-mods/oculus).
+
 ## [1.0.1] - 2026-10-07
 ### Added
 - Under water the rain, drips and thunder above sound dull and faint.

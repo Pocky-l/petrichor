@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <img alt="Minecraft 1.21.1" src="https://img.shields.io/badge/Minecraft-1.21.1-62B47A">
-  <img alt="NeoForge" src="https://img.shields.io/badge/Loader-NeoForge-F16436">
+  <img alt="Minecraft 1.21.1 | 1.20.1" src="https://img.shields.io/badge/Minecraft-1.21.1%20%7C%201.20.1-62B47A">
+  <img alt="NeoForge | Forge" src="https://img.shields.io/badge/Loader-NeoForge%20%7C%20Forge-F16436">
   <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-blue">
 </p>
 
@@ -99,7 +99,7 @@ Muffling is turned off automatically when
 
 ## Compatibility
 
-- **Shader packs** ([Iris](https://modrinth.com/mod/iris), Oculus): the rain, splashes, drips and distant curtains are drawn through the pack's
+- **Shader packs** ([Iris](https://modrinth.com/mod/iris), [Oculus](https://www.curseforge.com/minecraft/mc-mods/oculus) on 1.20.1): the rain, splashes, drips and distant curtains are drawn through the pack's
   weather program, so they take on the pack's look and lighting. Puddles become pixel-edged pools of real water that the
   pack draws with its own water (reflections, waves). The mod's sky haze and the wet sheen of the ground step aside -
   packs bring their own fog and wet surfaces. Sounds, lightning and the cinematic storm work as usual.
@@ -107,8 +107,14 @@ Muffling is turned off automatically when
 
 ## Installation
 
-1. Install [NeoForge](https://neoforged.net) for Minecraft 1.21.1.
-2. Put this mod into the `mods` folder.
+Supported versions:
+
+- Minecraft 1.21.1 with [NeoForge](https://neoforged.net) - branch `main`.
+- Minecraft 1.20.1 with [Forge](https://files.minecraftforge.net) - branch `1.20.1`.
+
+1. Install [NeoForge](https://neoforged.net) for Minecraft 1.21.1 or [Forge](https://files.minecraftforge.net) for
+   Minecraft 1.20.1.
+2. Put the mod for your version into the `mods` folder.
 
 ## Building
 
