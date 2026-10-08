@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.1.0] - Unreleased
+### Added
+- Rain hisses on hot blocks: drops falling on lava, magma blocks and lit campfires boil away in small puffs of steam
+  with a quiet sizzle, and a lava lake steams faintly in the rain. Can be turned off with the new "Steam on hot blocks"
+  option.
 ### Fixed
 - The rainy haze and sky work correctly with [Veil](https://www.curseforge.com/minecraft/mc-mods/veil-lib) installed.
 

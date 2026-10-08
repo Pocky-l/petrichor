@@ -29,6 +29,8 @@
 - Rain never passes through walls: falling slanted in the wind, drops stop at the wall and the lee side of a building
   stays dry.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
+- **Rain on hot blocks**: drops falling on lava, magma blocks and lit campfires hiss and boil away in small puffs of
+  steam, and a lava lake steams faintly in the rain.
 
 ### Water on the ground
 
@@ -89,7 +91,7 @@ Nothing to craft: the mod changes the weather.
 ## Configuration
 
 Client options (*Mods -> Petrichor: Rain & Storms -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
-splashes, fog, rainy atmosphere, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
+splashes, fog, rainy atmosphere, steam on hot blocks, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
 a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
 lightning strikes.
 

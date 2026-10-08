@@ -23,6 +23,7 @@ import com.pockyl.petrichor.client.Columns;
 import com.pockyl.petrichor.client.render.Puddles;
 import com.pockyl.petrichor.client.sound.RainSounds;
 import com.pockyl.petrichor.weather.Noise;
+import com.pockyl.petrichor.world.HotSurface;
 import com.pockyl.petrichor.world.SurfaceKind;
 
 import java.util.ArrayList;
@@ -30,8 +31,8 @@ import java.util.List;
 
 /**
  * Decides every tick where rain effects appear: splashes on whatever the rain hits (crowns on the ground, rings on
- * water, sizzle on lava, spray off leaves and mobs), mist in downpours, water pouring off edges and dripping from
- * leaves (also for a while after the rain) and splashes under feet in puddles.
+ * water, steam off lava and campfires, spray off leaves and mobs), mist in downpours, water pouring off edges and
+ * dripping from leaves (also for a while after the rain) and splashes under feet in puddles.
  */
 public final class FxSpawner {
     private static final int SPLASH_RANGE = 16;
@@ -55,6 +56,9 @@ public final class FxSpawner {
             groundSplashes(level, columns, puddles, fx, cam, intensity);
             mist(level, columns, fx, cam, intensity);
             entitySplashes(level, fx, cam, intensity);
+        }
+        if (rain > 0.0F && ClientConfig.HOT_SURFACES.get()) {
+            lavaSteam(level, columns, fx, cam, rain, intensity);
         }
         if (ClientConfig.DRIPS.get()) {
             // Edges keep dripping while the ground is wet, long after the rain stopped.
@@ -91,13 +95,13 @@ public final class FxSpawner {
             if (Math.abs(h - cam.y) > 20) {
                 continue;
             }
-            landOnTop(level, puddles, fx, x, z, bx, h, bz, scale, columns.light(bx, bz), random.nextInt(3));
+            landOnTop(level, puddles, fx, cam, x, z, bx, h, bz, scale, columns.light(bx, bz), random.nextInt(3));
         }
     }
 
     /** What a drop does when it lands on the top of the column at {@code (bx, bz)} whose first free y is {@code h}. */
-    private void landOnTop(ClientLevel level, Puddles puddles, RainFx fx, double x, double z, int bx, int h, int bz, float scale, int light,
-            int droplets) {
+    private void landOnTop(ClientLevel level, Puddles puddles, RainFx fx, Vec3 cam, double x, double z, int bx, int h, int bz, float scale,
+            int light, int droplets) {
         pos.set(bx, h - 1, bz);
         BlockState state = level.getBlockState(pos);
         SurfaceKind.Shape shape = SurfaceKind.classify(state);
@@ -111,7 +115,17 @@ public final class FxSpawner {
                 }
             }
             case HOT -> {
-                if (random.nextInt(4) == 0) {
+                if (ClientConfig.HOT_SURFACES.get()) {
+                    // The drop boils away: a puff of steam instead of a splash, and now and then a hiss.
+                    double y = hotTop(level, pos, state);
+                    if (random.nextInt(3) != 0) {
+                        fx.steamPuff(x, y, z, light);
+                    }
+                    double dx = x - cam.x;
+                    double dy = y - cam.y;
+                    double dz = z - cam.z;
+                    RainSounds.sizzle(x, y, z, dx * dx + dy * dy + dz * dz, 0.25F);
+                } else if (random.nextInt(4) == 0) {
                     level.addParticle(ParticleTypes.SMOKE, x, h + 0.05, z, 0.0, 0.03, 0.0);
                 }
             }
@@ -121,6 +135,44 @@ public final class FxSpawner {
                 float cover = puddles.coverAt(x, y, z);
                 byte surface = cover > 0.5F ? RainFx.LAND_PUDDLE : RainFx.LAND_GROUND;
                 fx.splash(x, y, z, scale * (surface == RainFx.LAND_PUDDLE ? 0.8F : 1.0F), surface, light, droplets);
+            }
+        }
+    }
+
+    /** Where rain meets a hot block: the surface of lava, the top of a campfire or magma block. */
+    private static double hotTop(ClientLevel level, BlockPos pos, BlockState state) {
+        FluidState fluid = state.getFluidState();
+        if (!fluid.isEmpty()) {
+            return pos.getY() + fluid.getHeight(level, pos);
+        }
+        VoxelShape shape = state.getCollisionShape(level, pos);
+        return pos.getY() + (shape.isEmpty() ? 0.5 : shape.max(Direction.Axis.Y));
+    }
+
+    /**
+     * Rain on a lava lake boils off as a faint haze: a few slow wisps rising here and there over the lava near the
+     * listener, more of them the harder it rains.
+     */
+    private void lavaSteam(ClientLevel level, Columns columns, RainFx fx, Vec3 cam, float rain, float intensity) {
+        int n = stochastic(random, 2.5F * rain * Math.min(intensity, 1.5F));
+        for (int s = 0; s < n && !fx.full(); s++) {
+            float r = 2.0F + random.nextFloat() * 22.0F;
+            float angle = random.nextFloat() * Mth.TWO_PI;
+            double x = cam.x + Mth.cos(angle) * r;
+            double z = cam.z + Mth.sin(angle) * r;
+            int bx = Mth.floor(x);
+            int bz = Mth.floor(z);
+            if (columns.precipitation(bx, bz) != Columns.RAIN) {
+                continue;
+            }
+            int h = columns.height(bx, bz);
+            if (Math.abs(h - cam.y) > 24) {
+                continue;
+            }
+            pos.set(bx, h - 1, bz);
+            BlockState state = level.getBlockState(pos);
+            if (HotSurface.of(state) == HotSurface.LAVA) {
+                fx.steamHaze(x, hotTop(level, pos, state), z, columns.light(bx, bz));
             }
         }
     }
@@ -325,6 +377,9 @@ public final class FxSpawner {
         if (below.getFluidState().is(FluidTags.WATER)) {
             groundY = floor + below.getFluidState().getHeight(level, pos);
             surface = RainFx.LAND_WATER;
+        } else if (HotSurface.of(below) != null) {
+            groundY = hotTop(level, pos, below);
+            surface = RainFx.LAND_HOT;
         } else {
             VoxelShape shape = below.getCollisionShape(level, pos);
             double top = shape.isEmpty() ? 0.0 : shape.max(Direction.Axis.Y);

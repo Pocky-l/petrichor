@@ -8,6 +8,9 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CampfireBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -18,6 +21,7 @@ import com.pockyl.petrichor.weather.RainType;
 import com.pockyl.petrichor.weather.StormData;
 import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.DropPath;
+import com.pockyl.petrichor.world.HotSurface;
 import com.pockyl.petrichor.world.PuddleField;
 import com.pockyl.petrichor.world.RunoffSolver;
 import com.pockyl.petrichor.world.SoundMaterial;
@@ -327,6 +331,28 @@ public final class ModGameTests {
         helper.assertTrue(SoundMaterial.of(Blocks.OAK_LEAVES.defaultBlockState()) == SoundMaterial.LEAVES, "Leaves are leaves");
         helper.assertTrue(SoundMaterial.of(Blocks.WATER.defaultBlockState()) == SoundMaterial.WATER, "Water is water");
         helper.assertTrue(SoundMaterial.of(Blocks.SNOW_BLOCK.defaultBlockState()) == SoundMaterial.SILENT, "Snow swallows rain");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hotSurfacesSizzle(GameTestHelper helper) {
+        helper.assertTrue(HotSurface.of(Blocks.LAVA.defaultBlockState()) == HotSurface.LAVA, "Lava is hot");
+        helper.assertTrue(HotSurface.of(Fluids.FLOWING_LAVA.getFlowing(3, false).createLegacyBlock()) == HotSurface.LAVA,
+                "Flowing lava is hot");
+        helper.assertTrue(HotSurface.of(Blocks.MAGMA_BLOCK.defaultBlockState()) == HotSurface.MAGMA, "Magma is hot");
+        BlockState campfire = Blocks.CAMPFIRE.defaultBlockState();
+        helper.assertTrue(HotSurface.of(campfire.setValue(CampfireBlock.LIT, true)) == HotSurface.CAMPFIRE, "A lit campfire is hot");
+        helper.assertTrue(HotSurface.of(Blocks.SOUL_CAMPFIRE.defaultBlockState().setValue(CampfireBlock.LIT, true)) == HotSurface.CAMPFIRE,
+                "A lit soul campfire is hot");
+        helper.assertTrue(HotSurface.of(campfire.setValue(CampfireBlock.LIT, false)) == null, "A doused campfire is cold");
+        helper.assertTrue(HotSurface.of(Blocks.WATER.defaultBlockState()) == null, "Water is cold");
+        helper.assertTrue(HotSurface.of(Blocks.STONE.defaultBlockState()) == null, "Stone is cold");
+        helper.assertTrue(HotSurface.of(Blocks.NETHERRACK.defaultBlockState()) == null, "Netherrack is cold");
+        helper.assertTrue(SurfaceKind.classify(campfire.setValue(CampfireBlock.LIT, true)).kind() == SurfaceKind.HOT,
+                "Rain sizzles on a lit campfire");
+        helper.assertTrue(SurfaceKind.classify(campfire.setValue(CampfireBlock.LIT, false)).kind() != SurfaceKind.HOT,
+                "Rain does not sizzle on a doused campfire");
+        helper.assertTrue(SurfaceKind.classify(Blocks.LAVA.defaultBlockState()).kind() == SurfaceKind.HOT, "Rain sizzles on lava");
         helper.succeed();
     }
 

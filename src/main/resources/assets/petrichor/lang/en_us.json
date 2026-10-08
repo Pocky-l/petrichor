@@ -51,6 +51,7 @@
   "petrichor.configuration.splashDensity": "Splash density",
   "petrichor.configuration.fog": "Rain haze",
   "petrichor.configuration.atmosphere": "Rainy atmosphere",
+  "petrichor.configuration.hotSurfaces": "Steam on hot blocks",
   "petrichor.configuration.puddles": "Puddles",
   "petrichor.configuration.puddlesEnabled": "Puddles and wet ground",
   "petrichor.configuration.puddleCoverage": "Puddle coverage",

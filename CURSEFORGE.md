@@ -21,6 +21,8 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
 - Rain never passes through walls: falling slanted in the wind, drops stop at the wall and the lee side of a building
   stays dry.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
+- **Rain on hot blocks**: drops falling on lava, magma blocks and lit campfires hiss and boil away in small puffs of
+  steam, and a lava lake steams faintly in the rain.
 
 ### Water on the ground
 
