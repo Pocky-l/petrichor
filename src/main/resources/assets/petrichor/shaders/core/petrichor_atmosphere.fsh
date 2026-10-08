@@ -103,29 +103,28 @@ void main() {
 
     if (!sky) {
         fragColor = vec4(haze, min(fog, 0.985) * Strength);
-        return;
+    } else {
+        vec3 color = haze;
+        vec2 around = normalize(dir.xz + vec2(1.0e-5));
+        if (dir.y > 0.0) {
+            // The cloud deck, as high and as slow as real rain clouds: it is projected onto a plane far above (not the
+            // block clouds' height), so overhead it barely drifts and towards the horizon it closes up.
+            float t = DECK / max(dir.y, 0.03);
+            vec2 p = dir.xz * t - Drift * 0.12;
+            float broad = fbm(p / 2600.0);
+            float fine = fbm(p / 800.0 + 3.7);
+            float rolls = smoothstep(0.28, 0.78, broad * 0.75 + fine * 0.25);
+            vec3 dark = base * (0.6 - 0.26 * Gloom);
+            vec3 light = base * 1.05 + 0.02;
+            vec3 cloud = mix(dark, light, rolls);
+            cloud += Flash * vec3(0.55, 0.6, 0.75) * (0.4 + 0.6 * rolls);
+            // Towards the horizon the deck sinks into the haze.
+            color = mix(haze, cloud, smoothstep(0.03, 0.35, dir.y));
+        }
+        // Rain shafts hanging from the clouds down to the horizon: soft, wide and slow, a background, not a pattern.
+        float shaft = smoothstep(0.45, 0.75, fbm(around * 2.2 + vec2(PetrichorTime * 0.0015, 7.3)));
+        float band = (1.0 - smoothstep(0.0, 0.2, dir.y)) * smoothstep(-0.08, 0.0, dir.y);
+        color = mix(color, base * 0.8, shaft * band * Shafts * 0.45);
+        fragColor = vec4(color, Overcast * Strength);
     }
-
-    vec3 color = haze;
-    vec2 around = normalize(dir.xz + vec2(1.0e-5));
-    if (dir.y > 0.0) {
-        // The cloud deck, as high and as slow as real rain clouds: it is projected onto a plane far above (not the
-        // block clouds' height), so overhead it barely drifts and towards the horizon it closes up.
-        float t = DECK / max(dir.y, 0.03);
-        vec2 p = dir.xz * t - Drift * 0.12;
-        float broad = fbm(p / 2600.0);
-        float fine = fbm(p / 800.0 + 3.7);
-        float rolls = smoothstep(0.28, 0.78, broad * 0.75 + fine * 0.25);
-        vec3 dark = base * (0.6 - 0.26 * Gloom);
-        vec3 light = base * 1.05 + 0.02;
-        vec3 cloud = mix(dark, light, rolls);
-        cloud += Flash * vec3(0.55, 0.6, 0.75) * (0.4 + 0.6 * rolls);
-        // Towards the horizon the deck sinks into the haze.
-        color = mix(haze, cloud, smoothstep(0.03, 0.35, dir.y));
-    }
-    // Rain shafts hanging from the clouds down to the horizon: soft, wide and slow, a background, not a pattern.
-    float shaft = smoothstep(0.45, 0.75, fbm(around * 2.2 + vec2(PetrichorTime * 0.0015, 7.3)));
-    float band = (1.0 - smoothstep(0.0, 0.2, dir.y)) * smoothstep(-0.08, 0.0, dir.y);
-    color = mix(color, base * 0.8, shaft * band * Shafts * 0.45);
-    fragColor = vec4(color, Overcast * Strength);
 }
