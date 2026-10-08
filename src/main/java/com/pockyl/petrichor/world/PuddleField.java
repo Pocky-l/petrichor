@@ -1,5 +1,7 @@
 package com.pockyl.petrichor.world;
 
+import net.minecraft.util.Mth;
+
 import com.pockyl.petrichor.weather.Noise;
 
 /**
@@ -74,7 +76,7 @@ public final class PuddleField {
                 field += CLOSED_BONUS;
             }
         }
-        return Math.clamp(field, 0.0F, 1.0F);
+        return Mth.clamp(field, 0.0F, 1.0F);
     }
 
     /**
@@ -89,6 +91,6 @@ public final class PuddleField {
     /** Puddle cover 0..1 for a field value without the fine detail noise the shader adds. */
     public static float cover(float field, float wetness, float coverage) {
         float t = threshold(wetness, coverage);
-        return Math.clamp((field - t + 0.04F) / 0.08F, 0.0F, 1.0F);
+        return Mth.clamp((field - t + 0.04F) / 0.08F, 0.0F, 1.0F);
     }
 }

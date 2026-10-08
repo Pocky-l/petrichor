@@ -14,7 +14,7 @@ import com.pockyl.petrichor.client.WeatherClient;
 
 /**
  * Leaves in the rain spawn vanilla "dripping water" particles under them. Those are replaced by the mod's drops
- * falling from the same spots, so all water dripping from trees looks alike. NeoForge has no event for this.
+ * falling from the same spots, so all water dripping from trees looks alike. Forge has no event for this.
  */
 @Mixin(LeavesBlock.class)
 abstract class LeavesBlockMixin {

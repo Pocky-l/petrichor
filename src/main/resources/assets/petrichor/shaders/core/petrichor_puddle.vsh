@@ -28,7 +28,7 @@ void main() {
     vec4 view = ModelViewMat * vec4(pos, 1.0);
     gl_Position = ProjMat * view;
 
-    vertexDistance = fog_distance(pos, FogShape);
+    vertexDistance = fog_distance(ModelViewMat, pos, FogShape);
     worldUv = UV0;
     vertexColor = Color;
     lightColor = texelFetch(Sampler2, UV2 / 16, 0);

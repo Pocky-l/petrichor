@@ -4,9 +4,7 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Camera;
@@ -27,17 +25,18 @@ import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.client.event.ViewportEvent;
-import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
+import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.client.event.sound.PlaySoundEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import com.pockyl.petrichor.ClientConfig;
@@ -60,7 +59,7 @@ import com.pockyl.petrichor.client.sound.RainSounds;
 /**
  * The client's weather systems and the game events that drive them.
  */
-@EventBusSubscriber(modid = Petrichor.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = Petrichor.MOD_ID, value = Dist.CLIENT)
 public final class WeatherClient {
     private static final Columns COLUMNS = new Columns();
     private static final RainFx FX = new RainFx();
@@ -68,7 +67,8 @@ public final class WeatherClient {
     private static final FxSpawner SPAWNER = new FxSpawner();
     private static final Lightning LIGHTNING = new Lightning();
     private static Puddles puddles;
-    private static ByteBufferBuilder rainBytes;
+    /** The drops are built next to the effects (they need another blend mode), so they get a builder of their own. */
+    private static BufferBuilder rainBuilder;
     private static int ticks;
     /** How much of the sky the camera sees, 0 (deep indoors, underground) .. 1 (outdoors), eased. */
     private static float skyView = 1.0F;
@@ -81,11 +81,11 @@ public final class WeatherClient {
         return level != null && level.effects() instanceof PetrichorEffects;
     }
 
-    private static ByteBufferBuilder rainBuffer() {
-        if (rainBytes == null) {
-            rainBytes = new ByteBufferBuilder(1 << 20);
+    private static BufferBuilder rainBuilder() {
+        if (rainBuilder == null) {
+            rainBuilder = new BufferBuilder(1 << 20);
         }
-        return rainBytes;
+        return rainBuilder;
     }
 
     private static Puddles puddles() {
@@ -167,7 +167,10 @@ public final class WeatherClient {
     // ------------------------------------------------------------------------------------------------------------
 
     @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (!ourSky(level)) {
@@ -242,7 +245,7 @@ public final class WeatherClient {
     /** Draws the rain and its effects in place of the vanilla rain. */
     public static boolean renderWeather(ClientLevel level, float partialTick, LightTexture lightTexture, double camX, double camY,
             double camZ) {
-        // With a shader pack the vanilla particle shader is used: Iris swaps it for the pack's weather program, while
+        // With a shader pack the vanilla particle shader is used: Oculus swaps it for the pack's weather program, while
         // the mod's own shaders would not be drawn at all.
         boolean shaderPack = ShaderPacks.inUse();
         ShaderInstance shader = shaderPack ? GameRenderer.getParticleShader() : PetrichorShaders.rain();
@@ -270,34 +273,26 @@ public final class WeatherClient {
         float[] fog = RenderSystem.getShaderFogColor();
         double time = level.getGameTime() + (double) partialTick;
         // Two passes: drops add light (rain glints, it never darkens), effects blend normally.
-        ByteBufferBuilder rainBytes = rainBuffer();
-        BufferBuilder drops = new BufferBuilder(rainBytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        BufferBuilder drops = rainBuilder();
+        drops.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         PRECIPITATION.render(drops, COLUMNS, camX, camY, camZ, time, fog, LIGHTNING.flash(partialTick));
         FX.render(builder, drops, camX, camY, camZ, partialTick, left, up);
-        MeshData mesh = builder.build();
-        if (mesh != null) {
-            BufferUploader.drawWithShader(mesh);
-        }
-        MeshData dropMesh = drops.build();
-        if (dropMesh != null) {
-            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-            BufferUploader.drawWithShader(dropMesh);
-            RenderSystem.defaultBlendFunc();
-        }
+        BufferUploader.drawWithShader(builder.end());
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        BufferUploader.drawWithShader(drops.end());
+        RenderSystem.defaultBlendFunc();
 
         ShaderInstance veil = shaderPack ? GameRenderer.getParticleShader() : PetrichorShaders.veil();
         if (veil != null) {
             RenderSystem.setShader(() -> veil);
             RenderSystem.setShaderTexture(0, RainVeils.TEXTURE);
             Minecraft.getInstance().getTextureManager().getTexture(RainVeils.TEXTURE).setFilter(true, false);
-            builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+            builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
             RainVeils.render(builder, COLUMNS, camX, camY, camZ, time, fog, RenderSystem.getShaderFogEnd(),
                     Atmosphere.active() ? Atmosphere.haze() : 0.0F);
-            mesh = builder.build();
-            if (mesh != null) {
-                BufferUploader.drawWithShader(mesh);
-            }
+            BufferUploader.drawWithShader(builder.end());
         }
 
         RenderSystem.enableCull();
@@ -313,23 +308,23 @@ public final class WeatherClient {
         if (!ourSky(level)) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
+        // The level's pose: the camera's rotation, the same model-view the level is drawn with.
+        Matrix4f modelView = event.getPoseStack().last().pose();
         RenderLevelStageEvent.Stage stage = event.getStage();
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY) {
             SceneCopy.newFrame();
-            LIGHTNING.renderSky(event.getModelViewMatrix(), event.getCamera(), partialTick);
+            LIGHTNING.renderSky(modelView, event.getCamera(), partialTick);
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
             if (puddles != null) {
-                puddles.render(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum(),
-                        partialTick);
+                puddles.render(modelView, event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum(), partialTick);
             }
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             if (puddles != null) {
-                puddles.renderWater(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition(),
-                        event.getFrustum());
+                puddles.renderWater(modelView, event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum());
             }
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
-            LIGHTNING.renderBolts(event.getModelViewMatrix(), event.getCamera(), partialTick);
+            LIGHTNING.renderBolts(modelView, event.getCamera(), partialTick);
         }
     }
 
@@ -340,7 +335,7 @@ public final class WeatherClient {
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Pre event) {
         if (ourSky(Minecraft.getInstance().level)) {
-            Cinematics.renderScreen(event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
+            Cinematics.renderScreen(event.getGuiGraphics(), event.getPartialTick());
         }
     }
 
@@ -412,7 +407,7 @@ public final class WeatherClient {
     @SubscribeEvent
     public static void onDebugText(CustomizeGuiOverlayEvent.DebugText event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (!minecraft.getDebugOverlay().showDebugScreen() || !ourSky(minecraft.level)) {
+        if (!minecraft.options.renderDebug || !ourSky(minecraft.level)) {
             return;
         }
         event.getRight().add("");

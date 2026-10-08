@@ -14,9 +14,9 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 import com.pockyl.petrichor.Petrichor;
 import com.pockyl.petrichor.weather.RainType;
@@ -29,7 +29,7 @@ import java.util.Optional;
  * {@code /petrichor} for operators: force a rain type, set the wetness, show the state, call a strike.
  * Only vanilla argument types are used, so clients without the mod can use the command too.
  */
-@EventBusSubscriber(modid = Petrichor.MOD_ID)
+@Mod.EventBusSubscriber(modid = Petrichor.MOD_ID)
 public final class StormCommands {
     private static final int DEFAULT_SECONDS = 600;
     private static final DynamicCommandExceptionType UNKNOWN_TYPE = new DynamicCommandExceptionType(

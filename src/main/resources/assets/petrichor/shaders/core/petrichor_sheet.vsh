@@ -24,7 +24,7 @@ void main() {
     vec3 pos = Position + ChunkOffset;
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
-    vertexDistance = fog_distance(pos, FogShape);
+    vertexDistance = fog_distance(ModelViewMat, pos, FogShape);
     sheetUv = UV0;
     vertexColor = Color;
     lightColor = texelFetch(Sampler2, UV2 / 16, 0);

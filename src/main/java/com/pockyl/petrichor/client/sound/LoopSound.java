@@ -4,6 +4,7 @@ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 
 /**
@@ -42,7 +43,7 @@ final class LoopSound extends AbstractTickableSoundInstance implements Muffler.M
     }
 
     void setTarget(float volume, double x, double y, double z, float highs) {
-        target = Math.clamp(volume, 0.0F, 1.0F);
+        target = Mth.clamp(volume, 0.0F, 1.0F);
         targetX = x;
         targetY = y;
         targetZ = z;
@@ -61,8 +62,8 @@ final class LoopSound extends AbstractTickableSoundInstance implements Muffler.M
 
     @Override
     public void tick() {
-        volume += Math.clamp(target - volume, -VOLUME_STEP, VOLUME_STEP);
-        highs += Math.clamp(targetHighs - highs, -MUFFLE_STEP, MUFFLE_STEP);
+        volume += Mth.clamp(target - volume, -VOLUME_STEP, VOLUME_STEP);
+        highs += Mth.clamp(targetHighs - highs, -MUFFLE_STEP, MUFFLE_STEP);
         x += (targetX - x) * MOVE;
         y += (targetY - y) * MOVE;
         z += (targetZ - z) * MOVE;

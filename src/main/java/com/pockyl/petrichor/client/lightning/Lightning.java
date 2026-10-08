@@ -5,7 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Camera;
@@ -22,7 +22,6 @@ import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
-import org.joml.Matrix4fStack;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.fx.RainFx;
@@ -309,9 +308,9 @@ public final class Lightning {
             return;
         }
         Vec3 cam = camera.getPosition();
-        Matrix4fStack stack = RenderSystem.getModelViewStack();
-        stack.pushMatrix();
-        stack.set(modelView);
+        PoseStack stack = RenderSystem.getModelViewStack();
+        stack.pushPose();
+        stack.last().pose().set(modelView);
         RenderSystem.applyModelViewMatrix();
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
@@ -320,27 +319,22 @@ public final class Lightning {
         RenderSystem.disableCull();
 
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (Strike strike : strikes) {
             if (strike.shape != null && strike.age + partialTick >= 0.0F) {
                 channel(builder, strike, cam, strike.age + partialTick);
             }
         }
-        draw(builder.build());
+        BufferUploader.drawWithShader(builder.end());
 
 
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
-        stack.popMatrix();
+        stack.popPose();
         RenderSystem.applyModelViewMatrix();
-    }
-
-    private static void draw(MeshData mesh) {
-        if (mesh != null) {
-            BufferUploader.drawWithShader(mesh);
-        }
     }
 
     private static void channel(BufferBuilder out, Strike strike, Vec3 cam, float t) {
@@ -410,14 +404,14 @@ public final class Lightning {
         sx *= half;
         sy *= half;
         sz *= half;
-        out.addVertex(x0 - sx, y0 - sy, z0 - sz).setColor(r, g, b, 0.0F);
-        out.addVertex(x0, y0, z0).setColor(r, g, b, a);
-        out.addVertex(x1, y1, z1).setColor(r, g, b, a);
-        out.addVertex(x1 - sx, y1 - sy, z1 - sz).setColor(r, g, b, 0.0F);
-        out.addVertex(x0, y0, z0).setColor(r, g, b, a);
-        out.addVertex(x0 + sx, y0 + sy, z0 + sz).setColor(r, g, b, 0.0F);
-        out.addVertex(x1 + sx, y1 + sy, z1 + sz).setColor(r, g, b, 0.0F);
-        out.addVertex(x1, y1, z1).setColor(r, g, b, a);
+        out.vertex(x0 - sx, y0 - sy, z0 - sz).color(r, g, b, 0.0F).endVertex();
+        out.vertex(x0, y0, z0).color(r, g, b, a).endVertex();
+        out.vertex(x1, y1, z1).color(r, g, b, a).endVertex();
+        out.vertex(x1 - sx, y1 - sy, z1 - sz).color(r, g, b, 0.0F).endVertex();
+        out.vertex(x0, y0, z0).color(r, g, b, a).endVertex();
+        out.vertex(x0 + sx, y0 + sy, z0 + sz).color(r, g, b, 0.0F).endVertex();
+        out.vertex(x1 + sx, y1 + sy, z1 + sz).color(r, g, b, 0.0F).endVertex();
+        out.vertex(x1, y1, z1).color(r, g, b, a).endVertex();
     }
 
     /** The whole sky brightens evenly with a flash; drawn right after the sky so terrain covers it. */
@@ -427,9 +421,9 @@ public final class Lightning {
             return;
         }
         Vec3 cam = camera.getPosition();
-        Matrix4fStack stack = RenderSystem.getModelViewStack();
-        stack.pushMatrix();
-        stack.set(modelView);
+        PoseStack stack = RenderSystem.getModelViewStack();
+        stack.pushPose();
+        stack.last().pose().set(modelView);
         RenderSystem.applyModelViewMatrix();
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
@@ -438,7 +432,8 @@ public final class Lightning {
         RenderSystem.disableCull();
 
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         float a = Math.min(1.0F, total * 0.45F);
         float s = 50.0F;
         // Inside of a cube around the camera.
@@ -449,10 +444,10 @@ public final class Lightning {
         };
         for (float[] f : faces) {
             for (int v = 0; v < 4; v++) {
-                builder.addVertex(f[v * 3], f[v * 3 + 1], f[v * 3 + 2]).setColor(0.7F, 0.75F, 1.0F, a);
+                builder.vertex(f[v * 3], f[v * 3 + 1], f[v * 3 + 2]).color(0.7F, 0.75F, 1.0F, a).endVertex();
             }
         }
-        draw(builder.build());
+        BufferUploader.drawWithShader(builder.end());
 
 
         RenderSystem.enableCull();
@@ -460,7 +455,7 @@ public final class Lightning {
         RenderSystem.enableDepthTest();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
-        stack.popMatrix();
+        stack.popPose();
         RenderSystem.applyModelViewMatrix();
     }
 }

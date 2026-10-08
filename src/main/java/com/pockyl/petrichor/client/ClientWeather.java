@@ -97,7 +97,7 @@ public final class ClientWeather {
         if (ticks % 10 == 1 || !initialized) {
             surveyLand(level);
         }
-        presence = initialized ? presence + Math.clamp(presenceTarget - presence, -0.02F, 0.02F) : presenceTarget;
+        presence = initialized ? presence + Mth.clamp(presenceTarget - presence, -0.02F, 0.02F) : presenceTarget;
         worldRain = level.getRainLevel(1.0F);
         rain = worldRain * presence;
         thunder = level.getThunderLevel(1.0F) * presence;
@@ -124,7 +124,7 @@ public final class ClientWeather {
         fallen += fallSpeed;
 
         if (serverActive()) {
-            wetness += Math.clamp(serverWetness - wetness, -0.02F, 0.02F);
+            wetness += Mth.clamp(serverWetness - wetness, -0.02F, 0.02F);
         } else {
             wetness = Wetness.step(wetness, worldRain, worldRain > 0.0F ? type : null, level.isDay(),
                     Config.FILL_SPEED.get(), Config.DRYING_SPEED.get());

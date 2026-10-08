@@ -58,7 +58,7 @@ public final class FxSpawner {
         }
         if (ClientConfig.DRIPS.get()) {
             // Edges keep dripping while the ground is wet, long after the rain stopped.
-            float after = Math.clamp((wetness - 0.1F) * 0.4F, 0.0F, 0.25F) * (1.0F - Math.min(1.0F, rain * 2.0F));
+            float after = Mth.clamp((wetness - 0.1F) * 0.4F, 0.0F, 0.25F) * (1.0F - Math.min(1.0F, rain * 2.0F));
             edgeDrips(level, puddles, fx, cam, intensity, after);
             leafDrips(level, columns, puddles, fx, cam, intensity, after);
         }

@@ -68,7 +68,7 @@ public enum SurfaceKind {
         if (boxes.size() != 1 || top > 1.0F) {
             return new Shape(OTHER, Math.min(top, 1.0F), false);
         }
-        AABB box = boxes.getFirst();
+        AABB box = boxes.get(0);
         boolean full = box.minX <= 0.001 && box.minZ <= 0.001 && box.maxX >= 0.999 && box.maxZ >= 0.999;
         boolean soil = state.is(BlockTags.DIRT) || state.is(Blocks.FARMLAND) || state.is(Blocks.DIRT_PATH) || state.is(Blocks.MUD);
         return new Shape(full ? GROUND : OTHER, top, soil);

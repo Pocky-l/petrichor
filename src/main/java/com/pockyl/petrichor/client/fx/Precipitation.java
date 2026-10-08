@@ -59,8 +59,8 @@ public final class Precipitation {
         float fall = ClientWeather.fallSpeed;
         float windX = ClientWeather.windX() * wind;
         float windZ = ClientWeather.windZ() * wind;
-        float slantX = Math.clamp(windX / fall, -0.8F, 0.8F);
-        float slantZ = Math.clamp(windZ / fall, -0.8F, 0.8F);
+        float slantX = Mth.clamp(windX / fall, -0.8F, 0.8F);
+        float slantZ = Mth.clamp(windZ / fall, -0.8F, 0.8F);
         float windSpeed = Mth.sqrt(windX * windX + windZ * windZ);
         float bandX = windSpeed > 1.0E-4F ? windX / windSpeed : 1.0F;
         float bandZ = windSpeed > 1.0E-4F ? windZ / windSpeed : 0.0F;
@@ -103,10 +103,10 @@ public final class Precipitation {
                 float band = Mth.sin(((cx * bandX + cz * bandZ) / 22.0F - bandPhase / 22.0F) * Mth.TWO_PI);
                 float expected = rainExpected * (1.0F + bands * band);
                 float columnDistance = Mth.sqrt(dist2);
-                float edgeFade = 1.0F - Math.clamp((columnDistance - fadeStart) / (radius - fadeStart), 0.0F, 1.0F);
+                float edgeFade = 1.0F - Mth.clamp((columnDistance - fadeStart) / (radius - fadeStart), 0.0F, 1.0F);
                 // More drops close to the eye, where they can be seen one by one, but enough further out to fill the
                 // middle distance until the curtains take over.
-                expected *= Math.clamp(1.7F - columnDistance / 16.0F, 0.65F, 1.7F);
+                expected *= Mth.clamp(1.7F - columnDistance / 16.0F, 0.65F, 1.7F);
                 int n = (int) expected;
                 if (Noise.unit(cx, cz, SEED_COUNT) < expected - n) {
                     n++;
@@ -142,8 +142,8 @@ public final class Precipitation {
                     float near = Math.min(1.0F, (d - 0.7F) / 1.5F);
                     int light = columns.light(ix, iz);
                     // Close drops are big; the closest ones are out of focus - wide, long and faint.
-                    float close = Math.clamp(1.0F - (d - 1.0F) / 4.0F, 0.0F, 1.0F);
-                    float blur = Math.clamp(1.0F - (d - 0.6F) / 1.8F, 0.0F, 1.0F);
+                    float close = Mth.clamp(1.0F - (d - 1.0F) / 4.0F, 0.0F, 1.0F);
+                    float blur = Mth.clamp(1.0F - (d - 0.6F) / 1.8F, 0.0F, 1.0F);
                     float size = 0.75F + vary * 0.5F;
                     // Far drops keep about a pixel of width - less for the fine drops of a drizzle.
                     float w = Math.max(width * 2.0F * size * (1.0F + close * 0.8F + blur * 2.5F),
@@ -155,7 +155,7 @@ public final class Precipitation {
                     float a = Math.min(0.95F, baseAlpha * 1.3F * sparkle * edgeFade * window * near * thin * (1.0F - blur * 0.55F) * strobeAlpha);
                     float tilt = 1.0F + (vary - 0.5F) * 0.2F;
                     // Slow, fine drops (drizzle) waver in the air instead of falling in straight lines.
-                    float floaty = Math.clamp((0.5F - fall) / 0.3F, 0.0F, 1.0F);
+                    float floaty = Mth.clamp((0.5F - fall) / 0.3F, 0.0F, 1.0F);
                     float swayX = 0.0F;
                     float swayZ = 0.0F;
                     if (floaty > 0.0F) {

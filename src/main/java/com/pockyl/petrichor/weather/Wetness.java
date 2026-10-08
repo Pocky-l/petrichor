@@ -1,5 +1,7 @@
 package com.pockyl.petrichor.weather;
 
+import net.minecraft.util.Mth;
+
 /**
  * How soaked the ground is, 0..1. Puddles grow with it and runoff starts once the ground is wet enough; after the rain
  * the ground dries slowly, faster in daylight.
@@ -39,7 +41,7 @@ public final class Wetness {
 
     /** How strongly water runs off the ground, 0..1: needs both rain and soaked ground. */
     public static float runoff(float wetness, float rainIntensity) {
-        float soaked = Math.clamp((wetness - RUNOFF_START) / (1.0F - RUNOFF_START), 0.0F, 1.0F);
-        return Math.clamp(soaked * rainIntensity * 1.4F, 0.0F, 1.0F);
+        float soaked = Mth.clamp((wetness - RUNOFF_START) / (1.0F - RUNOFF_START), 0.0F, 1.0F);
+        return Mth.clamp(soaked * rainIntensity * 1.4F, 0.0F, 1.0F);
     }
 }

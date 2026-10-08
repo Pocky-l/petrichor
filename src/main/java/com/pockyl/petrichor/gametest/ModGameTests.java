@@ -8,8 +8,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import com.pockyl.petrichor.Petrichor;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
@@ -342,8 +342,8 @@ public final class ModGameTests {
     public static void syncPayloadRoundTrip(GameTestHelper helper) {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         WeatherSyncPayload payload = new WeatherSyncPayload(RainType.THUNDERSTORM.ordinal(), 0.625F);
-        WeatherSyncPayload.STREAM_CODEC.encode(buffer, payload);
-        WeatherSyncPayload decoded = WeatherSyncPayload.STREAM_CODEC.decode(buffer);
+        payload.encode(buffer);
+        WeatherSyncPayload decoded = WeatherSyncPayload.decode(buffer);
         helper.assertTrue(decoded.equals(payload), "Payload survives encoding");
         helper.assertTrue(RainType.byOrdinal(decoded.rainType()) == RainType.THUNDERSTORM, "Type decodes");
         helper.assertTrue(RainType.byOrdinal(-1) == null, "-1 means no rain");

@@ -136,7 +136,7 @@ public final class RainVeils {
         // A second, slower pattern around the ring, so the sheets are not all the same width.
         float patch = Mth.sin(angle * 3.0F + seconds * 0.05F + ring * 0.9F);
         float slow = Mth.sin(seconds * 0.07F + ring * 2.3F);
-        return Math.clamp(0.55F + contrast * wave + 0.12F * patch + 0.12F * slow, 0.0F, 1.3F);
+        return Mth.clamp(0.55F + contrast * wave + 0.12F * patch + 0.12F * slow, 0.0F, 1.3F);
     }
 
     /** A band of curtain from the lower edge ({@code b0} at the first end, {@code b1} at the second) to the upper one. */
@@ -148,9 +148,9 @@ public final class RainVeils {
         }
         t0 = Math.max(t0, b0);
         t1 = Math.max(t1, b1);
-        out.addVertex(x0, b0, z0).setUv(u0 + lean0 * b0, -b0 / tileHeight - scroll).setColor(r, g, b, alpha0).setLight(light);
-        out.addVertex(x1, b1, z1).setUv(u1 + lean1 * b1, -b1 / tileHeight - scroll).setColor(r, g, b, alpha0).setLight(light);
-        out.addVertex(x1, t1, z1).setUv(u1 + lean1 * t1, -t1 / tileHeight - scroll).setColor(r, g, b, alpha1).setLight(light);
-        out.addVertex(x0, t0, z0).setUv(u0 + lean0 * t0, -t0 / tileHeight - scroll).setColor(r, g, b, alpha1).setLight(light);
+        out.vertex(x0, b0, z0).uv(u0 + lean0 * b0, -b0 / tileHeight - scroll).color(r, g, b, alpha0).uv2(light).endVertex();
+        out.vertex(x1, b1, z1).uv(u1 + lean1 * b1, -b1 / tileHeight - scroll).color(r, g, b, alpha0).uv2(light).endVertex();
+        out.vertex(x1, t1, z1).uv(u1 + lean1 * t1, -t1 / tileHeight - scroll).color(r, g, b, alpha1).uv2(light).endVertex();
+        out.vertex(x0, t0, z0).uv(u0 + lean0 * t0, -t0 / tileHeight - scroll).color(r, g, b, alpha1).uv2(light).endVertex();
     }
 }

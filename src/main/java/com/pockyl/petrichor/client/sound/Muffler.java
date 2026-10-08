@@ -5,7 +5,8 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.ChannelAccess;
-import net.neoforged.fml.ModList;
+import net.minecraft.util.Mth;
+import net.minecraftforge.fml.ModList;
 import org.lwjgl.openal.AL10;
 import org.lwjgl.openal.ALC10;
 import org.lwjgl.openal.EXTEfx;
@@ -103,7 +104,7 @@ public final class Muffler {
         } else {
             // A filter is copied into the source when attached, so one filter object serves every source.
             EXTEfx.alFilterf(filter, EXTEfx.AL_LOWPASS_GAIN, 1.0F);
-            EXTEfx.alFilterf(filter, EXTEfx.AL_LOWPASS_GAINHF, Math.clamp(highs, 0.0F, 1.0F));
+            EXTEfx.alFilterf(filter, EXTEfx.AL_LOWPASS_GAINHF, Mth.clamp(highs, 0.0F, 1.0F));
             AL10.alSourcei(source, EXTEfx.AL_DIRECT_FILTER, filter);
         }
         AL10.alGetError();

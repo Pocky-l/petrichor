@@ -1,8 +1,8 @@
 package com.pockyl.petrichor.weather;
 
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import com.pockyl.petrichor.Config;
@@ -13,14 +13,13 @@ import com.pockyl.petrichor.Config;
  */
 public final class StormData extends SavedData {
     private static final String NAME = "petrichor_storm";
-    private static final SavedData.Factory<StormData> FACTORY = new SavedData.Factory<>(StormData::new, StormData::load);
 
     private int overrideType = -1;
     private long overrideUntil;
     private float wetness;
 
     public static StormData get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, NAME);
+        return level.getDataStorage().computeIfAbsent(StormData::load, StormData::new, NAME);
     }
 
     /** Whether this level has weather at all (the overworld and dimensions like it). */
@@ -28,7 +27,7 @@ public final class StormData extends SavedData {
         return level.dimensionType().hasSkyLight() && !level.dimensionType().hasCeiling();
     }
 
-    private static StormData load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static StormData load(CompoundTag tag) {
         StormData data = new StormData();
         data.overrideType = tag.contains("override") ? tag.getInt("override") : -1;
         data.overrideUntil = tag.getLong("overrideUntil");
@@ -37,7 +36,7 @@ public final class StormData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+    public CompoundTag save(CompoundTag tag) {
         tag.putInt("override", overrideType);
         tag.putLong("overrideUntil", overrideUntil);
         tag.putFloat("wetness", wetness);
@@ -69,7 +68,7 @@ public final class StormData extends SavedData {
     }
 
     public void setWetness(float value) {
-        wetness = Math.clamp(value, 0.0F, 1.0F);
+        wetness = Mth.clamp(value, 0.0F, 1.0F);
         setDirty();
     }
 

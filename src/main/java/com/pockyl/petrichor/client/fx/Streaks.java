@@ -42,9 +42,9 @@ public final class Streaks {
         float v0 = FxAtlas.v0(tile);
         float u1 = FxAtlas.u1(tile);
         float v1 = FxAtlas.v1(tile);
-        out.addVertex(hx - sx, hy - sy, hz - sz).setUv(u0, v1).setColor(r, g, b, headAlpha).setLight(light);
-        out.addVertex(hx + sx, hy + sy, hz + sz).setUv(u1, v1).setColor(r, g, b, headAlpha).setLight(light);
-        out.addVertex(tx + sx, ty + sy, tz + sz).setUv(u1, v0).setColor(r, g, b, tailAlpha).setLight(light);
-        out.addVertex(tx - sx, ty - sy, tz - sz).setUv(u0, v0).setColor(r, g, b, tailAlpha).setLight(light);
+        out.vertex(hx - sx, hy - sy, hz - sz).uv(u0, v1).color(r, g, b, headAlpha).uv2(light).endVertex();
+        out.vertex(hx + sx, hy + sy, hz + sz).uv(u1, v1).color(r, g, b, headAlpha).uv2(light).endVertex();
+        out.vertex(tx + sx, ty + sy, tz + sz).uv(u1, v0).color(r, g, b, tailAlpha).uv2(light).endVertex();
+        out.vertex(tx - sx, ty - sy, tz - sz).uv(u0, v0).color(r, g, b, tailAlpha).uv2(light).endVertex();
     }
 }

@@ -14,12 +14,11 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.sound.PlaySoundSourceEvent;
-import net.neoforged.neoforge.event.TagsUpdatedEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.sound.PlaySoundSourceEvent;
+import net.minecraftforge.event.TagsUpdatedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.Petrichor;
@@ -37,7 +36,7 @@ import com.pockyl.petrichor.world.SoundMaterial;
  * <p>Intensity drives everything: a drizzle is a soft hush with single drops, a downpour a dense roar; gusts make the
  * rain swell and ebb.
  */
-@EventBusSubscriber(modid = Petrichor.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = Petrichor.MOD_ID, value = Dist.CLIENT)
 public final class RainSounds {
     private static final RandomSource RANDOM = RandomSource.create();
     private static final Soundscape SOUNDSCAPE = new Soundscape();
@@ -90,7 +89,7 @@ public final class RainSounds {
 
     /** Water still dripping and running after the rain, 0..0.25, while the ground is wet. */
     static float afterRain() {
-        return Math.clamp((ClientWeather.wetness() - 0.1F) * 0.4F, 0.0F, 0.25F) * (1.0F - Math.min(1.0F, ClientWeather.rain() * 2.0F));
+        return Mth.clamp((ClientWeather.wetness() - 0.1F) * 0.4F, 0.0F, 0.25F) * (1.0F - Math.min(1.0F, ClientWeather.rain() * 2.0F));
     }
 
     /** 0 out in the open .. 1 in a closed room under a roof. */
@@ -230,7 +229,7 @@ public final class RainSounds {
         }
         float highs = 1.0F;
         BlockHitResult hit = level.clip(new ClipContext(eye, new Vec3(x, y + 0.1, z), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
-                CollisionContext.empty()));
+                (Entity) null));
         if (hit.getType() != HitResult.Type.MISS && hit.getLocation().distanceToSqr(x, y + 0.1, z) > 1.0) {
             if (close) {
                 return false;

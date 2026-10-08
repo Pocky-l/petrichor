@@ -403,6 +403,6 @@ public final class RainFx {
     }
 
     private static void vertex(VertexConsumer out, float vx, float vy, float vz, float u, float v, float a, int packedLight) {
-        out.addVertex(vx, vy, vz).setUv(u, v).setColor(0.7F, 0.76F, 0.84F, a).setLight(packedLight);
+        out.vertex(vx, vy, vz).uv(u, v).color(0.7F, 0.76F, 0.84F, a).uv2(packedLight).endVertex();
     }
 }

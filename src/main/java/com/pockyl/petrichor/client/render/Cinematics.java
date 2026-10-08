@@ -85,11 +85,12 @@ public final class Cinematics {
     }
 
     private static void fullScreen() {
-        BufferBuilder quad = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-        quad.addVertex(-1.0F, -1.0F, 0.0F);
-        quad.addVertex(1.0F, -1.0F, 0.0F);
-        quad.addVertex(1.0F, 1.0F, 0.0F);
-        quad.addVertex(-1.0F, 1.0F, 0.0F);
-        BufferUploader.drawWithShader(quad.buildOrThrow());
+        BufferBuilder quad = Tesselator.getInstance().getBuilder();
+        quad.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        quad.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+        quad.vertex(1.0F, -1.0F, 0.0F).endVertex();
+        quad.vertex(1.0F, 1.0F, 0.0F).endVertex();
+        quad.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+        BufferUploader.drawWithShader(quad.end());
     }
 }

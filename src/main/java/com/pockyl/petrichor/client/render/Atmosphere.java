@@ -61,7 +61,7 @@ public final class Atmosphere {
     public static float haze() {
         float rain = ClientWeather.rain();
         float gust = rain > 0.001F ? ClientWeather.intensity() / rain : 1.0F;
-        return OPAQUE / ClientWeather.visibility * (float) (double) ClientConfig.FOG.get() * Math.clamp(0.75F + 0.25F * gust, 0.7F, 1.3F);
+        return OPAQUE / ClientWeather.visibility * (float) (double) ClientConfig.FOG.get() * Mth.clamp(0.75F + 0.25F * gust, 0.7F, 1.3F);
     }
 
     public static void render(ClientLevel level, float partialTick, double camX, double camY, double camZ) {
@@ -92,7 +92,7 @@ public final class Atmosphere {
         shader.safeGetUniform("Strength").set(rain * WeatherClient.skyView(partialTick));
         // A drizzle only greys the sky; a downpour hides it behind a heavy deck.
         shader.safeGetUniform("Overcast").set(Math.min(1.0F, 0.55F + 0.45F * heaviness) * fog);
-        shader.safeGetUniform("Gloom").set(Math.max(Math.clamp((heaviness - 0.4F) / 0.6F, 0.0F, 1.0F), ClientWeather.thunder() * 0.9F));
+        shader.safeGetUniform("Gloom").set(Math.max(Mth.clamp((heaviness - 0.4F) / 0.6F, 0.0F, 1.0F), ClientWeather.thunder() * 0.9F));
         shader.safeGetUniform("Shafts").set(Mth.clamp((heaviness - 0.3F) / 0.7F, 0.0F, 1.0F));
         shader.safeGetUniform("Glow").set(Math.max(0.0F, sunY + 0.2F) * (1.0F - 0.6F * heaviness) * 0.6F);
         shader.safeGetUniform("Flash").set(WeatherClient.flash(partialTick));
@@ -105,12 +105,13 @@ public final class Atmosphere {
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
-        BufferBuilder quad = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-        quad.addVertex(-1.0F, -1.0F, 0.0F);
-        quad.addVertex(1.0F, -1.0F, 0.0F);
-        quad.addVertex(1.0F, 1.0F, 0.0F);
-        quad.addVertex(-1.0F, 1.0F, 0.0F);
-        BufferUploader.drawWithShader(quad.buildOrThrow());
+        BufferBuilder quad = Tesselator.getInstance().getBuilder();
+        quad.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        quad.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+        quad.vertex(1.0F, -1.0F, 0.0F).endVertex();
+        quad.vertex(1.0F, 1.0F, 0.0F).endVertex();
+        quad.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+        BufferUploader.drawWithShader(quad.end());
         RenderSystem.enableCull();
         RenderSystem.enableDepthTest();
         RenderSystem.disableBlend();

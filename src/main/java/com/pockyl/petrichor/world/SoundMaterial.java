@@ -66,9 +66,8 @@ public enum SoundMaterial {
                 || state.is(BlockTags.LOGS) || state.is(BlockTags.WOODEN_SLABS) || state.is(BlockTags.WOODEN_STAIRS)) {
             return WOOD;
         }
-        if (sound == SoundType.METAL || sound == SoundType.COPPER || sound == SoundType.COPPER_BULB || sound == SoundType.COPPER_GRATE
-                || sound == SoundType.CHAIN || sound == SoundType.ANVIL || sound == SoundType.LANTERN || sound == SoundType.NETHERITE_BLOCK
-                || sound == SoundType.HEAVY_CORE || sound == SoundType.VAULT || sound == SoundType.TRIAL_SPAWNER) {
+        if (sound == SoundType.METAL || sound == SoundType.COPPER || sound == SoundType.CHAIN || sound == SoundType.ANVIL
+                || sound == SoundType.LANTERN || sound == SoundType.NETHERITE_BLOCK) {
             return METAL;
         }
         if (sound == SoundType.WOOL) {

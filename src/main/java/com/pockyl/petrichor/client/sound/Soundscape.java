@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,7 +15,6 @@ import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
@@ -498,7 +498,7 @@ final class Soundscape {
     }
 
     private static BlockHitResult clip(ClientLevel level, Vec3 from, Vec3 to) {
-        return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()));
+        return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, (Entity) null));
     }
 
     /** Sound passes such blocks easily. */
@@ -606,7 +606,7 @@ final class Soundscape {
         }
         float closeness = Mth.clamp(1.25F - (float) distance / 10.0F, 0.2F, 1.0F);
         // Under many layers (a cave, a deep cellar) the rain above fades away.
-        float layering = layers > 1 && roof != Roof.THICK ? 0.75F : Math.clamp(1.0F - (layers - 2) / 6.0F, 0.0F, 1.0F);
+        float layering = layers > 1 && roof != Roof.THICK ? 0.75F : Mth.clamp(1.0F - (layers - 2) / 6.0F, 0.0F, 1.0F);
         overhead.place(eye.x, h - 0.5, eye.z, closeness * layering * (0.45F + 0.55F * covered / 25.0F));
         overhead.occlusion = 1.0F;
         overhead.highs = layers > 1 && roof != Roof.THICK ? 0.5F : 1.0F;

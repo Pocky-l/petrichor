@@ -4,9 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -88,10 +86,10 @@ public final class Puddles implements AutoCloseable {
     /** Shader-pack puddles are made of cells this many to a block side (4 = cells of 4x4 texture pixels). */
     private static final int WATER_CELLS = 4;
     private static final int WATER_BUILDS_PER_TICK = 4;
-    private static final ResourceLocation WATER_SPRITE = ResourceLocation.withDefaultNamespace("block/water_still");
+    private static final ResourceLocation WATER_SPRITE = new ResourceLocation("block/water_still");
 
     private final Long2ObjectOpenHashMap<ChunkPuddles> chunks = new Long2ObjectOpenHashMap<>();
-    private final ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 18);
+    private final BufferBuilder builder = new BufferBuilder(1 << 18);
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
     private ClientLevel level;
     private int idleTicks;
@@ -178,7 +176,6 @@ public final class Puddles implements AutoCloseable {
     @Override
     public void close() {
         clear();
-        bytes.close();
     }
 
     public int chunkCount() {
@@ -397,7 +394,7 @@ public final class Puddles implements AutoCloseable {
 
         Arrays.fill(chunk.surfaceY, Float.NaN);
         chunk.waterKey = 0;
-        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
         int quads = 0;
         float[] cornerFlow = new float[3];
         float minY = Float.MAX_VALUE;
@@ -439,10 +436,10 @@ public final class Puddles implements AutoCloseable {
                             cornerFlow[2] = 0.0F;
                         }
                         // Colour: r = how muddy (soil) the water is, g = how wet this spot is relative to the open ground.
-                        builder.addVertex(lx + CORNER_X[k], y, lz + CORNER_Z[k])
-                                .setColor(surfaces.soil[id] ? 1.0F : 0.0F, cornerWet, 0.0F, cornerField)
-                                .setUv(wx + CORNER_X[k], wz + CORNER_Z[k]).setLight(light)
-                                .setNormal(cornerFlow[0], cornerFlow[1], cornerFlow[2]);
+                        builder.vertex(lx + CORNER_X[k], y, lz + CORNER_Z[k])
+                                .color(surfaces.soil[id] ? 1.0F : 0.0F, cornerWet, 0.0F, cornerField)
+                                .uv(wx + CORNER_X[k], wz + CORNER_Z[k]).uv2(light)
+                                .normal(cornerFlow[0], cornerFlow[1], cornerFlow[2]).endVertex();
                     }
                     quads++;
                 }
@@ -452,7 +449,7 @@ public final class Puddles implements AutoCloseable {
             chunk.bounds = chunk.bounds.minmax(new AABB(originX, minY - 1.0, originZ, originX + 16, maxY + 1.0, originZ + 16));
         }
         chunk.puddleQuads = quads;
-        chunk.puddles = upload(chunk.puddles, builder.build());
+        chunk.puddles = upload(chunk.puddles, builder.end());
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -489,7 +486,7 @@ public final class Puddles implements AutoCloseable {
     /**
      * Puddles for a shader pack, which cannot run the puddle shader: water cells of a quarter block, cut out with the same
      * field, threshold and ragged edges the shader uses, tagged as water so the pack draws them with its own water
-     * (reflections, ripples). Built while the pack is active, so Iris lays the vertices out in its terrain format.
+     * (reflections, ripples). Built while the pack is active, so Oculus lays the vertices out in its terrain format.
      */
     private void buildWater(ClientLevel level, ChunkPuddles chunk, int key) {
         chunk.waterKey = key;
@@ -498,7 +495,7 @@ public final class Puddles implements AutoCloseable {
         TextureAtlasSprite sprite = Minecraft.getInstance().getModelManager().getAtlas(TextureAtlas.LOCATION_BLOCKS).getSprite(WATER_SPRITE);
         int originX = chunk.chunkX << 4;
         int originZ = chunk.chunkZ << 4;
-        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
         float step = 1.0F / WATER_CELLS;
         int quads = 0;
         for (int c = 0; c < 512; c++) {
@@ -546,15 +543,16 @@ public final class Puddles implements AutoCloseable {
                     }
                     float x0 = lx + sx * step;
                     float z0 = lz + sz * step;
-                    float u0 = sprite.getU(sx * step);
-                    float u1 = sprite.getU((sx + 1) * step);
-                    float v0 = sprite.getV(sz * step);
-                    float v1 = sprite.getV((sz + 1) * step);
-                    // Counter-clockwise seen from above: the normal points up (Iris derives it from the winding).
-                    builder.addVertex(x0, y, z0).setColor(color).setUv(u0, v0).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
-                    builder.addVertex(x0, y, z0 + step).setColor(color).setUv(u0, v1).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
-                    builder.addVertex(x0 + step, y, z0 + step).setColor(color).setUv(u1, v1).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
-                    builder.addVertex(x0 + step, y, z0).setColor(color).setUv(u1, v0).setLight(light).setNormal(0.0F, 1.0F, 0.0F);
+                    // Sprite coordinates go from 0 to 16 across the texture.
+                    float u0 = sprite.getU(sx * step * 16.0F);
+                    float u1 = sprite.getU((sx + 1) * step * 16.0F);
+                    float v0 = sprite.getV(sz * step * 16.0F);
+                    float v1 = sprite.getV((sz + 1) * step * 16.0F);
+                    // Counter-clockwise seen from above: the normal points up (Oculus derives it from the winding).
+                    builder.vertex(x0, y, z0).color(color).uv(u0, v0).uv2(light).normal(0.0F, 1.0F, 0.0F).endVertex();
+                    builder.vertex(x0, y, z0 + step).color(color).uv(u0, v1).uv2(light).normal(0.0F, 1.0F, 0.0F).endVertex();
+                    builder.vertex(x0 + step, y, z0 + step).color(color).uv(u1, v1).uv2(light).normal(0.0F, 1.0F, 0.0F).endVertex();
+                    builder.vertex(x0 + step, y, z0).color(color).uv(u1, v0).uv2(light).normal(0.0F, 1.0F, 0.0F).endVertex();
                     quads++;
                 }
             }
@@ -563,7 +561,7 @@ public final class Puddles implements AutoCloseable {
             }
         }
         chunk.waterQuads = quads;
-        chunk.water = upload(chunk.water, builder.build());
+        chunk.water = upload(chunk.water, builder.end());
     }
 
     /** Smooth value noise 0..1 over world coordinates, repeating every 256 blocks. */
@@ -588,7 +586,7 @@ public final class Puddles implements AutoCloseable {
     }
 
     /**
-     * With a shader pack: draws the water puddles with the translucent terrain shader, which Iris swaps for the pack's
+     * With a shader pack: draws the water puddles with the translucent terrain shader, which Oculus swaps for the pack's
      * water program. Called after the translucent blocks, where the pack draws its own water.
      */
     public void renderWater(Matrix4f modelView, Matrix4f projection, Vec3 cam, Frustum frustum) {
@@ -604,7 +602,7 @@ public final class Puddles implements AutoCloseable {
         }
         RenderSystem.enablePolygonOffset();
         RenderSystem.polygonOffset(-1.0F, -10.0F);
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, Minecraft.getInstance().getWindow());
+        PetrichorShaders.setDefaultUniforms(shader, modelView, projection);
         shader.apply();
         for (ChunkPuddles chunk : chunks.values()) {
             if (chunk.waterQuads > 0) {
@@ -872,7 +870,7 @@ public final class Puddles implements AutoCloseable {
                 || runoff.distanceToEdge[i] > MAX_EDGE_DISTANCE) {
             return 0.0F;
         }
-        float amount = Math.clamp(log2(runoff.accumulation[i]) / 5.0F, 0.0F, 1.0F);
+        float amount = Mth.clamp(log2(runoff.accumulation[i]) / 5.0F, 0.0F, 1.0F);
         return amount * (1.0F - runoff.distanceToEdge[i] * 0.18F);
     }
 
@@ -924,7 +922,7 @@ public final class Puddles implements AutoCloseable {
         }
         int originX = chunk.chunkX << 4;
         int originZ = chunk.chunkZ << 4;
-        BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
         int quads = 0;
         for (int lz = 0; lz < 16; lz++) {
             for (int lx = 0; lx < 16; lx++) {
@@ -946,7 +944,7 @@ public final class Puddles implements AutoCloseable {
                 float bottomY = grid.known(j) ? grid.top[j] : topY - runoff.drop[i];
                 pos.set(originX + lx, grid.height[i], originZ + lz);
                 int light = LevelRenderer.getLightColor(level, pos);
-                float strength = Math.clamp(0.3F + 0.12F * log2(runoff.accumulation[i]), 0.3F, 1.0F);
+                float strength = Mth.clamp(0.3F + 0.12F * log2(runoff.accumulation[i]), 0.3F, 1.0F);
                 // The face between the two cells, pushed a hair out towards the lower one.
                 float fx = lx + 0.5F + dirX * 0.506F;
                 float fz = lz + 0.5F + dirZ * 0.506F;
@@ -965,12 +963,12 @@ public final class Puddles implements AutoCloseable {
             }
         }
         chunk.sheetQuads = quads;
-        chunk.sheets = upload(chunk.sheets, builder.build());
+        chunk.sheets = upload(chunk.sheets, builder.end());
     }
 
     private static void sheetVertex(BufferBuilder out, float x, float y, float z, float u, float v, float strength, int light, int dirX,
             int dirZ) {
-        out.addVertex(x, y, z).setColor(0.5F, 0.55F, 0.6F, strength).setUv(u, v).setLight(light).setNormal(dirX, 0.0F, dirZ);
+        out.vertex(x, y, z).color(0.5F, 0.55F, 0.6F, strength).uv(u, v).uv2(light).normal(dirX, 0.0F, dirZ).endVertex();
     }
 
     private List<Emitter> findEmitters(ClientLevel level, ChunkPuddles chunk, SurfaceGrid grid, RunoffSolver runoff, boolean[] rains) {
@@ -1006,8 +1004,12 @@ public final class Puddles implements AutoCloseable {
         return emitters;
     }
 
-    private static VertexBuffer upload(VertexBuffer buffer, MeshData data) {
-        if (data == null) {
+    /** Uploads a built mesh into the chunk's buffer; no mesh or an empty one frees the buffer. */
+    private static VertexBuffer upload(VertexBuffer buffer, BufferBuilder.RenderedBuffer data) {
+        if (data == null || data.isEmpty()) {
+            if (data != null) {
+                data.release();
+            }
             if (buffer != null) {
                 buffer.close();
             }
@@ -1080,7 +1082,7 @@ public final class Puddles implements AutoCloseable {
 
     public void render(Matrix4f modelView, Matrix4f projection, Vec3 cam, Frustum frustum, float partialTick) {
         lastQuads = 0;
-        // Iris hides unknown shaders while a pack is active, and packs bring their own wet surfaces and reflections.
+        // Oculus hides unknown shaders while a pack is active, and packs bring their own wet surfaces and reflections.
         if (chunks.isEmpty() || level == null || ShaderPacks.inUse()) {
             return;
         }
@@ -1107,7 +1109,7 @@ public final class Puddles implements AutoCloseable {
         lightTexture.turnOnLightLayer();
 
         if (drawPuddles) {
-            puddle.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, minecraft.getWindow());
+            PetrichorShaders.setDefaultUniforms(puddle, modelView, projection);
             if (scene != null) {
                 puddle.setSampler("SceneColor", scene.getColorTextureId());
                 puddle.setSampler("SceneDepth", scene.getDepthTextureId());
@@ -1130,7 +1132,7 @@ public final class Puddles implements AutoCloseable {
         ShaderInstance sheet = PetrichorShaders.sheet();
         if (sheet != null && flow > 0.01F) {
             RenderSystem.polygonOffset(-1.0F, -4.0F);
-            sheet.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, minecraft.getWindow());
+            PetrichorShaders.setDefaultUniforms(sheet, modelView, projection);
             sheet.safeGetUniform("Flow").set(flow);
             sheet.safeGetUniform("PetrichorTime").set(time);
             sheet.safeGetUniform("SkyColor").set((float) sky.x, (float) sky.y, (float) sky.z);

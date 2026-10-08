@@ -135,6 +135,6 @@ public final class DropPath {
             return 0.0;
         }
         double boundary = Math.max(from, to);
-        return Math.clamp((boundary - start) / delta, 0.0, 1.0);
+        return Mth.clamp((boundary - start) / delta, 0.0, 1.0);
     }
 }
