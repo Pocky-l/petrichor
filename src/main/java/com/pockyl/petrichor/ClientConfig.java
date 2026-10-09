@@ -165,6 +165,11 @@ public final class ClientConfig {
                     + "and the bolt lingers as a fading afterimage.")
             .translation(key("exposure"))
             .define("flashExposure", true);
+    public static final ModConfigSpec.BooleanValue DEAFENING = BUILDER
+            .comment("A strike right next to you leaves you half deaf for a moment: the rain goes faint and dull and comes back "
+                    + "over a few seconds.")
+            .translation(key("deafening"))
+            .define("deafeningStrikes", true);
 
     static {
         BUILDER.pop();

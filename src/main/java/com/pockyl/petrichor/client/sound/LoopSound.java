@@ -54,6 +54,12 @@ final class LoopSound extends AbstractTickableSoundInstance implements Muffler.M
         return highs;
     }
 
+    /** Applied at the output, not through the glide: a close strike stuns the ears at once. */
+    @Override
+    public float getVolume() {
+        return super.getVolume() * Deafness.volume();
+    }
+
     @Override
     public boolean canStartSilent() {
         return true;
@@ -66,7 +72,7 @@ final class LoopSound extends AbstractTickableSoundInstance implements Muffler.M
         x += (targetX - x) * MOVE;
         y += (targetY - y) * MOVE;
         z += (targetZ - z) * MOVE;
-        appliedHighs = Muffler.update(this, highs, appliedHighs);
+        appliedHighs = Muffler.update(this, highs * Deafness.highs(), appliedHighs);
         if (target <= 0.0F && volume <= 0.001F) {
             if (++silentTicks > 40) {
                 stop();

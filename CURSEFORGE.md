@@ -59,8 +59,9 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
 
 - Branching lightning with a growing leader, return strokes and afterglow; flashes light the sky and the world.
 - Distant bolts and flashes inside the clouds during thunderstorms.
-- **Thunder arrives after the flash** at the speed of sound: a sharp crack nearby, a rolling clap further away, a low
-  rumble from a distant storm - and a dull boom when heard from indoors.
+- **Thunder arrives after the flash** at the speed of sound: a deafening crack from a strike next to you, a rolling clap further away, a low
+  rumble from a distant storm - and a dull boom when heard from indoors. A strike right next to you leaves you half
+  deaf for a moment.
 - Extra strikes during thunderstorms prefer the tallest spot nearby.
 
 ### Cinematic storm

@@ -68,6 +68,10 @@ SOURCES = {
     577303: ("TRP", "Rain, on leaves, close up, popping, brittle"),
     715698: ("TRP", "Rain, light close drops on leaves"),
     # Thunder.
+    437243: ("Simon Spiers", "Very close lightning strike."),
+    840628: ("loganzsound", "Closeup Thunder Strike 01"),
+    186907: ("Rowy101", "Lightning_direct_hit-Rowy101.wav"),
+    361772: ("kingsrow", "2016-10-06 Thunder Crack.wav"),
     717907: ("TRP", "Thunder, close crack crash big"),
     717909: ("TRP", "Thunder, close crack light rain"),
     567945: ("TRP", "Thunder, pretty close crack"),
@@ -274,6 +278,82 @@ def thunder(sound_id, name, seconds, peak_db, lowpass=None, at=None, rate=32000)
     write(name, take, rate)
 
 
+def crack(seed, seconds=2.2):
+    """The thunderclap of a lightning channel next to the listener: what makes a close strike a bang and not a boom.
+
+    Every stretch of the channel sends an N-wave (a jump in pressure, a linear fall below zero, a jump back). The
+    nearest, thickest stretch arrives first: a long N-wave, the bang. The rest of the channel follows for over a second
+    in a tearing crash of shorter N-waves from further up, thinning out, over a crackling roar. Built causally, so
+    nothing rings before the first jump.
+    """
+    rng = np.random.default_rng(seed)
+    out = np.zeros(int(seconds * RATE))
+    t = np.arange(len(out)) / RATE
+
+    def n_wave(at, amplitude, length):
+        n = max(4, int(length * RATE))
+        i = int(at * RATE)
+        if i + n < len(out):
+            out[i:i + n] += amplitude * np.linspace(1.0, -1.0, n)
+
+    # The bang: the nearest stretch, then its neighbours a few metres further.
+    n_wave(0.0, 1.0, 0.012)
+    n_wave(0.006 + rng.random() * 0.006, 0.8, 0.008)
+    n_wave(0.02 + rng.random() * 0.015, 0.6, 0.006)
+    # The crash: the rest of the channel, dense at first, thinning out.
+    for _ in range(360):
+        at = 0.01 + 1.8 * rng.random() ** 1.5
+        n_wave(at, rng.choice((-1.0, 1.0)) * np.exp(-at / 0.6) * (0.15 + 0.55 * rng.random()), 0.0006 + 0.0055 * rng.random())
+    # The roar under it, crackling: noise in bursts.
+    roar = signal.sosfilt(signal.butter(2, (120.0, 6000.0), "band", fs=RATE, output="sos"), rng.standard_normal(len(out)))
+    bursts = signal.sosfilt(signal.butter(2, 25.0, "low", fs=RATE, output="sos"), rng.standard_normal(len(out)))
+    bursts = (bursts / np.max(np.abs(bursts))) ** 2
+    out += roar * 0.3 * (0.35 + 1.6 * bursts) * np.exp(-t / 0.8) * np.minimum(1.0, t / 0.002)
+    hiss = signal.sosfilt(signal.butter(2, 1800.0, "high", fs=RATE, output="sos"), rng.standard_normal(len(out)))
+    out += hiss * 0.25 * np.exp(-t / 0.12) * np.minimum(1.0, t / 0.001)
+    # Air takes the very top off even a few tens of metres away.
+    out = signal.sosfilt(signal.butter(2, 10000.0, "low", fs=RATE, output="sos"), out)
+    out *= np.minimum(1.0, (seconds - t) / 0.3)
+    return out / np.max(np.abs(out))
+
+
+def strike(sound_id, name, seconds, loud_db=-10.5):
+    """A strike within ~100 m: a crack, then the boom and the roll of the recording.
+
+    Recordings of close strikes keep the boom but lose the crack (the microphones overload, the highs are gone), so
+    the shock waves of {crack} are laid over the moment the recorded strike rises. Its first second is brought to
+    {loud_db} (mean power) with a soft limiter: a strike next to the listener is the loudest sound of the game, as loud
+    and as long as the vanilla explosion.
+    """
+    x = filt(source(sound_id), "high", 25.0)
+    hop = RATE // 200
+    envelope = 20 * np.log10(np.sqrt(np.convolve(x ** 2, np.ones(hop) / hop, "same")) + 1e-12)
+    peak = int(np.argmax(envelope))
+    # Back to where the strike rises out of the rain: 20 dB below its peak.
+    onset = peak
+    while onset > 0 and envelope[onset] > envelope[peak] - 20.0:
+        onset -= 1
+    lead = int(0.02 * RATE)
+    take = x[max(0, onset - lead):onset - lead + int(seconds * RATE)].copy()
+    take[:lead] *= np.linspace(0, 1, lead)
+    tail = int(len(take) * 0.45)
+    take[-tail:] *= np.linspace(1, 0, tail) ** 1.6
+    take /= np.max(np.abs(take)) + 1e-12
+    # Over its first second the clap stands 6 dB over the recording: the recorded boom swells up under it.
+    shock = crack(sound_id)
+    second = lambda y: np.sqrt(np.mean(y[:RATE] ** 2))
+    take[lead:lead + len(shock)] += shock * second(take[lead:]) / second(shock) * 10 ** (6.0 / 20)
+    # A margin under full scale: Vorbis overshoots the peaks of a crack.
+    ceiling = 10 ** (-3.0 / 20)
+    gain = 1.0
+    for _ in range(20):
+        limited = ceiling * np.tanh(take * gain / ceiling)
+        loudness = 10 * np.log10(np.mean(limited[:RATE] ** 2) + 1e-12)
+        gain *= 10 ** ((loud_db - loudness) / 20)
+    take = limited
+    write(name, take)
+
+
 def footsteps(sound_id, count):
     x = filt(source(sound_id), "high", 70.0)
     envelope = filt(np.abs(x), "low", 20.0)
@@ -340,7 +420,12 @@ def main():
     drops_from([683778], "drop/metal", 5, min_snr=10.0)
     drops_from([577303, 715698], "drop/leaves", 6, length=0.14, highpass=300.0, min_decay=10.0)
 
-    # Thunder by distance: a crack overhead, a clap with a long roll, a low rumble far away.
+    # Thunder by distance: the crack of a strike next to the listener, a crash a few hundred metres away, a clap
+    # with a long roll, a low rumble far away.
+    strike(437243, "thunder/strike1", 14)
+    strike(840628, "thunder/strike2", 12)
+    strike(186907, "thunder/strike3", 14)
+    strike(361772, "thunder/strike4", 12)
     thunder(717907, "thunder/close1", 22, -1.0)
     thunder(717909, "thunder/close2", 20, -1.0)
     thunder(567945, "thunder/close3", 14, -1.0)

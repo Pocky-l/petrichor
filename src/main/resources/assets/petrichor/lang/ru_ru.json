@@ -73,6 +73,7 @@
   "petrichor.configuration.cinematic": "Кинематографичность",
   "petrichor.configuration.hush": "Затемнение перед ударом молнии",
   "petrichor.configuration.exposure": "Ослепление вспышкой и послеобраз",
+  "petrichor.configuration.deafening": "Оглушение близким ударом",
   "petrichor.configuration.sound": "Звук",
   "petrichor.configuration.rainVolume": "Громкость дождя",
   "petrichor.configuration.roof": "Дождь по крыше",

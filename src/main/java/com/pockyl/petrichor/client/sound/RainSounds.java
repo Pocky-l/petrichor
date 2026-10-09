@@ -298,6 +298,8 @@ public final class RainSounds {
         float submerged = SOUNDSCAPE.submerged();
         volume *= 1.0F - 0.7F * submerged;
         highs *= 1.0F - 0.95F * submerged;
+        volume *= Deafness.volume();
+        highs *= Deafness.highs();
         if (volume < 0.01F) {
             return false;
         }

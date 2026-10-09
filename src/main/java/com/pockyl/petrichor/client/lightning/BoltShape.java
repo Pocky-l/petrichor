@@ -92,9 +92,9 @@ public final class BoltShape {
             float segment = Mth.sqrt((nx - x) * (nx - x) + (ny - y) * (ny - y) + (nz - z) * (nz - z));
             float a0 = travelled / totalLength;
             travelled += segment;
-            float a1 = Math.min(1.0F, travelled / totalLength);
+            float a1 = travelled / totalLength;
             add(x, y, z, nx, ny, nz, 1.0F, 1.0F, a0, a1, true);
-            float progress = a1;
+            float progress = Math.min(1.0F, a1);
             if (random.nextFloat() < 0.24F * (1.0F - progress * 0.75F)) {
                 branch(nx, ny, nz, (nx - x) / segment, (ny - y) / segment, (nz - z) / segment, 1, a1,
                         totalLength * (0.06F + random.nextFloat() * 0.22F), horizontal);
@@ -104,6 +104,15 @@ public final class BoltShape {
             z = nz;
             if (x == tx && y == ty && z == tz) {
                 break;
+            }
+        }
+        // The kinked path is longer than the straight line the arrival times were measured on: scale them so the
+        // leader reaches the end of the channel when the leader phase ends (the lower part was never drawn).
+        float last = travelled / totalLength;
+        if (last > 0.0F) {
+            for (int s = 0; s < count; s++) {
+                data[s * STRIDE + 8] = Math.min(1.0F, data[s * STRIDE + 8] / last);
+                data[s * STRIDE + 9] = Math.min(1.0F, data[s * STRIDE + 9] / last);
             }
         }
     }

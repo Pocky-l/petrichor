@@ -15,6 +15,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import com.pockyl.petrichor.Petrichor;
+import com.pockyl.petrichor.client.lightning.BoltShape;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
 import com.pockyl.petrichor.weather.RainSchedule;
 import com.pockyl.petrichor.weather.RainType;
@@ -43,6 +44,26 @@ public final class ModGameTests {
 
     @GameTest(template = "empty")
     public static void modLoads(GameTestHelper helper) {
+        helper.succeed();
+    }
+
+    /** The leader must reach the ground: the kinked channel is longer than the straight line it was timed on. */
+    @GameTest(template = "empty")
+    public static void boltReachesGround(GameTestHelper helper) {
+        for (long seed = 0; seed < 200; seed++) {
+            BoltShape shape = BoltShape.groundStrike(seed, 12.0F, 110.0F, -8.0F);
+            float[] d = shape.data();
+            boolean grounded = false;
+            for (int s = 0; s < shape.count(); s++) {
+                int o = s * BoltShape.STRIDE;
+                helper.assertTrue(d[o + 8] <= 1.0F && d[o + 9] <= 1.0F, "Every segment must be reached by the leader");
+                if (d[o + 10] > 0.5F && d[o + 4] == 0.0F) {
+                    grounded = true;
+                    helper.assertTrue(d[o + 9] >= 0.999F, "The channel must reach the ground as the leader ends");
+                }
+            }
+            helper.assertTrue(grounded, "The main channel must end on the ground");
+        }
         helper.succeed();
     }
 

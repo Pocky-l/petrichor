@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rainbows: a rainbow with a fainter second bow appears opposite the sun in every sun shower and sometimes when a
   rain clears up in daylight. Can be turned off with the new "Rainbows" option.
 - `/petrichor weather sun_shower` starts a sun shower.
+- A lightning strike right next to you leaves you half deaf for a moment: the rain goes faint and dull and comes back
+  over a few seconds. Can be turned off with the new "Deafening close strikes" option.
 ### Changed
 - The rain builds up and eases off gradually: every rain starts as a light drizzle, grows step by step into rain, a
   downpour or a thunderstorm over about a minute, and dies down to a drizzle again before it stops. Changes of the rain
@@ -21,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   real light rain, rain, downpours and thunderstorms. Light rain no longer drifts down slowly with more drops than
   normal rain; a thunderstorm is the heaviest rain. Puddles fill as fast as the rain looks: slowly in a drizzle,
   quickly in a downpour or a storm.
+### Fixed
+- Lightning bolts stopped in mid-air and never reached the ground, so a strike right next to the player showed no
+  bolt at all. The whole channel is drawn now, down to the ground.
+- A lightning strike close to the player had no thunderclap, only a distant-sounding rumble: the crack of the
+  vanilla strike was replaced with a recording of a far one. A strike nearby now sounds like the real thing - a
+  deafening bang the moment the sound arrives, a long tearing crash and then the roll of the rest of the bolt, as loud
+  as the vanilla strike (built on recordings made within 100 metres of real strikes).
 
 ## [1.1.0] - 2026-10-09
 ### Added

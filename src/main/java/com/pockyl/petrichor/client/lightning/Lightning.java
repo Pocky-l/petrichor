@@ -27,6 +27,7 @@ import org.joml.Matrix4fStack;
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.fx.RainFx;
 import com.pockyl.petrichor.client.sound.Muffler;
+import com.pockyl.petrichor.client.sound.Deafness;
 import com.pockyl.petrichor.client.sound.PetrichorSounds;
 import com.pockyl.petrichor.client.sound.RainSounds;
 
@@ -44,6 +45,10 @@ public final class Lightning {
     private static final double TICKS_PER_SECOND = 20.0;
     /** Strikes closer than this overexpose the view. */
     private static final float GLARE_RANGE = 180.0F;
+    /** Strikes closer than this are heard as a crack (recorded within ~100 m of real strikes), not as a roll. */
+    private static final float STRIKE_RANGE = 60.0F;
+    /** A strike crack is never placed closer than this: right overhead it would be split between the ears. */
+    private static final double CRACK_SPREAD = 3.0;
 
     private static final float DEFAULT_CLOUD_HEIGHT = 192.0F;
 
@@ -80,6 +85,7 @@ public final class Lightning {
     public void clear() {
         strikes.clear();
         thunder.clear();
+        Deafness.clear();
         flash = 0.0F;
         previousFlash = 0.0F;
         hush = previousHush = 0.0F;
@@ -147,14 +153,23 @@ public final class Lightning {
         long now = level.getGameTime();
         float volume = (float) (double) ClientConfig.THUNDER_VOLUME.get();
         long due = now + Math.round(lead + distance / blocksPerTick);
-        // Recordings by distance: the crack of a strike nearby, a clap rolling away, the low grumble of a far storm.
+        // Recordings by distance: the crack of a strike next to the listener, the crash of one a few hundred metres
+        // away, a clap rolling away, the low grumble of a far storm.
         SoundEvent sound;
         float loudness;
         float highs;
         float pitch = 0.92F + random.nextFloat() * 0.14F;
-        if (distance < 70.0F && !cloud) {
+        if (distance < STRIKE_RANGE && !cloud) {
+            // The nearest part of the channel cracks first; the roll of the rest of it, a kilometre long, arrives
+            // over the next seconds from further away.
+            thunder.add(new Thunder(due, x, y, z, PetrichorSounds.THUNDER_STRIKE, volume, 0.97F + random.nextFloat() * 0.06F, 1.0F));
+            long roll = due + 3 + random.nextInt(6);
+            thunder.add(new Thunder(roll, x, y + 40.0, z, PetrichorSounds.THUNDER_CLOSE, volume * 0.7F, pitch - 0.04F, 0.8F));
+            return;
+        }
+        if (distance < 180.0F && !cloud) {
             sound = PetrichorSounds.THUNDER_CLOSE;
-            loudness = 1.0F;
+            loudness = 1.0F - 0.15F * (distance - STRIKE_RANGE) / (180.0F - STRIKE_RANGE);
             highs = 1.0F;
         } else if (distance < 260.0F) {
             sound = PetrichorSounds.THUNDER_MID;
@@ -183,6 +198,7 @@ public final class Lightning {
      */
     public void tick(ClientLevel level, Vec3 cam, RainFx fx, float thunderLevel, float skyView) {
         long now = level.getGameTime();
+        Deafness.tick();
         for (Iterator<Thunder> it = thunder.iterator(); it.hasNext(); ) {
             Thunder t = it.next();
             if (now >= t.due()) {
@@ -192,8 +208,32 @@ public final class Lightning {
                 float submerged = RainSounds.submerged();
                 float volume = t.volume() * (1.0F - enclosure * 0.3F) * RainSounds.outside() * (1.0F - 0.5F * submerged);
                 if (volume > 0.01F) {
-                    Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), volume, t.pitch(), t.x(), t.y(), t.z(),
+                    double sx = t.x();
+                    double sy = t.y();
+                    double sz = t.z();
+                    if (t.sound() == PetrichorSounds.THUNDER_STRIKE) {
+                        // At the height of the ear, from the side the strike is on: a crack overhead would reach both
+                        // ears at half power and sound weaker the closer the strike is.
+                        double dx = sx - cam.x;
+                        double dz = sz - cam.z;
+                        double h = Math.sqrt(dx * dx + dz * dz);
+                        if (h < 0.1) {
+                            dx = 1.0;
+                            dz = 0.0;
+                            h = 1.0;
+                        }
+                        double reach = Math.max(h, CRACK_SPREAD) / h;
+                        sx = cam.x + dx * reach;
+                        sy = cam.y;
+                        sz = cam.z + dz * reach;
+                    }
+                    Minecraft.getInstance().getSoundManager().play(new ThunderSound(t.sound(), volume, t.pitch(), sx, sy, sz,
                             t.highs() * (1.0F - enclosure * 0.75F) * (1.0F - 0.9F * submerged)));
+                    if (t.sound() == PetrichorSounds.THUNDER_STRIKE && ClientConfig.DEAFENING.get()) {
+                        // Right next to the strike the ears ring; at the edge of the range and indoors much less.
+                        float distance = (float) cam.distanceTo(new Vec3(t.x(), t.y() - 10.0, t.z()));
+                        Deafness.stun((1.0F - 0.6F * Math.min(1.0F, distance / STRIKE_RANGE)) * volume / Math.max(t.volume(), 0.01F));
+                    }
                 }
                 it.remove();
             } else if (t.due() - now > 2000) {

@@ -67,8 +67,9 @@
 
 - Branching lightning with a growing leader, return strokes and afterglow; flashes light the sky and the world.
 - Distant bolts and flashes inside the clouds during thunderstorms.
-- **Thunder arrives after the flash** at the speed of sound: a sharp crack nearby, a rolling clap further away, a low
-  rumble from a distant storm - and a dull boom when heard from indoors.
+- **Thunder arrives after the flash** at the speed of sound: a deafening crack from a strike next to you, a rolling clap further away, a low
+  rumble from a distant storm - and a dull boom when heard from indoors. A strike right next to you leaves you half
+  deaf for a moment.
 - Extra strikes during thunderstorms prefer the tallest spot nearby.
 
 ### Cinematic storm
@@ -98,7 +99,7 @@ Nothing to craft: the mod changes the weather.
 
 Client options (*Mods -> Petrichor: Rain & Storms -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
 splashes, fog, rainy atmosphere, steam on hot blocks, rainbows, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
-a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type and of sun showers, how fast the rain
+a strike, flash glare and afterimage, deafening close strikes) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type and of sun showers, how fast the rain
 changes, how fast the ground gets wet and dries, extra lightning strikes.
 
 The mod works on the client alone; installed on the server too, every player sees the same rain, sun showers and wetness.
@@ -163,6 +164,10 @@ The jar is written to `build/libs/`.
   - [Water Dripping on Thin Metal](https://freesound.org/s/683778/) by Elements-Library
   - [Rain, on leaves, close up, popping, brittle](https://freesound.org/s/577303/) by TRP
   - [Rain, light close drops on leaves](https://freesound.org/s/715698/) by TRP
+  - [Very close lightning strike.](https://freesound.org/s/437243/) by Simon Spiers
+  - [Closeup Thunder Strike 01](https://freesound.org/s/840628/) by loganzsound
+  - [Lightning_direct_hit-Rowy101.wav](https://freesound.org/s/186907/) by Rowy101
+  - [2016-10-06 Thunder Crack.wav](https://freesound.org/s/361772/) by kingsrow
   - [Thunder, close crack crash big](https://freesound.org/s/717907/) by TRP
   - [Thunder, close crack light rain](https://freesound.org/s/717909/) by TRP
   - [Thunder, pretty close crack](https://freesound.org/s/567945/) by TRP

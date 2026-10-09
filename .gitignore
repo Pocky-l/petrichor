@@ -40,3 +40,4 @@ logs/
 
 # Downloaded sound sources
 tools/.cache/
+__pycache__/
