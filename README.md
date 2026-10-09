@@ -32,6 +32,10 @@
   ridges fade in layers; heavier showers drift across the land; the sky turns into a cloud deck with dark rolls and
   rain shafts on the horizon, lit up by lightning.
 - In snowy and dry land (deserts, badlands) the mod steps aside and the weather is vanilla.
+- **Seasons** with [Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) (optional): drizzles
+  and sun showers in spring, downpours and fierce thunderstorms in summer, long steady rain in autumn, light cold rain
+  in winter. Where the season turns the rain into snow, there is snow only - no rain drops, puddles, runoff or rain
+  sounds; in tropical biomes the rain follows the wet and dry seasons.
 - Rain never passes through walls: falling slanted in the wind, drops stop at the wall and the lee side of a building
   stays dry.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
@@ -87,7 +91,7 @@ No keys. Commands for operators:
 | `/petrichor weather <drizzle\|rain\|downpour\|thunderstorm\|sun_shower> [seconds]` | Start a rain that builds up to this type |
 | `/petrichor weather clear` | Stop the rain |
 | `/petrichor wetness <0..1>` | Set how wet the ground is |
-| `/petrichor status` | Show the current weather |
+| `/petrichor status` | Show the current weather (and the season with Serene Seasons) |
 | `/petrichor strike` | Strike lightning near you |
 
 ## Crafting
@@ -99,7 +103,8 @@ Nothing to craft: the mod changes the weather.
 Client options (*Mods -> Petrichor: Rain & Storms -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
 splashes, fog, rainy atmosphere, steam on hot blocks, rainbows, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
 a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type and of sun showers, how fast the rain
-changes, how fast the ground gets wet and dries, extra lightning strikes.
+changes, how fast the ground gets wet and dries, extra lightning strikes, and with Serene Seasons installed the
+"Serene Seasons integration" switch, the strength of the seasons and seasonal lightning.
 
 The mod works on the client alone; installed on the server too, every player sees the same rain, sun showers and wetness.
 Muffling is turned off automatically when

@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rainbows: a rainbow with a fainter second bow appears opposite the sun in every sun shower and sometimes when a
   rain clears up in daylight. Can be turned off with the new "Rainbows" option.
 - `/petrichor weather sun_shower` starts a sun shower.
+- Optional support for [Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons): the rain follows
+  the season. Spring brings drizzles and sun showers, summer heavy downpours and thunderstorms with more lightning,
+  autumn long, steady rain, and winter only light rain where it is still warm enough to rain. Where the season turns
+  the rain into snow, the mod no longer draws or plays rain there - no drops, splashes, puddles, runoff or rain sounds,
+  just the snow. In tropical biomes the rain comes and goes with the wet and dry seasons. `/petrichor status` shows the
+  current season. New options in the "Seasons" section: "Serene Seasons integration" turns it all off, "Strength of the
+  seasons" sets how much the seasons change the rain, and "Seasonal lightning" how much they change the number of
+  extra strikes.
 ### Changed
 - The rain builds up and eases off gradually: every rain starts as a light drizzle, grows step by step into rain, a
   downpour or a thunderstorm over about a minute, and dies down to a drizzle again before it stops. Changes of the rain
