@@ -19,6 +19,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import com.pockyl.petrichor.Petrichor;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.weather.RainType;
 import com.pockyl.petrichor.weather.StormData;
 
@@ -27,7 +28,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code /petrichor} for operators: force a rain type (or a sun shower), set the wetness, show the state, call a strike.
+ * {@code /petrichor} for operators: force a rain type (or a sun shower), set the wetness, show the state (with the
+ * season when a season mod shapes the weather), call a strike.
  * A forced type is reached gradually like any change of the rain.
  * Only vanilla argument types are used, so clients without the mod can use the command too.
  */
@@ -128,6 +130,8 @@ public final class StormCommands {
         String rainLevel = type == null ? "-" : String.format("%.2f -> %.2f", data.rainLevel(), data.targetLevel(level));
         context.getSource().sendSuccess(() -> Component.translatableWithFallback("commands.petrichor.status",
                 "Rain: %s (level %s of 3), ground wetness: %s", typeName, rainLevel, String.format("%.2f", data.wetness())), false);
+        Seasons.describe(level, BlockPos.containing(context.getSource().getPosition())).ifPresent(season -> context.getSource()
+                .sendSuccess(() -> Component.translatableWithFallback("commands.petrichor.status.season", "Season: %s", season), false));
         return 1;
     }
 

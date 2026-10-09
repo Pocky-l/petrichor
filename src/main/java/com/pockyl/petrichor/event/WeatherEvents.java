@@ -16,6 +16,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import com.pockyl.petrichor.Config;
 import com.pockyl.petrichor.Petrichor;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
 import com.pockyl.petrichor.weather.RainType;
 import com.pockyl.petrichor.weather.StormData;
@@ -98,7 +99,7 @@ public final class WeatherEvents {
     }
 
     private static void extraStrikes(ServerLevel level, float rainLevel) {
-        double perMinute = Config.EXTRA_STRIKES.get();
+        double perMinute = Config.EXTRA_STRIKES.get() * Seasons.strikeMultiplier(level);
         if (perMinute <= 0.0) {
             return;
         }

@@ -9,6 +9,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 import com.pockyl.petrichor.Config;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.weather.RainSchedule;
 import com.pockyl.petrichor.weather.RainType;
 import com.pockyl.petrichor.weather.Wetness;
@@ -166,8 +167,7 @@ public final class ClientWeather {
                 int x = Mth.floor(cam.x) + i * 12;
                 int z = Mth.floor(cam.z) + j * 12;
                 pos.set(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z), z);
-                Biome biome = level.getBiome(pos).value();
-                if (biome.hasPrecipitation() && biome.getPrecipitationAt(pos) == Biome.Precipitation.RAIN) {
+                if (Seasons.precipitationAt(level, pos) == Biome.Precipitation.RAIN) {
                     rainy++;
                     rainHere |= i == 0 && j == 0;
                 }
@@ -190,8 +190,8 @@ public final class ClientWeather {
     /** The rain level to head for without the server: the shared schedule, light while the sun shines through. */
     private static float targetLevel(ClientLevel level) {
         boolean thundering = thunder > 0.5F;
-        float target = Config.naturalLevel(level.getGameTime(), thundering);
-        if (!thundering && Config.naturalSunShower(level.getGameTime()) && sunHeight(level, 1.0F) > 0.0F) {
+        float target = Config.naturalLevel(level, thundering);
+        if (!thundering && Config.naturalSunShower(level) && sunHeight(level, 1.0F) > 0.0F) {
             target = Math.min(target, RainSchedule.SUN_SHOWER_LEVEL);
         }
         return target;
@@ -199,7 +199,7 @@ public final class ClientWeather {
 
     /** Whether the sun shines through the rain now: a light rain in daylight, without thunder. */
     private static boolean sunShower(ClientLevel level) {
-        boolean scheduled = serverActive() ? serverSunShower : Config.naturalSunShower(level.getGameTime());
+        boolean scheduled = serverActive() ? serverSunShower : Config.naturalSunShower(level);
         return scheduled && thunder < 0.1F && ClientWeather.level < RainSchedule.SUN_SHOWER_LEVEL + 0.5F
                 && sunHeight(level, 1.0F) > 0.05F;
     }

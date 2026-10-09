@@ -4,10 +4,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.world.DropPath;
 import com.pockyl.petrichor.world.SurfaceKind;
 
@@ -71,12 +71,11 @@ public final class Columns implements DropPath.Tops {
             tops[s] = h - 1 + SurfaceKind.classify(state).top();
         }
         pos.set(x, h, z);
-        Biome biome = level.getBiome(pos).value();
-        if (!biome.hasPrecipitation()) {
-            precipitation[s] = NONE;
-        } else {
-            precipitation[s] = biome.getPrecipitationAt(pos) == Biome.Precipitation.SNOW ? SNOW : RAIN;
-        }
+        precipitation[s] = switch (Seasons.precipitationAt(level, pos)) {
+            case NONE -> NONE;
+            case RAIN -> RAIN;
+            case SNOW -> SNOW;
+        };
         lights[s] = LevelRenderer.getLightColor(level, pos);
     }
 

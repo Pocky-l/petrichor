@@ -7,6 +7,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,9 +17,11 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import com.pockyl.petrichor.Petrichor;
 import com.pockyl.petrichor.client.lightning.BoltShape;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
 import com.pockyl.petrichor.weather.RainSchedule;
 import com.pockyl.petrichor.weather.RainType;
+import com.pockyl.petrichor.weather.SeasonalWeather;
 import com.pockyl.petrichor.weather.StormData;
 import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.DropPath;
@@ -459,6 +462,84 @@ public final class ModGameTests {
         helper.assertTrue(RainType.DRIZZLE.heaviness < RainType.RAIN.heaviness, "A drizzle is lighter than rain");
         helper.assertTrue(RainType.RAIN.heaviness < RainType.DOWNPOUR.heaviness, "Rain is lighter than a downpour");
         helper.assertTrue(RainType.THUNDERSTORM.heaviness > RainType.RAIN.heaviness, "A thunderstorm is heavy");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void seasonsTiltTheRain(GameTestHelper helper) {
+        SeasonalWeather.Profile spring = SeasonalWeather.profile(1, 1.0F);
+        SeasonalWeather.Profile summer = SeasonalWeather.profile(4, 1.0F);
+        SeasonalWeather.Profile autumn = SeasonalWeather.profile(7, 1.0F);
+        SeasonalWeather.Profile winter = SeasonalWeather.profile(10, 1.0F);
+        helper.assertTrue(spring.equals(SeasonalWeather.Season.SPRING.profile), "Mid spring is pure spring");
+        helper.assertTrue(spring.drizzle() > summer.drizzle() && spring.sunShowers() > autumn.sunShowers(),
+                "Spring brings drizzles and sun showers");
+        helper.assertTrue(summer.downpour() > spring.downpour() && summer.strikes() > 1.0F, "Summer brings downpours and storms");
+        helper.assertTrue(autumn.rain() > 1.0F && autumn.wander() < 1.0F, "Autumn rain is steady");
+        helper.assertTrue(winter.downpour() < 1.0F && winter.strikes() < 1.0F, "Winter rain is light");
+        float earlySummer = SeasonalWeather.profile(3, 1.0F).downpour();
+        helper.assertTrue(earlySummer > spring.downpour() && earlySummer < summer.downpour(), "Early summer leans towards spring");
+        helper.assertTrue(SeasonalWeather.profile(0, 1.0F).downpour() < spring.downpour(), "Early spring leans towards winter");
+        helper.assertTrue(SeasonalWeather.profile(12, 1.0F).equals(SeasonalWeather.profile(0, 1.0F)), "The year wraps around");
+        for (int sub = 0; sub < SeasonalWeather.SUB_SEASONS; sub++) {
+            helper.assertTrue(SeasonalWeather.profile(sub, 0.0F).equals(SeasonalWeather.Profile.NEUTRAL), "Strength 0 is no season");
+            SeasonalWeather.Profile strong = SeasonalWeather.profile(sub, 2.0F);
+            helper.assertTrue(strong.drizzleWeight(30) >= 0 && strong.downpourWeight(25) >= 0 && strong.sunShowerChance(80) <= 100,
+                    "Strong seasons keep chances in range");
+        }
+        helper.assertTrue(SeasonalWeather.subSeasonId(0).equals("early_spring") && SeasonalWeather.subSeasonId(7).equals("mid_autumn")
+                && SeasonalWeather.subSeasonId(11).equals("late_winter"), "Sub-season ids follow the year");
+        // Over many windows a summer rains more downpours and fewer drizzles than the plain weights.
+        int[] plain = new int[RainType.values().length];
+        int[] hot = new int[RainType.values().length];
+        for (int w = 0; w < 10_000; w++) {
+            long t = (long) w * RainSchedule.WINDOW;
+            plain[RainSchedule.naturalType(t, false, 30, 45, 25).ordinal()]++;
+            hot[RainSchedule.naturalType(t, false, summer.drizzleWeight(30), summer.rainWeight(45), summer.downpourWeight(25)).ordinal()]++;
+        }
+        helper.assertTrue(hot[RainType.DOWNPOUR.ordinal()] > plain[RainType.DOWNPOUR.ordinal()] * 1.4, "Summer pours more often");
+        helper.assertTrue(hot[RainType.DRIZZLE.ordinal()] < plain[RainType.DRIZZLE.ordinal()], "Summer drizzles less");
+        for (long t = 0; t < 200_000; t += 377) {
+            float steady = RainSchedule.naturalLevel(t, false, 30, 45, 25, autumn.wander());
+            float type = RainSchedule.naturalType(t, false, 30, 45, 25).level();
+            helper.assertTrue(Math.abs(steady - type) <= 0.35F * autumn.wander() + 1.0E-5F, "Autumn rain wanders less");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void seasonsFollowSereneSeasons(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        Biome.Precipitation plain = level.getBiome(pos).value().getPrecipitationAt(pos);
+        if (!Seasons.loaded()) {
+            helper.assertTrue(!Seasons.active(), "Without Serene Seasons the integration is inactive");
+            helper.assertTrue(Seasons.subSeason(level) == -1, "No season without Serene Seasons");
+            helper.assertTrue(Seasons.profile(level).equals(SeasonalWeather.Profile.NEUTRAL), "The weather is as configured");
+            helper.assertTrue(Seasons.strikeMultiplier(level) == 1.0F, "Lightning is as configured");
+            helper.assertTrue(Seasons.describe(level, pos).isEmpty(), "The status shows no season");
+            helper.assertTrue(Seasons.precipitationAt(level, pos) == plain, "Rain and snow follow the biome");
+            helper.succeed();
+            return;
+        }
+        // The test world is plains: Serene Seasons makes them snowy in winter.
+        helper.assertTrue(Seasons.active(), "With Serene Seasons the integration is active by default");
+        int before = Seasons.subSeason(level);
+        helper.assertTrue(before >= 0, "The overworld has seasons");
+        var server = level.getServer();
+        var source = server.createCommandSourceStack().withLevel(level).withPermission(4).withSuppressedOutput();
+        try {
+            server.getCommands().performPrefixedCommand(source, "season set mid_winter");
+            helper.assertTrue(Seasons.subSeason(level) == 10, "Mid winter is sub-season 10, got " + Seasons.subSeason(level));
+            helper.assertTrue(Seasons.precipitationAt(level, pos) == Biome.Precipitation.SNOW, "Winter turns the rain into snow");
+            helper.assertTrue(Seasons.profile(level).equals(SeasonalWeather.profile(10, 1.0F)), "Winter tilts the rain");
+            helper.assertTrue(Seasons.describe(level, pos).isPresent(), "The status shows the season");
+            server.getCommands().performPrefixedCommand(source, "season set mid_summer");
+            helper.assertTrue(Seasons.precipitationAt(level, pos) == Biome.Precipitation.RAIN, "Summer rains");
+            helper.assertTrue(Seasons.strikeMultiplier(level) > 1.0F, "Summer storms strike more often");
+        } finally {
+            server.getCommands().performPrefixedCommand(source, "season set " + SeasonalWeather.subSeasonId(before));
+        }
         helper.succeed();
     }
 
