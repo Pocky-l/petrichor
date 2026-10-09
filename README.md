@@ -24,8 +24,8 @@
   gusts, wind turns slowly and slants the rain.
 - **Sun showers**: some light rains in daytime fall while the sun keeps shining - blue sky, bright light, glinting
   drops.
-- **Rainbows** opposite the sun in sun showers and sometimes when a rain clears up in daylight: a primary bow with a
-  fainter, reversed secondary one, standing where a real rainbow would (mornings and afternoons, when the sun is low).
+- **Rainbows** opposite the sun in every sun shower and sometimes when a rain clears up in daylight: a primary bow
+  with a fainter, reversed secondary one.
 - Drops with depth: they taper, glint and vary in size and speed; curtains of rain sweep past with the wind in
   sheets, coarser and higher the further away they are; light gets dimmer and colder under rain clouds.
 - **Rainy air** instead of a flat grey wall: the haze deepens with distance and settles in valleys, so ridges behind

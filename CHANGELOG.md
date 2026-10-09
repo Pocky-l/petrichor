@@ -8,9 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Sun showers: some light rains in daytime fall while the sun keeps shining - the sky stays blue, the light bright and
   the drops glint. Their chance can be set with the new "Sun shower chance" option.
-- Rainbows: a rainbow with a fainter second bow appears opposite the sun during sun showers and sometimes when a rain
-  clears up in daylight. Like a real one it needs the sun low in the sky, so look for it in the mornings and
-  afternoons. Can be turned off with the new "Rainbows" option.
+- Rainbows: a rainbow with a fainter second bow appears opposite the sun in every sun shower and sometimes when a
+  rain clears up in daylight. Can be turned off with the new "Rainbows" option.
 - `/petrichor weather sun_shower` starts a sun shower.
 ### Changed
 - The rain builds up and eases off gradually: every rain starts as a light drizzle, grows step by step into rain, a

@@ -80,8 +80,7 @@ public final class ClientConfig {
             .translation(key("hotSurfaces"))
             .define("hotSurfaces", true);
     public static final ModConfigSpec.BooleanValue RAINBOWS = BUILDER
-            .comment("Rainbows opposite the sun in sun showers and sometimes when a rain clears up in daylight (mornings and "
-                    + "afternoons: the sun must be lower than 42 degrees, like for a real rainbow).")
+            .comment("Rainbows opposite the sun in every sun shower and sometimes when a rain clears up in daylight.")
             .translation(key("rainbows"))
             .define("rainbows", true);
     public static final ModConfigSpec.IntValue RAINBOW_CHANCE = BUILDER

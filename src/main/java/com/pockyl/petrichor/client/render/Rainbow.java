@@ -21,11 +21,14 @@ import com.pockyl.petrichor.client.WeatherClient;
 import com.pockyl.petrichor.weather.Noise;
 
 /**
- * A rainbow in the sky, opposite the sun, where real ones are: the primary bow 42 degrees around the point opposite the
- * sun (red outside), a fainter secondary bow at 51 degrees with the colours reversed, and a brighter sky inside the
- * primary. Like a real one it needs sunlight on falling rain - a sun shower, or the last of a rain clearing up in daylight
- * - and a sun low enough (below 42 degrees) for the bow to stand above the horizon, so it is seen in the mornings and
- * afternoons. Drawn right after the sky: the land and the clouds stand in front of it.
+ * A rainbow in the sky, opposite the sun: the primary bow 42 degrees around the point opposite the sun (red outside), a
+ * fainter secondary bow at 51 degrees with the colours reversed, and a brighter sky inside the primary. It needs
+ * sunlight on falling rain: every sun shower has one, and some rains leave one for a while as they clear up in daylight.
+ *
+ * <p>A real rainbow sinks below the horizon when the sun stands higher than 42 degrees. This is a game, so the bow
+ * stands as if the sun were at most {@link #MAX_SUN} degrees high: it is always seen while the sun is up. Its side of
+ * the sky is chosen when it appears and kept, so it does not jump across the sky at noon. Drawn right after the sky: the
+ * land and the clouds stand in front of it.
  */
 public final class Rainbow {
     private static final int SEED = 0x5EED_0101;
@@ -35,6 +38,8 @@ public final class Rainbow {
     private static final float FADE = 1.0F / 240.0F;
     private static final float DISTANCE = 100.0F;
     private static final int SEGMENTS = 96;
+    /** The bow is placed as if the sun stood at most this high (degrees), so its top is at least 20 degrees up. */
+    private static final float MAX_SUN = 22.0F;
     private static final int RINGS = 10;
     /** Colours from the inner edge (violet) to the outer one (red). */
     private static final float[][] SPECTRUM = {
@@ -46,6 +51,8 @@ public final class Rainbow {
     private static float previous;
     private static int afterRain;
     private static boolean wasRaining;
+    /** The side of the sky the sun is on while this rainbow shows: 1 east, -1 west. */
+    private static float sunSide = 1.0F;
 
     private Rainbow() {
     }
@@ -79,17 +86,15 @@ public final class Rainbow {
             afterRain--;
         }
         float target = Math.max(ClientWeather.sunshine() * Math.min(1.0F, rain * 2.0F), Math.min(1.0F, afterRain / 600.0F));
-        target *= sunElevation(sunHeight);
+        // Only while the sun is up.
+        target *= smoothstep(0.0F, 0.06F, sunHeight);
         if (!ClientConfig.RAINBOWS.get()) {
             target = 0.0F;
         }
+        if (strength <= 0.0F) {
+            sunSide = -Mth.sin(level.getSunAngle(1.0F)) >= 0.0F ? 1.0F : -1.0F;
+        }
         strength += Math.clamp(target - strength, -FADE, FADE);
-    }
-
-    /** How well the sun stands for a rainbow: up, but below the 42 degrees at which the bow sinks under the horizon. */
-    private static float sunElevation(float sunHeight) {
-        float degrees = (float) Math.toDegrees(Math.asin(Mth.clamp(sunHeight, -1.0F, 1.0F)));
-        return smoothstep(0.0F, 5.0F, degrees) * (1.0F - smoothstep(34.0F, 42.0F, degrees));
     }
 
     public static void render(ClientLevel level, Matrix4f modelView, float partialTick) {
@@ -98,8 +103,9 @@ public final class Rainbow {
             return;
         }
         // The point opposite the sun (the sun goes round the z axis, rising in the east) and two directions across.
-        float sunAngle = level.getSunAngle(partialTick);
-        Vector3f anti = new Vector3f(Mth.sin(sunAngle), -Mth.cos(sunAngle), 0.0F);
+        float sunHeight = Mth.clamp(ClientWeather.sunHeight(level, partialTick), 0.0F, 1.0F);
+        float elevation = Math.min((float) Math.asin(sunHeight), (float) Math.toRadians(MAX_SUN));
+        Vector3f anti = new Vector3f(-sunSide * Mth.cos(elevation), -Mth.sin(elevation), 0.0F);
         Vector3f across = new Vector3f(0.0F, 0.0F, 1.0F);
         Vector3f up = new Vector3f(anti.y, -anti.x, 0.0F);
 
@@ -116,7 +122,7 @@ public final class Rainbow {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
         BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        float alpha = 0.42F * shown;
+        float alpha = 0.5F * shown;
         // The sky inside the primary bow is a little brighter.
         bow(builder, anti, across, up, 30.0F, 40.0F, alpha * 0.16F, Band.GLOW);
         bow(builder, anti, across, up, 39.8F, 42.8F, alpha, Band.PRIMARY);
