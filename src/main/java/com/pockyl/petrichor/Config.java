@@ -31,7 +31,7 @@ public final class Config {
             .comment("Minutes for the rain to change by one step (drizzle -> rain -> downpour -> thunderstorm). Rain starts as a "
                     + "drizzle, builds up and eases off again before it stops.")
             .translation(key("transitionMinutes"))
-            .defineInRange("transitionMinutes", 1.5, 0.05, 10.0);
+            .defineInRange("transitionMinutes", 0.5, 0.05, 10.0);
     public static final ModConfigSpec.IntValue SUN_SHOWER_CHANCE = BUILDER
             .comment("Percent of light rains in daytime that are sun showers: the sun keeps shining through the rain.")
             .translation(key("sunShowerChance"))

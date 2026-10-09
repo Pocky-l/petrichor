@@ -20,7 +20,7 @@
 
 - **Rain types** that change during a long rain: drizzle, rain, downpour and thunderstorm. **Rain builds up and eases
   off like real rain**: it starts as a light drizzle, swells step by step into rain, a downpour or a thunderstorm over
-  a few minutes, and dies down to a drizzle again before it stops - no sudden jumps. Intensity swells and ebbs with
+  about a minute, and dies down to a drizzle again before it stops - no sudden jumps. Intensity swells and ebbs with
   gusts, wind turns slowly and slants the rain.
 - **Sun showers**: some light rains in daytime fall while the sun keeps shining - blue sky, bright light, glinting
   drops.

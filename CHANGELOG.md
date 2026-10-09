@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/petrichor weather sun_shower` starts a sun shower.
 ### Changed
 - The rain builds up and eases off gradually: every rain starts as a light drizzle, grows step by step into rain, a
-  downpour or a thunderstorm over a few minutes, and dies down to a drizzle again before it stops. Changes of the rain
+  downpour or a thunderstorm over about a minute, and dies down to a drizzle again before it stops. Changes of the rain
   type during a long rain pass through the steps in between too, and the extra lightning strikes come as the
   thunderstorm builds up. How fast the rain changes is set by the new "Minutes per change of rain" option.
 - `/petrichor status` shows how far the rain has built up.
