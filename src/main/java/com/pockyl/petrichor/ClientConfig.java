@@ -75,6 +75,10 @@ public final class ClientConfig {
                     + "with rain shafts on the horizon. Off: a plain fog.")
             .translation(key("atmosphere"))
             .define("atmosphere", true);
+    public static final ModConfigSpec.BooleanValue HOT_SURFACES = BUILDER
+            .comment("Rain hisses and steams where it falls on lava, magma blocks and lit campfires, and lava lakes steam in the rain.")
+            .translation(key("hotSurfaces"))
+            .define("hotSurfaces", true);
 
     static {
         BUILDER.pop();

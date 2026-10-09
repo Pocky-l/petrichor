@@ -993,7 +993,11 @@ public final class Puddles implements AutoCloseable {
                 }
                 float dirX = (j % grid.size) - gx;
                 float dirZ = (j / grid.size) - gz;
-                byte surface = grid.kind[j] == SurfaceKind.WATER ? RainFx.LAND_WATER : RainFx.LAND_GROUND;
+                byte surface = switch (grid.kind[j]) {
+                    case WATER -> RainFx.LAND_WATER;
+                    case HOT -> RainFx.LAND_HOT;
+                    default -> RainFx.LAND_GROUND;
+                };
                 // Under an overhang water creeps round the lip and drips from its underside; off a wall it falls from the top.
                 pos.set(originX + lx + (int) dirX, grid.height[i] - 2, originZ + lz + (int) dirZ);
                 boolean overhang = level.getBlockState(pos).isAir();
