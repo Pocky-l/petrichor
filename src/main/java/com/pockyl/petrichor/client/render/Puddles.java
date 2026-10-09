@@ -37,6 +37,7 @@ import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
 import com.pockyl.petrichor.client.compat.ShaderPacks;
 import com.pockyl.petrichor.client.fx.RainFx;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.PuddleField;
 import com.pockyl.petrichor.world.RunoffSolver;
@@ -313,8 +314,7 @@ public final class Puddles implements AutoCloseable {
                     continue;
                 }
                 pos.set(originX + lx, grid.height[i], originZ + lz);
-                Biome biome = level.getBiome(pos).value();
-                rains[c] = biome.hasPrecipitation() && biome.getPrecipitationAt(pos) == Biome.Precipitation.RAIN;
+                rains[c] = Seasons.precipitationAt(level, pos) == Biome.Precipitation.RAIN;
                 chunk.ground[c] = rains[c] && grid.kind[i] == SurfaceKind.GROUND;
                 chunk.field[c] = field[i];
                 chunk.top[c] = grid.top[i];

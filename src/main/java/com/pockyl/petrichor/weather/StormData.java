@@ -77,7 +77,7 @@ public final class StormData extends SavedData {
         if (!level.getLevelData().isRaining() || level.getLevelData().isThundering()) {
             return false;
         }
-        return forcedType(level) != null ? overrideSunny : Config.naturalSunShower(level.getGameTime());
+        return forcedType(level) != null ? overrideSunny : Config.naturalSunShower(level);
     }
 
     /** The level the rain is heading for now. */
@@ -88,7 +88,7 @@ public final class StormData extends SavedData {
         if (forced != null) {
             target = overrideSunny ? RainSchedule.SUN_SHOWER_LEVEL : forced.level();
         } else {
-            target = Config.naturalLevel(level.getGameTime(), false);
+            target = Config.naturalLevel(level, false);
             if (thundering) {
                 // A thunderstorm builds up from the rain that was falling and dies down into it again.
                 float storm = RainType.MAX_LEVEL;

@@ -60,12 +60,20 @@ public final class RainSchedule {
      * swelling and easing a little. Thunder aims for a thunderstorm.
      */
     public static float naturalLevel(long gameTime, boolean thundering, int drizzle, int rain, int downpour) {
+        return naturalLevel(gameTime, thundering, drizzle, rain, downpour, 1.0F);
+    }
+
+    /**
+     * {@link #naturalLevel(long, boolean, int, int, int)} with the wander scaled by {@code wander}: below 1 a steadier
+     * rain, above 1 a more changeable one.
+     */
+    public static float naturalLevel(long gameTime, boolean thundering, int drizzle, int rain, int downpour, float wander) {
         if (thundering) {
             return RainType.MAX_LEVEL;
         }
         float base = naturalType(gameTime, false, drizzle, rain, downpour).level();
-        float wander = (Noise.value(gameTime / 2400.0, WANDER_SEED) - 0.5F) * 0.7F;
-        return Math.clamp(base + wander, 0.0F, RainType.DOWNPOUR.level());
+        float swell = (Noise.value(gameTime / 2400.0, WANDER_SEED) - 0.5F) * 0.7F * Math.max(0.0F, wander);
+        return Math.clamp(base + swell, 0.0F, RainType.DOWNPOUR.level());
     }
 
     /**

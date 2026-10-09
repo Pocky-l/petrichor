@@ -1,8 +1,11 @@
 package com.pockyl.petrichor;
 
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.weather.RainSchedule;
+import com.pockyl.petrichor.weather.SeasonalWeather;
 
 /**
  * Weather rules. On a server with this mod the server's values are used for everybody; a client on a server without
@@ -65,6 +68,27 @@ public final class Config {
 
     static {
         BUILDER.pop();
+        BUILDER.translation(key("seasons")).push("seasons");
+    }
+
+    public static final ModConfigSpec.BooleanValue SERENE_SEASONS = BUILDER
+            .comment("Serene Seasons integration, when Serene Seasons is installed: the season shapes the rain (drizzles and sun "
+                    + "showers in spring, downpours and storms in summer, steady rain in autumn), and no rain is drawn or heard "
+                    + "where the season turns it into snow.")
+            .translation(key("sereneSeasons"))
+            .define("sereneSeasons", true);
+    public static final ModConfigSpec.DoubleValue SEASON_STRENGTH = BUILDER
+            .comment("How strongly the seasons change the rain: the chances of each rain type and of sun showers, how steady it "
+                    + "falls and the seasonal lightning. 0 keeps the rain as set above all year, 2 doubles the seasonal differences.")
+            .translation(key("seasonStrength"))
+            .defineInRange("seasonStrength", 1.0, 0.0, 2.0);
+    public static final ModConfigSpec.BooleanValue SEASONAL_LIGHTNING = BUILDER
+            .comment("Summer thunderstorms bring more extra strikes, winter ones fewer.")
+            .translation(key("seasonalLightning"))
+            .define("seasonalLightning", true);
+
+    static {
+        BUILDER.pop();
     }
 
     public static final ModConfigSpec SPEC = BUILDER.build();
@@ -77,14 +101,19 @@ public final class Config {
         return (float) (TRANSITION_MINUTES.get() * 1200.0);
     }
 
-    /** Whether the rain at this time is a sun shower by the natural schedule. */
-    public static boolean naturalSunShower(long gameTime) {
-        return RainSchedule.sunShower(gameTime, SUN_SHOWER_CHANCE.get(), DRIZZLE_WEIGHT.get(), RAIN_WEIGHT.get(), DOWNPOUR_WEIGHT.get());
+    /** Whether the rain in this level now is a sun shower by the natural schedule (and the season, if any). */
+    public static boolean naturalSunShower(Level level) {
+        SeasonalWeather.Profile season = Seasons.profile(level);
+        return RainSchedule.sunShower(level.getGameTime(), season.sunShowerChance(SUN_SHOWER_CHANCE.get()),
+                season.drizzleWeight(DRIZZLE_WEIGHT.get()), season.rainWeight(RAIN_WEIGHT.get()),
+                season.downpourWeight(DOWNPOUR_WEIGHT.get()));
     }
 
-    /** The natural rain level at this time. */
-    public static float naturalLevel(long gameTime, boolean thundering) {
-        return RainSchedule.naturalLevel(gameTime, thundering, DRIZZLE_WEIGHT.get(), RAIN_WEIGHT.get(), DOWNPOUR_WEIGHT.get());
+    /** The natural rain level in this level now (with the season, if any). */
+    public static float naturalLevel(Level level, boolean thundering) {
+        SeasonalWeather.Profile season = Seasons.profile(level);
+        return RainSchedule.naturalLevel(level.getGameTime(), thundering, season.drizzleWeight(DRIZZLE_WEIGHT.get()),
+                season.rainWeight(RAIN_WEIGHT.get()), season.downpourWeight(DOWNPOUR_WEIGHT.get()), season.wander());
     }
 
     private static String key(String name) {
