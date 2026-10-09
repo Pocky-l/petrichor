@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type during a long rain pass through the steps in between too, and the extra lightning strikes come as the
   thunderstorm builds up. How fast the rain changes is set by the new "Minutes per change of rain" option.
 - `/petrichor status` shows how far the rain has built up.
+- Each kind of rain now matches real rain: the number of drops, their size and how fast they fall follow measurements of
+  real light rain, rain, downpours and thunderstorms. Light rain no longer drifts down slowly with more drops than
+  normal rain; a thunderstorm is the heaviest rain. Puddles fill as fast as the rain looks: slowly in a drizzle,
+  quickly in a downpour or a storm.
 
 ## [1.1.0] - 2026-10-09
 ### Added

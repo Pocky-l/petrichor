@@ -80,7 +80,7 @@ public final class FxSpawner {
         float expected = ClientConfig.quality().splashBudget * (float) (double) ClientConfig.SPLASH_DENSITY.get()
                 * ClientWeather.splash / 2.4F * Math.min(intensity, 1.5F);
         int n = stochastic(random, expected);
-        float scale = 0.55F + ClientWeather.density * 0.25F;
+        float scale = 0.55F + Math.min(ClientWeather.density, 2.6F) * 0.25F;
         for (int s = 0; s < n && !fx.busy(0.55F); s++) {
             float r = 1.0F + SPLASH_RANGE * (float) Math.pow(random.nextFloat(), 0.8);
             float angle = random.nextFloat() * Mth.TWO_PI;
@@ -192,7 +192,7 @@ public final class FxSpawner {
     }
 
     private void mist(ClientLevel level, Columns columns, RainFx fx, Vec3 cam, float intensity) {
-        float chance = (ClientWeather.density - 1.4F) * 1.5F * Math.min(intensity, 1.5F);
+        float chance = (Math.min(ClientWeather.density, 2.8F) - 1.4F) * 1.5F * Math.min(intensity, 1.5F);
         int n = stochastic(random, chance);
         for (int s = 0; s < n && !fx.full(); s++) {
             float r = 3.0F + random.nextFloat() * 18.0F;

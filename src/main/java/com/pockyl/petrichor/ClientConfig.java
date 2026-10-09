@@ -9,10 +9,10 @@ public final class ClientConfig {
     /** Budgets that scale with the hardware. Individual options below multiply on top of these. */
     public enum Quality {
         // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets, reflectionSteps
-        LOW(14, 2200, 32, 1000, 25, false, 0),
-        MEDIUM(20, 5000, 48, 2000, 50, true, 16),
-        HIGH(28, 9000, 64, 3500, 90, true, 28),
-        ULTRA(36, 15000, 96, 5000, 140, true, 48);
+        LOW(14, 2900, 32, 1000, 25, false, 0),
+        MEDIUM(20, 6600, 48, 2000, 50, true, 16),
+        HIGH(28, 11800, 64, 3500, 90, true, 28),
+        ULTRA(36, 19700, 96, 5000, 140, true, 48);
 
         public final int rainRadius;
         public final int maxDrops;
