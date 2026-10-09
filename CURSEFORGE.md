@@ -10,8 +10,14 @@ Realistic rain and storms: rain types, puddles, runoff and drips, branching ligh
 
 ### Rain
 
-- **Rain types** that change during a long rain: drizzle, rain, downpour and thunderstorm, blending smoothly into each
-  other. Intensity swells and ebbs with gusts, wind turns slowly and slants the rain.
+- **Rain types** that change during a long rain: drizzle, rain, downpour and thunderstorm. **Rain builds up and eases
+  off like real rain**: it starts as a light drizzle, swells step by step into rain, a downpour or a thunderstorm over
+  a few minutes, and dies down to a drizzle again before it stops - no sudden jumps. Intensity swells and ebbs with
+  gusts, wind turns slowly and slants the rain.
+- **Sun showers**: some light rains in daytime fall while the sun keeps shining - blue sky, bright light, glinting
+  drops.
+- **Rainbows** opposite the sun in sun showers and sometimes when a rain clears up in daylight: a primary bow with a
+  fainter, reversed secondary one, standing where a real rainbow would (mornings and afternoons, when the sun is low).
 - Drops with depth: they taper, glint and vary in size and speed; curtains of rain sweep past with the wind in
   sheets, coarser and higher the further away they are; light gets dimmer and colder under rain clouds.
 - **Rainy air** instead of a flat grey wall: the haze deepens with distance and settles in valleys, so ridges behind

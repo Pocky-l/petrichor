@@ -18,8 +18,14 @@
 
 ### Rain
 
-- **Rain types** that change during a long rain: drizzle, rain, downpour and thunderstorm, blending smoothly into each
-  other. Intensity swells and ebbs with gusts, wind turns slowly and slants the rain.
+- **Rain types** that change during a long rain: drizzle, rain, downpour and thunderstorm. **Rain builds up and eases
+  off like real rain**: it starts as a light drizzle, swells step by step into rain, a downpour or a thunderstorm over
+  a few minutes, and dies down to a drizzle again before it stops - no sudden jumps. Intensity swells and ebbs with
+  gusts, wind turns slowly and slants the rain.
+- **Sun showers**: some light rains in daytime fall while the sun keeps shining - blue sky, bright light, glinting
+  drops.
+- **Rainbows** opposite the sun in sun showers and sometimes when a rain clears up in daylight: a primary bow with a
+  fainter, reversed secondary one, standing where a real rainbow would (mornings and afternoons, when the sun is low).
 - Drops with depth: they taper, glint and vary in size and speed; curtains of rain sweep past with the wind in
   sheets, coarser and higher the further away they are; light gets dimmer and colder under rain clouds.
 - **Rainy air** instead of a flat grey wall: the haze deepens with distance and settles in valleys, so ridges behind
@@ -78,7 +84,7 @@ No keys. Commands for operators:
 
 | Command | Effect |
 |---|---|
-| `/petrichor weather <drizzle\|rain\|downpour\|thunderstorm> [seconds]` | Start a rain of this type |
+| `/petrichor weather <drizzle\|rain\|downpour\|thunderstorm\|sun_shower> [seconds]` | Start a rain that builds up to this type |
 | `/petrichor weather clear` | Stop the rain |
 | `/petrichor wetness <0..1>` | Set how wet the ground is |
 | `/petrichor status` | Show the current weather |
@@ -91,11 +97,11 @@ Nothing to craft: the mod changes the weather.
 ## Configuration
 
 Client options (*Mods -> Petrichor: Rain & Storms -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
-splashes, fog, rainy atmosphere, steam on hot blocks, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
-a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type, how fast the ground gets wet and dries, extra
-lightning strikes.
+splashes, fog, rainy atmosphere, steam on hot blocks, rainbows, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
+a strike, flash glare and afterimage) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type and of sun showers, how fast the rain
+changes, how fast the ground gets wet and dries, extra lightning strikes.
 
-The mod works on the client alone; installed on the server too, every player sees the same rain type and wetness.
+The mod works on the client alone; installed on the server too, every player sees the same rain, sun showers and wetness.
 Muffling is turned off automatically when
 [Sound Physics Remastered](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered) is installed.
 

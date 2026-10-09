@@ -54,6 +54,7 @@ import com.pockyl.petrichor.client.render.Cinematics;
 import com.pockyl.petrichor.client.render.PetrichorEffects;
 import com.pockyl.petrichor.client.render.PetrichorShaders;
 import com.pockyl.petrichor.client.render.Puddles;
+import com.pockyl.petrichor.client.render.Rainbow;
 import com.pockyl.petrichor.client.render.SceneCopy;
 import com.pockyl.petrichor.client.sound.RainSounds;
 
@@ -145,9 +146,18 @@ public final class WeatherClient {
         skyView += (target - skyView) * 0.15F;
     }
 
-    /** How overcast the light is: follows the rain, heavier rain is gloomier. */
+    /** How overcast the light is: follows the rain, heavier rain is gloomier; a sun shower is not overcast. */
     public static float gloom() {
-        return ClientWeather.rain() * Math.min(1.0F, 0.45F + ClientWeather.density * 0.25F) * (float) Math.min(1.0, ClientConfig.FOG.get());
+        return ClientWeather.rain() * Math.min(1.0F, 0.45F + ClientWeather.density * 0.25F) * (float) Math.min(1.0, ClientConfig.FOG.get())
+                * ClientWeather.shade();
+    }
+
+    /**
+     * Vanilla's rain level where it darkens the sky, clouds, fog and daylight and hides the sun: the sun shines
+     * through a sun shower.
+     */
+    public static float rainShade(float rain) {
+        return ourSky(Minecraft.getInstance().level) ? rain * ClientWeather.shade() : rain;
     }
 
     /** Debug description of the puddle data at a column. */
@@ -196,6 +206,7 @@ public final class WeatherClient {
             RainSounds.stopAll();
         }
         LIGHTNING.tick(level, cam, FX, ClientWeather.thunder(), skyView);
+        Rainbow.tick(level);
         Cinematics.tick();
         if (ClientConfig.BOLTS.get()) {
             // Vanilla bolts set a full-white sky flash; the graded flash of the lightning system replaces it.
@@ -229,6 +240,7 @@ public final class WeatherClient {
         FX.clear();
         LIGHTNING.clear();
         Cinematics.clear();
+        Rainbow.clear();
         RainSounds.stopAll();
         if (puddles != null) {
             puddles.clear();
@@ -317,6 +329,7 @@ public final class WeatherClient {
         RenderLevelStageEvent.Stage stage = event.getStage();
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY) {
             SceneCopy.newFrame();
+            Rainbow.render(level, event.getModelViewMatrix(), partialTick);
             LIGHTNING.renderSky(event.getModelViewMatrix(), event.getCamera(), partialTick);
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
             if (puddles != null) {
@@ -366,7 +379,7 @@ public final class WeatherClient {
         if (target >= far) {
             return;
         }
-        float k = (float) Math.min(1.0, rain * Math.sqrt(Math.max(ClientWeather.intensity(), 0.0F)) * strength);
+        float k = (float) Math.min(1.0, rain * Math.sqrt(Math.max(ClientWeather.intensity(), 0.0F)) * strength) * ClientWeather.shade();
         float newFar = far + (target - far) * k;
         float near = event.getNearPlaneDistance();
         // The haze starts a little in front of the camera instead of a clear zone with a wall of fog.
@@ -389,7 +402,7 @@ public final class WeatherClient {
         if (rain > 0.0F) {
             // Rain washes the colour out towards a deep, neutral grey.
             float luma = r * 0.3F + g * 0.59F + b * 0.11F;
-            float k = rain * 0.55F;
+            float k = rain * 0.55F * ClientWeather.shade();
             r += (luma * 0.84F - r) * k;
             g += (luma * 0.9F - g) * k;
             b += (luma * 0.97F - b) * k;
@@ -416,9 +429,10 @@ public final class WeatherClient {
             return;
         }
         event.getRight().add("");
-        event.getRight().add(String.format("Petrichor: %s%s, rain %.2f, intensity %.2f, wetness %.2f",
-                ClientWeather.type().id(), ClientWeather.syncedWithServer() ? " (server)" : "", ClientWeather.rain(),
-                ClientWeather.intensity(), ClientWeather.wetness()));
+        event.getRight().add(String.format("Petrichor: %s (level %.2f)%s, rain %.2f, intensity %.2f, wetness %.2f",
+                ClientWeather.type().id(), ClientWeather.level(), ClientWeather.syncedWithServer() ? " (server)" : "",
+                ClientWeather.rain(), ClientWeather.intensity(), ClientWeather.wetness()));
+        event.getRight().add(String.format("Sunshine %.2f, rainbow %.2f", ClientWeather.sunshine(), Rainbow.strength()));
         event.getRight().add(String.format("Drops %d, effects %d, puddle chunks %d (%d quads), strikes %d",
                 PRECIPITATION.lastDrops(), FX.count(), puddles == null ? 0 : puddles.chunkCount(),
                 puddles == null ? 0 : puddles.lastQuads(), LIGHTNING.strikeCount()));

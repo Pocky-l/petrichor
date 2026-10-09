@@ -2,6 +2,8 @@ package com.pockyl.petrichor;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import com.pockyl.petrichor.weather.RainSchedule;
+
 /**
  * Weather rules. On a server with this mod the server's values are used for everybody; a client on a server without
  * the mod falls back to its own copy.
@@ -25,6 +27,15 @@ public final class Config {
             .comment("Relative chance of a downpour. Thunderstorms follow vanilla thunder.")
             .translation(key("downpourWeight"))
             .defineInRange("downpourWeight", 25, 0, 100);
+    public static final ModConfigSpec.DoubleValue TRANSITION_MINUTES = BUILDER
+            .comment("Minutes for the rain to change by one step (drizzle -> rain -> downpour -> thunderstorm). Rain starts as a "
+                    + "drizzle, builds up and eases off again before it stops.")
+            .translation(key("transitionMinutes"))
+            .defineInRange("transitionMinutes", 1.5, 0.05, 10.0);
+    public static final ModConfigSpec.IntValue SUN_SHOWER_CHANCE = BUILDER
+            .comment("Percent of light rains in daytime that are sun showers: the sun keeps shining through the rain.")
+            .translation(key("sunShowerChance"))
+            .defineInRange("sunShowerChance", 20, 0, 100);
     public static final ModConfigSpec.DoubleValue FILL_SPEED = BUILDER
             .comment("How fast rain soaks the ground and fills puddles.")
             .translation(key("fillSpeed"))
@@ -59,6 +70,21 @@ public final class Config {
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {
+    }
+
+    /** Ticks for the rain to change by one step. */
+    public static float stepTicks() {
+        return (float) (TRANSITION_MINUTES.get() * 1200.0);
+    }
+
+    /** Whether the rain at this time is a sun shower by the natural schedule. */
+    public static boolean naturalSunShower(long gameTime) {
+        return RainSchedule.sunShower(gameTime, SUN_SHOWER_CHANCE.get(), DRIZZLE_WEIGHT.get(), RAIN_WEIGHT.get(), DOWNPOUR_WEIGHT.get());
+    }
+
+    /** The natural rain level at this time. */
+    public static float naturalLevel(long gameTime, boolean thundering) {
+        return RainSchedule.naturalLevel(gameTime, thundering, DRIZZLE_WEIGHT.get(), RAIN_WEIGHT.get(), DOWNPOUR_WEIGHT.get());
     }
 
     private static String key(String name) {

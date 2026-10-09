@@ -6,7 +6,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import com.pockyl.petrichor.client.ClientWeather;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     private ModNetwork() {
     }
@@ -16,6 +16,7 @@ public final class ModNetwork {
         PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION).optional();
         // The lambda only resolves the client class when a packet arrives on a client.
         registrar.playToClient(WeatherSyncPayload.TYPE, WeatherSyncPayload.STREAM_CODEC,
-                (payload, context) -> ClientWeather.onServerSync(payload.rainType(), payload.wetness()));
+                (payload, context) -> ClientWeather.onServerSync(payload.rainType(), payload.rainLevel(),
+                        payload.sunShower(), payload.wetness()));
     }
 }

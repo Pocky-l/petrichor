@@ -16,9 +16,10 @@ import com.pockyl.petrichor.weather.Wetness;
 /**
  * The weather as the client draws and plays it, updated every tick.
  *
- * <p>The rain type comes from the server when it has this mod, otherwise from the shared {@link RainSchedule}. All
- * look-and-sound parameters glide towards the current type over ~10 seconds, so a drizzle swells into a downpour instead
- * of switching. Wetness follows the server too, or is simulated locally the same way.
+ * <p>The rain level (see {@link RainType#mix}) comes from the server when it has this mod, otherwise it follows the
+ * shared {@link RainSchedule} the same way the server does: every rain starts as a drizzle, swells step by step and
+ * eases off. All look-and-sound parameters are blended from the level, so nothing ever switches. Wetness and sun
+ * showers follow the server too, or are worked out locally the same way.
  *
  * <p>The rain level for everything that fills the whole view or the ears (sound, haze, sky, light, curtains) follows
  * the land around the listener: towards land where it snows or never rains (deserts, badlands) it fades out, and in
@@ -28,15 +29,24 @@ import com.pockyl.petrichor.weather.Wetness;
 public final class ClientWeather {
     /** Server state older than this is ignored (the server stopped sending: it does not have the mod). */
     private static final int SERVER_TIMEOUT = 200;
-    private static final float BLEND = 0.006F;
+    /** How fast the client's rain level follows the server's (which itself moves slowly). */
+    private static final float FOLLOW = 0.05F;
+    /** Sunshine comes out or hides behind the clouds over 15 seconds. */
+    private static final float SUN_RATE = 1.0F / 300.0F;
 
     private static long ticks;
     private static long lastSync = Long.MIN_VALUE;
     private static int serverType = -1;
+    private static float serverLevel;
+    private static boolean serverSunShower;
     private static float serverWetness;
     private static boolean initialized;
 
     private static RainType type = RainType.RAIN;
+    /** The rain level, 0 (drizzle) .. 3 (thunderstorm). */
+    private static float level;
+    /** How much the sun shines through the rain, 0..1: a sun shower. */
+    private static float sunshine;
     /** The world's rain level, before the land around the listener is taken into account. */
     private static float worldRain;
     private static float rain;
@@ -71,8 +81,10 @@ public final class ClientWeather {
     private ClientWeather() {
     }
 
-    public static void onServerSync(int type, float wetness) {
+    public static void onServerSync(int type, float rainLevel, boolean sunShower, float wetness) {
         serverType = type;
+        serverLevel = rainLevel;
+        serverSunShower = sunShower;
         serverWetness = wetness;
         lastSync = ticks;
     }
@@ -84,6 +96,7 @@ public final class ClientWeather {
         wetness = 0.0F;
         rain = 0.0F;
         thunder = 0.0F;
+        sunshine = 0.0F;
         presence = presenceTarget = 1.0F;
         noRain = false;
     }
@@ -101,16 +114,24 @@ public final class ClientWeather {
         worldRain = level.getRainLevel(1.0F);
         rain = worldRain * presence;
         thunder = level.getThunderLevel(1.0F) * presence;
-        RainType target = targetType(level);
-        if (target != null) {
-            type = target;
+        float stepTicks = Config.stepTicks();
+        if (!initialized) {
+            ClientWeather.level = worldRain > 0.0F ? targetLevel(level) : 0.0F;
+        } else if (serverActive()) {
+            ClientWeather.level += (serverLevel - ClientWeather.level) * FOLLOW;
+        } else if (worldRain > 0.0F) {
+            ClientWeather.level = RainSchedule.approach(ClientWeather.level, targetLevel(level), stepTicks);
+        } else {
+            // The next rain starts as a drizzle.
+            ClientWeather.level = 0.0F;
         }
+        type = RainType.at(ClientWeather.level);
+        apply(ClientWeather.level);
+        float sunTarget = sunShower(level) ? 1.0F : 0.0F;
+        sunshine = initialized ? sunshine + Math.clamp(sunTarget - sunshine, -SUN_RATE, SUN_RATE) : sunTarget;
         if (!initialized) {
             initialized = true;
-            snapTo(type);
             wetness = serverActive() ? serverWetness : worldRain * type.wetnessCap * 0.6F;
-        } else {
-            blendTo(type);
         }
         double time = level.getGameTime();
         gust = RainSchedule.gust(time, gustiness);
@@ -126,7 +147,7 @@ public final class ClientWeather {
         if (serverActive()) {
             wetness += Math.clamp(serverWetness - wetness, -0.02F, 0.02F);
         } else {
-            wetness = Wetness.step(wetness, worldRain, worldRain > 0.0F ? type : null, level.isDay(),
+            wetness = Wetness.step(wetness, worldRain, worldRain > 0.0F ? ClientWeather.level : -1.0F, level.isDay(),
                     Config.FILL_SPEED.get(), Config.DRYING_SPEED.get());
         }
     }
@@ -166,45 +187,61 @@ public final class ClientWeather {
         }
     }
 
-    private static RainType targetType(ClientLevel level) {
-        if (serverActive()) {
-            return RainType.byOrdinal(serverType);
+    /** The rain level to head for without the server: the shared schedule, light while the sun shines through. */
+    private static float targetLevel(ClientLevel level) {
+        boolean thundering = thunder > 0.5F;
+        float target = Config.naturalLevel(level.getGameTime(), thundering);
+        if (!thundering && Config.naturalSunShower(level.getGameTime()) && sunHeight(level, 1.0F) > 0.0F) {
+            target = Math.min(target, RainSchedule.SUN_SHOWER_LEVEL);
         }
-        if (worldRain <= 0.0F) {
-            return null;
-        }
-        return RainSchedule.naturalType(level.getGameTime(), thunder > 0.5F,
-                Config.DRIZZLE_WEIGHT.get(), Config.RAIN_WEIGHT.get(), Config.DOWNPOUR_WEIGHT.get());
+        return target;
     }
 
-    private static void snapTo(RainType t) {
-        density = t.density;
-        fallSpeed = t.fallSpeed;
-        streakLength = t.streakLength;
-        streakWidth = t.streakWidth;
-        alpha = t.alpha;
-        windBase = t.wind;
-        gustiness = t.gustiness;
-        visibility = t.visibility;
-        splash = t.splash;
-        heaviness = t.heaviness;
+    /** Whether the sun shines through the rain now: a light rain in daylight, without thunder. */
+    private static boolean sunShower(ClientLevel level) {
+        boolean scheduled = serverActive() ? serverSunShower : Config.naturalSunShower(level.getGameTime());
+        return scheduled && thunder < 0.1F && ClientWeather.level < RainSchedule.SUN_SHOWER_LEVEL + 0.5F
+                && sunHeight(level, 1.0F) > 0.05F;
     }
 
-    private static void blendTo(RainType t) {
-        density += (t.density - density) * BLEND;
-        fallSpeed += (t.fallSpeed - fallSpeed) * BLEND;
-        streakLength += (t.streakLength - streakLength) * BLEND;
-        streakWidth += (t.streakWidth - streakWidth) * BLEND;
-        alpha += (t.alpha - alpha) * BLEND;
-        windBase += (t.wind - windBase) * BLEND;
-        gustiness += (t.gustiness - gustiness) * BLEND;
-        visibility += (t.visibility - visibility) * BLEND;
-        splash += (t.splash - splash) * BLEND;
-        heaviness += (t.heaviness - heaviness) * BLEND;
+    /** Height of the sun over the horizon: the sine of its elevation, -1..1. */
+    public static float sunHeight(ClientLevel level, float partialTick) {
+        return Mth.cos(level.getSunAngle(partialTick));
+    }
+
+    private static void apply(float level) {
+        density = RainType.mix(level, t -> t.density);
+        fallSpeed = RainType.mix(level, t -> t.fallSpeed);
+        streakLength = RainType.mix(level, t -> t.streakLength);
+        streakWidth = RainType.mix(level, t -> t.streakWidth);
+        alpha = RainType.mix(level, t -> t.alpha);
+        windBase = RainType.mix(level, t -> t.wind);
+        gustiness = RainType.mix(level, t -> t.gustiness);
+        visibility = RainType.mix(level, t -> t.visibility);
+        splash = RainType.mix(level, t -> t.splash);
+        heaviness = RainType.mix(level, t -> t.heaviness);
     }
 
     public static RainType type() {
         return type;
+    }
+
+    /** The rain level, 0 (drizzle) .. 3 (thunderstorm), see {@link RainType#mix}. */
+    public static float level() {
+        return level;
+    }
+
+    /**
+     * How much the sun shines through the rain, 0..1. In a sun shower the sky stays blue and the light bright: what
+     * darkens the world for rain gives way to it.
+     */
+    public static float sunshine() {
+        return sunshine;
+    }
+
+    /** What is left of the rain's shade on sky and light in the sunshine, 0.15..1. */
+    public static float shade() {
+        return 1.0F - 0.85F * sunshine;
     }
 
     /**

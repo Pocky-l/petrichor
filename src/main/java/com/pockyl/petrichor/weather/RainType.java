@@ -3,8 +3,11 @@ package com.pockyl.petrichor.weather;
 import java.util.Locale;
 
 /**
- * The kinds of rain. Each carries the look, sound and effect on the ground of that rain; the client blends between
- * them so that a change of type never pops.
+ * The kinds of rain, in order of strength. Each carries the look, sound and effect on the ground of that rain.
+ *
+ * <p>The weather moves along a continuous <em>rain level</em>: 0 is a drizzle, 1 rain, 2 a downpour, 3 a thunderstorm,
+ * and levels in between blend the two neighbouring types ({@link #mix}). A rain spell climbs and eases along this scale
+ * step by step, so it never jumps from a drizzle straight into a downpour.
  *
  * <p>Speeds are in blocks per tick, sizes in blocks.
  */
@@ -16,6 +19,8 @@ public enum RainType {
     THUNDERSTORM(2.2F, 1.0F, 1.1F, 0.024F, 0.55F, 0.34F, 0.9F, 220.0F, 2.2F, 1.0F, 1.8F, 0.9F);
 
     private static final RainType[] VALUES = values();
+    /** The highest rain level: a thunderstorm. */
+    public static final float MAX_LEVEL = VALUES.length - 1;
 
     /** Relative number of drops. */
     public final float density;
@@ -60,6 +65,30 @@ public enum RainType {
 
     public String translationKey() {
         return "petrichor.rain_type." + id();
+    }
+
+    /** The level at which this type falls in its pure form. */
+    public float level() {
+        return ordinal();
+    }
+
+    /** The type closest to a rain level. */
+    public static RainType at(float level) {
+        return VALUES[Math.clamp(Math.round(level), 0, VALUES.length - 1)];
+    }
+
+    /** A parameter at a rain level, blended between the two types around it. */
+    public static float mix(float level, Param param) {
+        float clamped = Math.clamp(level, 0.0F, MAX_LEVEL);
+        int lower = Math.min((int) clamped, VALUES.length - 2);
+        float a = param.of(VALUES[lower]);
+        return a + (param.of(VALUES[lower + 1]) - a) * (clamped - lower);
+    }
+
+    /** One of the parameters of a type. */
+    @FunctionalInterface
+    public interface Param {
+        float of(RainType type);
     }
 
     /** The type with this ordinal, or {@code null} for -1 or an unknown value. */

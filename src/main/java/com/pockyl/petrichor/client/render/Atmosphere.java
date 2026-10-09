@@ -74,6 +74,8 @@ public final class Atmosphere {
 
         float rain = ClientWeather.rain();
         float heaviness = ClientWeather.heaviness;
+        // In a sun shower the air stays clear and the sky blue.
+        float shade = ClientWeather.shade();
         float fog = (float) Math.min(1.0, ClientConfig.FOG.get());
         float sunAngle = level.getSunAngle(partialTick);
         float sunX = -Mth.sin(sunAngle);
@@ -89,12 +91,12 @@ public final class Atmosphere {
         shader.safeGetUniform("Haze").set(haze());
         shader.safeGetUniform("Falloff").set(1.0F / 40.0F);
         shader.safeGetUniform("BaseY").set((float) level.getSeaLevel());
-        shader.safeGetUniform("Strength").set(rain * WeatherClient.skyView(partialTick));
+        shader.safeGetUniform("Strength").set(rain * WeatherClient.skyView(partialTick) * (0.4F + 0.6F * shade));
         // A drizzle only greys the sky; a downpour hides it behind a heavy deck.
-        shader.safeGetUniform("Overcast").set(Math.min(1.0F, 0.55F + 0.45F * heaviness) * fog);
+        shader.safeGetUniform("Overcast").set(Math.min(1.0F, 0.55F + 0.45F * heaviness) * fog * shade);
         shader.safeGetUniform("Gloom").set(Math.max(Math.clamp((heaviness - 0.4F) / 0.6F, 0.0F, 1.0F), ClientWeather.thunder() * 0.9F));
-        shader.safeGetUniform("Shafts").set(Mth.clamp((heaviness - 0.3F) / 0.7F, 0.0F, 1.0F));
-        shader.safeGetUniform("Glow").set(Math.max(0.0F, sunY + 0.2F) * (1.0F - 0.6F * heaviness) * 0.6F);
+        shader.safeGetUniform("Shafts").set(Mth.clamp((heaviness - 0.3F) / 0.7F, 0.0F, 1.0F) * shade);
+        shader.safeGetUniform("Glow").set(Math.max(0.0F, sunY + 0.2F) * (1.0F - 0.6F * heaviness) * (1.6F - 0.6F * shade) * 0.6F);
         shader.safeGetUniform("Flash").set(WeatherClient.flash(partialTick));
         shader.safeGetUniform("SunDir").set(sunX, sunY, 0.0F);
 

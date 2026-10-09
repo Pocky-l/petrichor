@@ -87,6 +87,79 @@ public final class ModGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void rainLevelBlendsTypes(GameTestHelper helper) {
+        helper.assertTrue(RainType.mix(0.0F, t -> t.heaviness) == RainType.DRIZZLE.heaviness, "Level 0 is a drizzle");
+        helper.assertTrue(RainType.mix(3.0F, t -> t.heaviness) == RainType.THUNDERSTORM.heaviness, "Level 3 is a thunderstorm");
+        float half = RainType.mix(0.5F, t -> t.heaviness);
+        helper.assertTrue(Math.abs(half - (RainType.DRIZZLE.heaviness + RainType.RAIN.heaviness) / 2.0F) < 1.0E-5F,
+                "Half way between a drizzle and rain, got " + half);
+        helper.assertTrue(RainType.at(1.4F) == RainType.RAIN && RainType.at(1.6F) == RainType.DOWNPOUR, "Nearest type");
+        helper.assertTrue(RainType.mix(-1.0F, t -> t.density) == RainType.DRIZZLE.density, "Clamped below");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void rainBuildsUpStepByStep(GameTestHelper helper) {
+        float step = 1800.0F;
+        float level = 0.0F;
+        int ticks = 0;
+        float previous = level;
+        while (level < RainType.MAX_LEVEL && ticks < 100_000) {
+            level = RainSchedule.approach(level, RainType.MAX_LEVEL, step);
+            helper.assertTrue(level - previous <= 1.0F / step + 1.0E-6F, "The rain never jumps");
+            previous = level;
+            ticks++;
+        }
+        helper.assertTrue(ticks >= 3 * step - 1, "From a drizzle to a storm takes three steps, took " + ticks);
+        int down = 0;
+        while (level > 0.0F && down < 100_000) {
+            level = RainSchedule.approach(level, 0.0F, step);
+            down++;
+        }
+        helper.assertTrue(down < ticks && down > ticks / 2, "Easing off is a little faster, took " + down);
+        // The cap before the rain stops always leaves time to ease off to a drizzle.
+        for (int left = 0; left < 20_000; left += 250) {
+            float cap = RainSchedule.easeOffCap(left, step);
+            helper.assertTrue(cap * step / 1.35F <= left + 1.0E-3F, "Ease-off cap too high with " + left + " ticks left");
+        }
+        helper.assertTrue(RainSchedule.easeOffCap(0, step) == 0.0F, "The last tick of rain is a drizzle");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void naturalLevelStaysInRange(GameTestHelper helper) {
+        for (long t = 0; t < 400_000; t += 377) {
+            float level = RainSchedule.naturalLevel(t, false, 30, 45, 25);
+            helper.assertTrue(level >= 0.0F && level <= RainType.DOWNPOUR.level(), "No thunderstorm without thunder: " + level);
+            float type = RainSchedule.naturalType(t, false, 30, 45, 25).level();
+            helper.assertTrue(Math.abs(level - type) <= 0.35F + 1.0E-5F, "The level wanders near its type");
+        }
+        helper.assertTrue(RainSchedule.naturalLevel(1000, true, 30, 45, 25) == RainType.MAX_LEVEL, "Thunder aims for a storm");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void sunShowersAreLightAndRare(GameTestHelper helper) {
+        int sunny = 0;
+        int light = 0;
+        for (int w = 0; w < 20_000; w++) {
+            long t = (long) w * RainSchedule.WINDOW;
+            RainType type = RainSchedule.naturalType(t, false, 30, 45, 25);
+            boolean sun = RainSchedule.sunShower(t, 20, 30, 45, 25);
+            if (type != RainType.DOWNPOUR) {
+                light++;
+                sunny += sun ? 1 : 0;
+            } else {
+                helper.assertTrue(!sun, "A downpour is never a sun shower");
+            }
+            helper.assertTrue(sun == RainSchedule.sunShower(t + RainSchedule.WINDOW - 1, 20, 30, 45, 25), "Sun showers hold for a window");
+        }
+        assertShare(helper, sunny, light, 0.20, "sun showers");
+        helper.assertTrue(!RainSchedule.sunShower(0, 0, 30, 45, 25), "Chance 0 disables sun showers");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void gustsAndWindStayInRange(GameTestHelper helper) {
         for (int t = 0; t < 100_000; t += 97) {
             float gust = RainSchedule.gust(t, 0.9F);
@@ -101,17 +174,17 @@ public final class ModGameTests {
     public static void wetnessSoaksAndDries(GameTestHelper helper) {
         float wet = 0.0F;
         for (int t = 0; t < 20 * 60; t++) {
-            wet = Wetness.step(wet, 1.0F, RainType.DOWNPOUR, true, 1.0, 1.0);
+            wet = Wetness.step(wet, 1.0F, RainType.DOWNPOUR.level(), true, 1.0, 1.0);
         }
         helper.assertTrue(wet > 0.6F, "A minute of downpour soaks the ground, got " + wet);
         float drizzle = 0.0F;
         for (int t = 0; t < 20 * 600; t++) {
-            drizzle = Wetness.step(drizzle, 1.0F, RainType.DRIZZLE, true, 1.0, 1.0);
+            drizzle = Wetness.step(drizzle, 1.0F, RainType.DRIZZLE.level(), true, 1.0, 1.0);
         }
         helper.assertTrue(drizzle <= RainType.DRIZZLE.wetnessCap + 1.0E-4F, "Drizzle stays below its cap, got " + drizzle);
         float dry = 1.0F;
         for (int t = 0; t < 20 * 60; t++) {
-            dry = Wetness.step(dry, 0.0F, null, true, 1.0, 1.0);
+            dry = Wetness.step(dry, 0.0F, -1.0F, true, 1.0, 1.0);
         }
         helper.assertTrue(dry < 1.0F && dry > 0.6F, "The ground dries slowly, got " + dry);
         helper.assertTrue(Wetness.runoff(0.2F, 1.0F) == 0.0F, "No runoff on dry ground");
@@ -301,10 +374,14 @@ public final class ModGameTests {
         ServerLevel level = helper.getLevel();
         var server = level.getServer();
         var source = server.createCommandSourceStack().withLevel(level).withPermission(4).withSuppressedOutput();
-        server.getCommands().performPrefixedCommand(source, "petrichor weather downpour 60");
+        server.getCommands().performPrefixedCommand(source, "petrichor weather downpour 600");
         StormData data = StormData.get(level);
         helper.assertTrue(level.getLevelData().isRaining(), "The command starts the rain");
-        helper.assertTrue(data.currentType(level) == RainType.DOWNPOUR, "The forced type is used");
+        helper.assertTrue(data.targetLevel(level) == RainType.DOWNPOUR.level(), "The forced type is the target");
+        helper.assertTrue(data.currentType(level) == RainType.DRIZZLE, "The rain starts as a drizzle");
+        server.getCommands().performPrefixedCommand(source, "petrichor weather sun_shower 600");
+        helper.assertTrue(data.sunShower(level), "A sun shower can be forced");
+        helper.assertTrue(data.targetLevel(level) <= RainSchedule.SUN_SHOWER_LEVEL, "A sun shower stays light");
         server.getCommands().performPrefixedCommand(source, "petrichor wetness 0.7");
         helper.assertTrue(Math.abs(data.wetness() - 0.7F) < 1.0E-4F, "Wetness is set");
         server.getCommands().performPrefixedCommand(source, "petrichor weather clear");
@@ -367,7 +444,7 @@ public final class ModGameTests {
     @GameTest(template = "empty")
     public static void syncPayloadRoundTrip(GameTestHelper helper) {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        WeatherSyncPayload payload = new WeatherSyncPayload(RainType.THUNDERSTORM.ordinal(), 0.625F);
+        WeatherSyncPayload payload = new WeatherSyncPayload(RainType.THUNDERSTORM.ordinal(), 2.75F, true, 0.625F);
         WeatherSyncPayload.STREAM_CODEC.encode(buffer, payload);
         WeatherSyncPayload decoded = WeatherSyncPayload.STREAM_CODEC.decode(buffer);
         helper.assertTrue(decoded.equals(payload), "Payload survives encoding");

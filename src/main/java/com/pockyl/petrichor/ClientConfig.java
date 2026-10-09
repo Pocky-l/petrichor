@@ -79,6 +79,15 @@ public final class ClientConfig {
             .comment("Rain hisses and steams where it falls on lava, magma blocks and lit campfires, and lava lakes steam in the rain.")
             .translation(key("hotSurfaces"))
             .define("hotSurfaces", true);
+    public static final ModConfigSpec.BooleanValue RAINBOWS = BUILDER
+            .comment("Rainbows opposite the sun in sun showers and sometimes when a rain clears up in daylight (mornings and "
+                    + "afternoons: the sun must be lower than 42 degrees, like for a real rainbow).")
+            .translation(key("rainbows"))
+            .define("rainbows", true);
+    public static final ModConfigSpec.IntValue RAINBOW_CHANCE = BUILDER
+            .comment("Percent of rains ending in daylight that leave a rainbow for a while.")
+            .translation(key("rainbowChance"))
+            .defineInRange("rainbowChance", 50, 0, 100);
 
     static {
         BUILDER.pop();

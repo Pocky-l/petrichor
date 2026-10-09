@@ -19,17 +19,18 @@ public final class Wetness {
      * One tick of soaking or drying.
      *
      * @param rain   the vanilla rain level, 0..1
-     * @param type   the current rain type, or {@code null} when it does not rain
+     * @param level  the current rain level ({@link RainType#mix}), or a negative value when it does not rain
      * @param day    whether the sun is up
      * @param fill   fill speed multiplier from the config
      * @param drying drying speed multiplier from the config
      */
-    public static float step(float wetness, float rain, RainType type, boolean day, double fill, double drying) {
-        if (type != null && rain > 0.2F) {
+    public static float step(float wetness, float rain, float level, boolean day, double fill, double drying) {
+        if (level >= 0.0F && rain > 0.2F) {
             // Soaks towards the cap of this rain; ground wetter than that (after a downpour) stays as it is.
-            float cap = type.wetnessCap;
+            float cap = RainType.mix(level, type -> type.wetnessCap);
             if (wetness < cap) {
-                return Math.min(cap, wetness + (float) (rain * type.wetnessRate * fill / FILL_TICKS));
+                float rate = RainType.mix(level, type -> type.wetnessRate);
+                return Math.min(cap, wetness + (float) (rain * rate * fill / FILL_TICKS));
             }
             return wetness;
         }

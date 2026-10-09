@@ -4,6 +4,21 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - Unreleased
+### Added
+- Sun showers: some light rains in daytime fall while the sun keeps shining - the sky stays blue, the light bright and
+  the drops glint. Their chance can be set with the new "Sun shower chance" option.
+- Rainbows: a rainbow with a fainter second bow appears opposite the sun during sun showers and sometimes when a rain
+  clears up in daylight. Like a real one it needs the sun low in the sky, so look for it in the mornings and
+  afternoons. Can be turned off with the new "Rainbows" option.
+- `/petrichor weather sun_shower` starts a sun shower.
+### Changed
+- The rain builds up and eases off gradually: every rain starts as a light drizzle, grows step by step into rain, a
+  downpour or a thunderstorm over a few minutes, and dies down to a drizzle again before it stops. Changes of the rain
+  type during a long rain pass through the steps in between too, and the extra lightning strikes come as the
+  thunderstorm builds up. How fast the rain changes is set by the new "Minutes per change of rain" option.
+- `/petrichor status` shows how far the rain has built up.
+
 ## [1.1.0] - 2026-10-09
 ### Added
 - Rain hisses on hot blocks: drops falling on lava, magma blocks and lit campfires boil away in small puffs of steam

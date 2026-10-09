@@ -24,14 +24,17 @@ import com.pockyl.petrichor.weather.StormData;
 
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
- * {@code /petrichor} for operators: force a rain type, set the wetness, show the state, call a strike.
+ * {@code /petrichor} for operators: force a rain type (or a sun shower), set the wetness, show the state, call a strike.
+ * A forced type is reached gradually like any change of the rain.
  * Only vanilla argument types are used, so clients without the mod can use the command too.
  */
 @EventBusSubscriber(modid = Petrichor.MOD_ID)
 public final class StormCommands {
     private static final int DEFAULT_SECONDS = 600;
+    private static final String SUN_SHOWER = "sun_shower";
     private static final DynamicCommandExceptionType UNKNOWN_TYPE = new DynamicCommandExceptionType(
             id -> Component.translatableWithFallback("commands.petrichor.unknown_type", "Unknown rain type: %s", id));
     private static final SimpleCommandExceptionType NO_WEATHER = new SimpleCommandExceptionType(
@@ -54,7 +57,7 @@ public final class StormCommands {
                         .then(Commands.literal("clear").executes(StormCommands::clear))
                         .then(Commands.argument("type", StringArgumentType.word())
                                 .suggests((context, builder) -> SharedSuggestionProvider.suggest(
-                                        Arrays.stream(RainType.values()).map(RainType::id), builder))
+                                        Stream.concat(Arrays.stream(RainType.values()).map(RainType::id), Stream.of(SUN_SHOWER)), builder))
                                 .executes(context -> setType(context, DEFAULT_SECONDS))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(10, 86400))
                                         .executes(context -> setType(context, IntegerArgumentType.getInteger(context, "seconds"))))))
@@ -75,18 +78,24 @@ public final class StormCommands {
 
     private static int setType(CommandContext<CommandSourceStack> context, int seconds) throws CommandSyntaxException {
         String id = StringArgumentType.getString(context, "type");
-        RainType type = RainType.byId(id);
+        boolean sunny = id.equals(SUN_SHOWER);
+        RainType type = sunny ? RainType.RAIN : RainType.byId(id);
         if (type == null) {
             throw UNKNOWN_TYPE.create(id);
         }
         ServerLevel level = weatherLevel(context);
         int ticks = seconds * 20;
         level.setWeatherParameters(0, ticks, true, type == RainType.THUNDERSTORM);
-        StormData.get(level).forceType(type, level.getGameTime() + ticks);
+        StormData.get(level).forceType(type, sunny, level.getGameTime() + ticks);
         WeatherEvents.syncLevel(level);
+        Component name = sunny ? sunShowerName() : Component.translatableWithFallback(type.translationKey(), type.id());
         context.getSource().sendSuccess(() -> Component.translatableWithFallback("commands.petrichor.weather.set",
-                "Weather set to %s for %s seconds", Component.translatableWithFallback(type.translationKey(), type.id()), seconds), true);
+                "Weather set to %s for %s seconds", name, seconds), true);
         return 1;
+    }
+
+    private static Component sunShowerName() {
+        return Component.translatableWithFallback("petrichor.rain_type.sun_shower", "Sun shower");
     }
 
     private static int clear(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -115,9 +124,10 @@ public final class StormCommands {
         RainType type = data.currentType(level);
         Component typeName = type == null
                 ? Component.translatableWithFallback("petrichor.rain_type.none", "none")
-                : Component.translatableWithFallback(type.translationKey(), type.id());
+                : data.sunShower(level) ? sunShowerName() : Component.translatableWithFallback(type.translationKey(), type.id());
+        String rainLevel = type == null ? "-" : String.format("%.2f -> %.2f", data.rainLevel(), data.targetLevel(level));
         context.getSource().sendSuccess(() -> Component.translatableWithFallback("commands.petrichor.status",
-                "Rain: %s, ground wetness: %s", typeName, String.format("%.2f", data.wetness())), false);
+                "Rain: %s (level %s of 3), ground wetness: %s", typeName, rainLevel, String.format("%.2f", data.wetness())), false);
         return 1;
     }
 
