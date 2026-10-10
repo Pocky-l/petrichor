@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   current season. New options in the "Seasons" section: "Serene Seasons integration" turns it all off, "Strength of the
   seasons" sets how much the seasons change the rain, and "Seasonal lightning" how much they change the number of
   extra strikes.
+- Works together with [Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain): the rain, its
+  splashes, puddles, sounds and the rainy air come from this mod, the snow, sandstorms, dust, fog and the rest of
+  Particle Rain's particles from Particle Rain, and both drift with the same wind. Particle Rain's snow and sandstorm
+  sounds play too. Can be turned off with the new "Particle Rain integration" option in the "Rain" section.
+### Fixed
+- With Particle Rain installed, the mod's falling rain and rainy air disappeared while Particle Rain's rain fell on top
+  of the mod's puddles and splashes, doubling the splashes and ripples on the ground.
 
 ## [1.2.0] - 2026-10-10
 ### Added
