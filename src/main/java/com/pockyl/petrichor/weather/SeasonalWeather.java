@@ -27,7 +27,10 @@ public final class SeasonalWeather {
         SUMMER(new Profile(0.6F, 0.8F, 1.8F, 1.5F, 1.3F, 1.6F)),
         /** Fronts: steady, even rain that hardly swells or eases. */
         AUTUMN(new Profile(0.9F, 1.7F, 0.7F, 0.5F, 0.45F, 0.8F)),
-        /** Where it is still warm enough to rain: cold, light rain and drizzle, hardly any lightning. */
+        /**
+         * No rain outside the tropics ({@link #rainsIn}); the profile shapes the tropical wet season that starts in
+         * winter: light rain and drizzle, hardly any lightning.
+         */
         WINTER(new Profile(1.4F, 1.2F, 0.4F, 0.5F, 0.7F, 0.4F));
 
         private static final Season[] VALUES = values();
@@ -105,6 +108,14 @@ public final class SeasonalWeather {
     /** The season of a sub-season, 0 (early spring) .. 11 (late winter). */
     public static Season season(int subSeason) {
         return Season.VALUES[Math.floorMod(subSeason, SUB_SEASONS) / 3];
+    }
+
+    /**
+     * Whether rain may fall in this sub-season, 0 (early spring) .. 11 (late winter): never in winter, even where it is
+     * still warm enough not to snow - except in tropical biomes, whose winter is the start of the wet season.
+     */
+    public static boolean rainsIn(int subSeason, boolean tropical) {
+        return tropical || season(subSeason) != Season.WINTER;
     }
 
     /**

@@ -70,12 +70,21 @@ public final class Seasons {
         return Config.SEASONAL_LIGHTNING.get() ? profile(level).strikes() : 1.0F;
     }
 
-    /** What falls at {@code pos} when it rains: the season's answer if seasons are active, else the biome's. */
+    /**
+     * What falls at {@code pos} when it rains: the season's answer if seasons are active, else the biome's. In winter
+     * nothing falls where the season still leaves rain, outside the tropics ({@link SeasonalWeather#rainsIn}).
+     */
     public static Biome.Precipitation precipitationAt(Level level, BlockPos pos) {
         Holder<Biome> biome = level.getBiome(pos);
         if (active()) {
             try {
-                return SereneSeasonsCompat.precipitationAt(level, biome, pos);
+                Biome.Precipitation precipitation = SereneSeasonsCompat.precipitationAt(level, biome, pos);
+                int subSeason = SereneSeasonsCompat.subSeason(level);
+                if (precipitation == Biome.Precipitation.RAIN && subSeason >= 0
+                        && !SeasonalWeather.rainsIn(subSeason, SereneSeasonsCompat.tropical(biome))) {
+                    return Biome.Precipitation.NONE;
+                }
+                return precipitation;
             } catch (LinkageError | RuntimeException e) {
                 disable(e);
             }

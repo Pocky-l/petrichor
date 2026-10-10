@@ -74,7 +74,7 @@ public final class Config {
     public static final ModConfigSpec.BooleanValue SERENE_SEASONS = BUILDER
             .comment("Serene Seasons integration, when Serene Seasons is installed: the season shapes the rain (drizzles and sun "
                     + "showers in spring, downpours and storms in summer, steady rain in autumn), and no rain is drawn or heard "
-                    + "where the season turns it into snow.")
+                    + "in winter outside the tropics or where the season turns it into snow.")
             .translation(key("sereneSeasons"))
             .define("sereneSeasons", true);
     public static final ModConfigSpec.DoubleValue SEASON_STRENGTH = BUILDER

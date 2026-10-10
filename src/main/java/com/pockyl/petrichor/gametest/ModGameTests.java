@@ -481,6 +481,11 @@ public final class ModGameTests {
         helper.assertTrue(earlySummer > spring.downpour() && earlySummer < summer.downpour(), "Early summer leans towards spring");
         helper.assertTrue(SeasonalWeather.profile(0, 1.0F).downpour() < spring.downpour(), "Early spring leans towards winter");
         helper.assertTrue(SeasonalWeather.profile(12, 1.0F).equals(SeasonalWeather.profile(0, 1.0F)), "The year wraps around");
+        for (int subSeason = 0; subSeason < SeasonalWeather.SUB_SEASONS; subSeason++) {
+            boolean inWinter = subSeason >= 9;
+            helper.assertTrue(SeasonalWeather.rainsIn(subSeason, false) != inWinter, "No rain in winter outside the tropics: " + subSeason);
+            helper.assertTrue(SeasonalWeather.rainsIn(subSeason, true), "The tropics rain in every season: " + subSeason);
+        }
         for (int sub = 0; sub < SeasonalWeather.SUB_SEASONS; sub++) {
             helper.assertTrue(SeasonalWeather.profile(sub, 0.0F).equals(SeasonalWeather.Profile.NEUTRAL), "Strength 0 is no season");
             SeasonalWeather.Profile strong = SeasonalWeather.profile(sub, 2.0F);

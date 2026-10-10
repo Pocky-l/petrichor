@@ -25,10 +25,15 @@ final class SereneSeasonsCompat {
         return state == null ? -1 : state.getSubSeason().ordinal();
     }
 
+    /** Whether the biome has a wet and a dry season instead of the four seasons. */
+    static boolean tropical(Holder<Biome> biome) {
+        return SeasonHelper.usesTropicalSeasons(biome);
+    }
+
     /** The id of the wet or dry season in a tropical biome, like {@code early_wet}, or {@code null} elsewhere. */
     static String tropicalSeasonId(Level level, Holder<Biome> biome) {
         ISeasonState state = state(level);
-        if (state == null || !SeasonHelper.usesTropicalSeasons(biome)) {
+        if (state == null || !tropical(biome)) {
             return null;
         }
         return state.getTropicalSeason().name().toLowerCase(Locale.ROOT);

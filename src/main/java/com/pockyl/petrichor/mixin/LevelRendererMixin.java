@@ -1,6 +1,8 @@
 package com.pockyl.petrichor.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
@@ -37,6 +39,16 @@ abstract class LevelRendererMixin {
         Biome.Precipitation precipitation = level != null && Seasons.active() ? Seasons.precipitationAt(level, pos)
                 : biome.getPrecipitationAt(pos);
         return precipitation == Biome.Precipitation.RAIN && WeatherClient.ownsRain() ? Biome.Precipitation.NONE : precipitation;
+    }
+
+    /**
+     * Vanilla splashes and rain sounds (only ticked while the mod does not own the rain) follow the season the same
+     * way, so where a winter takes the rain away vanilla does not bring it back.
+     */
+    @WrapOperation(method = "tickRain", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/level/biome/Biome;getPrecipitationAt(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/biome/Biome$Precipitation;"))
+    private Biome.Precipitation petrichor$seasonalSplashes(Biome biome, BlockPos pos, Operation<Biome.Precipitation> original) {
+        return level != null && Seasons.active() ? Seasons.precipitationAt(level, pos) : original.call(biome, pos);
     }
 
     @ModifyExpressionValue(method = "renderSky", at = @At(value = "INVOKE",

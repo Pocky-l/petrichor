@@ -33,9 +33,9 @@
   rain shafts on the horizon, lit up by lightning.
 - In snowy and dry land (deserts, badlands) the mod steps aside and the weather is vanilla.
 - **Seasons** with [Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) (optional): drizzles
-  and sun showers in spring, downpours and fierce thunderstorms in summer, long steady rain in autumn, light cold rain
-  in winter. Where the season turns the rain into snow, there is snow only - no rain drops, puddles, runoff or rain
-  sounds; in tropical biomes the rain follows the wet and dry seasons.
+  and sun showers in spring, downpours and fierce thunderstorms in summer, long steady rain in autumn and no rain at
+  all in winter: snow where it is cold enough, elsewhere only a grey sky - no rain drops, puddles, runoff or rain
+  sounds. In tropical biomes the rain follows the wet and dry seasons.
 - Rain never passes through walls: falling slanted in the wind, drops stop at the wall and the lee side of a building
   stays dry.
 - Splashes on the ground, rings on water, spray from leaves and mobs, mist over the canopy in heavy rain.
