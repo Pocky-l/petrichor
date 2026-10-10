@@ -79,16 +79,17 @@ client alone; on the server too, every player sees the same weather. Muffling is
 
 ## Compatibility
 
-- **Shader packs** ([Iris](https://modrinth.com/mod/iris), Oculus): the rain, splashes, drips and distant curtains are drawn through the pack's
-  weather program, so they take on the pack's look and lighting. Puddles become pixel-edged pools of real water that the
-  pack draws with its own water (reflections, waves). The mod's sky haze and the wet sheen of the ground step aside -
-  packs bring their own fog and wet surfaces. Sounds, lightning and the cinematic storm work as usual.
-- [Sodium](https://modrinth.com/mod/sodium) works.
-- [Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain) (optional): Petrichor draws the rain,
-  Particle Rain the snow, sandstorms, dust and fog, all blown by the same wind.
-- [Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) (optional): the rain follows the
-  season - drizzles and sun showers in spring, downpours and thunderstorms in summer, long steady rain in autumn, no
-  rain in winter, wet and dry seasons in the tropics.
+[![Iris](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/iris.png)](https://modrinth.com/mod/iris) ✅ **[Iris](https://modrinth.com/mod/iris)** (shader packs) - the rain, splashes, drips and distant curtains are drawn through the pack's weather program, so they take on the pack's look and lighting. Puddles become pools of real water drawn by the pack (reflections, waves); the pack brings its own fog and wet surfaces. Sounds, lightning and the cinematic storm work as usual.
+
+[![Oculus](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/oculus.png)](https://www.curseforge.com/minecraft/mc-mods/oculus) ✅ **[Oculus](https://www.curseforge.com/minecraft/mc-mods/oculus)** (shader packs on Forge) - the same as with Iris.
+
+[![Sodium](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/sodium.png)](https://modrinth.com/mod/sodium) ✅ **[Sodium](https://modrinth.com/mod/sodium)** - works.
+
+[![Particle Rain](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/particle-rain.png)](https://www.curseforge.com/minecraft/mc-mods/particle-rain) ✅ **[Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain)** (optional) - Petrichor draws the rain, Particle Rain the snow, sandstorms, dust and fog, all blown by the same wind.
+
+[![Serene Seasons](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/serene-seasons.png)](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) ✅ **[Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons)** (optional) - the rain follows the season: drizzles and sun showers in spring, downpours and thunderstorms in summer, long steady rain in autumn, no rain in winter, wet and dry seasons in the tropics.
+
+[![Sound Physics Remastered](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/sound-physics-remastered.png)](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered) ✅ **[Sound Physics Remastered](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered)** (optional) - the mod's own muffling behind walls steps aside automatically and lets Sound Physics do it.
 
 ## Requirements
 
