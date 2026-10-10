@@ -81,6 +81,7 @@
   "petrichor.configuration.hotSurfaces": "Steam on hot blocks",
   "petrichor.configuration.rainbows": "Rainbows",
   "petrichor.configuration.rainbowChance": "Rainbow after rain chance",
+  "petrichor.configuration.particleRain": "Particle Rain integration",
   "petrichor.configuration.puddles": "Puddles",
   "petrichor.configuration.puddlesEnabled": "Puddles and wet ground",
   "petrichor.configuration.puddleCoverage": "Puddle coverage",

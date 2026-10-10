@@ -87,6 +87,11 @@ public final class ClientConfig {
             .comment("Percent of rains ending in daylight that leave a rainbow for a while.")
             .translation(key("rainbowChance"))
             .defineInRange("rainbowChance", 50, 0, 100);
+    public static final ModConfigSpec.BooleanValue PARTICLE_RAIN = BUILDER
+            .comment("Particle Rain integration, when Particle Rain is installed: this mod draws the rain and Particle Rain the "
+                    + "snow, dust, fog and the rest of its particles, blown by the same wind. Off: Particle Rain draws its own rain and hides this mod's falling rain and rainy air.")
+            .translation(key("particleRain"))
+            .define("particleRain", true);
 
     static {
         BUILDER.pop();
