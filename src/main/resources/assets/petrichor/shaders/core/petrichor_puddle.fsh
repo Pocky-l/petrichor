@@ -38,31 +38,40 @@ vec2 noiseSlope(vec2 p, float period, float e) {
     return vec2(dx, dy) / (2.0 * e);
 }
 
-// Rings spreading from rain drops on still water: one drop per cell and cycle, a share of the cells active
-// depending on how hard it rains. Returns the slope of the water surface.
+// Rings spreading from rain drops on still water. One drop per half-block cell and cycle (a share of the cells active
+// depending on how hard it rains); each drop leaves a small dimple and a ring that widens to about half a block,
+// with a couple of crests behind its front, and fades as it grows. Returns the slope of the water surface.
+// uv is in blocks (wraps at 256, a whole number of cells).
 vec2 ripples(vec2 uv, float time, float amount) {
-    vec2 p = uv * 3.0;
-    vec2 cell = floor(p);
+    const float CELL = 0.5;
+    vec2 q = uv / CELL;
+    vec2 cell = floor(q);
     vec2 slope = vec2(0.0);
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
             vec2 c = cell + vec2(float(x), float(y));
-            vec2 key = mod(c, 768.0);
-            float period = 0.55 + petrichor_hash(key + 17.0) * 0.5;
+            vec2 key = mod(c, 512.0);
+            float period = 0.8 + petrichor_hash(key + 17.0) * 0.7;
             float t = time / period + petrichor_hash(key);
             float cycle = floor(t);
             float age = fract(t);
-            float falling = step(petrichor_hash(key + vec2(mod(cycle, 61.0) * 7.0, 3.0)), amount);
-            vec2 center = c + vec2(petrichor_hash(key + vec2(mod(cycle, 53.0) * 0.37, 5.0)),
+            if (petrichor_hash(key + vec2(mod(cycle, 61.0) * 7.0, 3.0)) > amount) {
+                continue;
+            }
+            vec2 center = c + 0.15 + 0.7 * vec2(petrichor_hash(key + vec2(mod(cycle, 53.0) * 0.37, 5.0)),
                     petrichor_hash(key + vec2(9.0, mod(cycle, 47.0) * 0.53)));
-            vec2 d = p - center;
+            vec2 d = (q - center) * CELL;
             float dist = length(d);
-            float radius = age * 1.1;
-            float x0 = (dist - radius) * 26.0;
-            // A couple of crests behind the front, fading as the ring grows.
-            float wave = sin(x0) * exp(-x0 * x0 * 0.08) * step(x0, 6.0);
+            // Height profile across the ring: a few crests under a narrow bell around the front.
+            float s0 = dist - age * 0.6;
+            const float WIDTH = 0.045;
+            const float K = 6.2832 / 0.05;
+            float bell = exp(-s0 * s0 / (WIDTH * WIDTH));
+            float dh = bell * (-2.0 * s0 / (WIDTH * WIDTH) * cos(K * s0) - K * sin(K * s0));
             float fade = (1.0 - age) * (1.0 - age);
-            slope += falling * wave * fade * d / (dist + 0.001);
+            // The dimple where the drop went in, only right after it hit.
+            float dimple = exp(-dist * dist / 0.0016) * (1.0 - smoothstep(0.0, 0.12, age)) * -2.0 * dist / 0.0016;
+            slope += (dh * 0.0045 * fade + dimple * 0.004) * d / (dist + 1e-4);
         }
     }
     return slope;
@@ -148,11 +157,14 @@ void main() {
     float margin = smoothstep(threshold - 0.16, threshold, field) * (1.0 - puddle);
     float wet = clamp(Wetness * 1.5, 0.0, 1.0) * open;
 
-    // Surface normal: rain rings on puddles, running water on slopes, fine grain on wet ground.
+    // Surface normal: still puddles with rain rings, running water on slopes, fine grain on wet ground. Rings
+    // smaller than a pixel only shimmer, so they fade out in the distance.
     vec2 slope = vec2(0.0);
     if (puddle > 0.0) {
-        slope += ripples(worldUv, PetrichorTime, RainAmount) * 0.35 * puddle;
-        slope += noiseSlope(worldUv * 2.0 + vec2(PetrichorTime * 0.15, 0.0), 512.0, 0.05) * 0.015 * puddle;
+        float near = 1.0 - smoothstep(12.0, 40.0, vertexDistance);
+        if (near > 0.0) {
+            slope += ripples(worldUv, PetrichorTime, RainAmount) * puddle * near;
+        }
     }
     float flowAmount = clamp(flow.y, 0.0, 1.0) * Flow * (1.0 - puddle);
     if (flowAmount > 0.01 && length(flow.xz) > 0.01) {
