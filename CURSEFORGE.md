@@ -86,6 +86,9 @@ client alone; on the server too, every player sees the same weather. Muffling is
 - [Sodium](https://modrinth.com/mod/sodium) works.
 - [Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain) (optional): Petrichor draws the rain,
   Particle Rain the snow, sandstorms, dust and fog, all blown by the same wind.
+- [Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) (optional): the rain follows the
+  season - drizzles and sun showers in spring, downpours and thunderstorms in summer, long steady rain in autumn, no
+  rain in winter, wet and dry seasons in the tropics.
 
 ## Requirements
 
