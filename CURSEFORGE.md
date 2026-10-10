@@ -84,6 +84,8 @@ client alone; on the server too, every player sees the same weather. Muffling is
   pack draws with its own water (reflections, waves). The mod's sky haze and the wet sheen of the ground step aside -
   packs bring their own fog and wet surfaces. Sounds, lightning and the cinematic storm work as usual.
 - [Sodium](https://modrinth.com/mod/sodium) works.
+- [Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain) (optional): Petrichor draws the rain,
+  Particle Rain the snow, sandstorms, dust and fog, all blown by the same wind.
 
 ## Requirements
 

@@ -57,6 +57,7 @@ import com.pockyl.petrichor.client.render.Puddles;
 import com.pockyl.petrichor.client.render.Rainbow;
 import com.pockyl.petrichor.client.render.SceneCopy;
 import com.pockyl.petrichor.client.sound.RainSounds;
+import com.pockyl.petrichor.compat.ParticleRain;
 
 /**
  * The client's weather systems and the game events that drive them.
@@ -74,6 +75,8 @@ public final class WeatherClient {
     /** How much of the sky the camera sees, 0 (deep indoors, underground) .. 1 (outdoors), eased. */
     private static float skyView = 1.0F;
     private static float previousSkyView = 1.0F;
+    /** Whether the weather was drawn in the vanilla weather pass this frame. */
+    private static boolean weatherDrawn;
 
     private WeatherClient() {
     }
@@ -189,6 +192,7 @@ public final class WeatherClient {
         }
         ticks++;
         ClientWeather.tick(level);
+        ParticleRain.refresh();
         Camera camera = minecraft.gameRenderer.getMainCamera();
         Vec3 cam = camera.getPosition();
         tickSkyView(level, camera);
@@ -254,6 +258,7 @@ public final class WeatherClient {
     /** Draws the rain and its effects in place of the vanilla rain. */
     public static boolean renderWeather(ClientLevel level, float partialTick, LightTexture lightTexture, double camX, double camY,
             double camZ) {
+        weatherDrawn = true;
         // With a shader pack the vanilla particle shader is used: Iris swaps it for the pack's weather program, while
         // the mod's own shaders would not be drawn at all.
         boolean shaderPack = ShaderPacks.inUse();
@@ -342,7 +347,26 @@ public final class WeatherClient {
                         event.getFrustum());
             }
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
+            if (!weatherDrawn && ParticleRain.active() && ownsRain()) {
+                renderSkippedWeather(level, event.getCamera(), partialTick);
+            }
+            weatherDrawn = false;
             LIGHTNING.renderBolts(event.getModelViewMatrix(), event.getCamera(), partialTick);
+        }
+    }
+
+    /**
+     * Particle Rain cancels the whole vanilla weather pass, and with it the rain this mod draws there. The weather is
+     * then drawn right after that pass instead: same render target, matrices and fog. A shader pack is put into its
+     * weather pass for it, which Iris only does around the vanilla call.
+     */
+    private static void renderSkippedWeather(ClientLevel level, Camera camera, float partialTick) {
+        Vec3 cam = camera.getPosition();
+        Object phase = ShaderPacks.beginWeatherPhase();
+        try {
+            renderWeather(level, partialTick, Minecraft.getInstance().gameRenderer.lightTexture(), cam.x, cam.y, cam.z);
+        } finally {
+            ShaderPacks.endWeatherPhase(phase);
         }
     }
 

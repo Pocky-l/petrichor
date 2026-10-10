@@ -81,6 +81,7 @@
   "petrichor.configuration.hotSurfaces": "Шипение и пар на раскалённых блоках",
   "petrichor.configuration.rainbows": "Радуга",
   "petrichor.configuration.rainbowChance": "Шанс радуги после дождя",
+  "petrichor.configuration.particleRain": "Интеграция с Particle Rain",
   "petrichor.configuration.puddles": "Лужи",
   "petrichor.configuration.puddlesEnabled": "Лужи и мокрая земля",
   "petrichor.configuration.puddleCoverage": "Площадь луж",

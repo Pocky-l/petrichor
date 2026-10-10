@@ -17,6 +17,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import com.pockyl.petrichor.Petrichor;
 import com.pockyl.petrichor.client.lightning.BoltShape;
+import com.pockyl.petrichor.compat.ParticleRain;
 import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
 import com.pockyl.petrichor.weather.RainSchedule;
@@ -545,6 +546,28 @@ public final class ModGameTests {
         } finally {
             server.getCommands().performPrefixedCommand(source, "season set " + SeasonalWeather.subSeasonId(before));
         }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void particleRainKeepsAllButTheRain(GameTestHelper helper) {
+        // Particle Rain's presets by their weather condition: only those bound to falling rain are taken over.
+        for (String weather : List.of("DURING_WEATHER", "ONLY_DURING_NORMAL_WEATHER", "ONLY_DURING_STORMY_WEATHER")) {
+            helper.assertTrue(ParticleRain.rainPreset(weather), weather + " presets are rain");
+        }
+        for (String weather : List.of("AFTER_WEATHER", "CLEAR", "ALWAYS", "SOMETHING_NEW")) {
+            helper.assertTrue(!ParticleRain.rainPreset(weather), weather + " presets are not rain");
+        }
+        // Nothing read from Particle Rain (it is a client mod): nothing is skipped.
+        helper.assertTrue(!ParticleRain.yieldsRain(List.of(Biome.Precipitation.RAIN), true), "Unknown presets spawn");
+
+        float[] wind = ParticleRain.alignWind(0.3F, 0.4F, -2.0F, 0.0F);
+        helper.assertTrue(Math.abs(wind[0] + 0.5F) < 1.0E-5F && Math.abs(wind[1]) < 1.0E-5F,
+                "Particle Rain's wind keeps its strength and takes the mod's direction");
+        float[] calm = ParticleRain.alignWind(0.3F, 0.4F, 0.0F, 0.0F);
+        helper.assertTrue(calm[0] == 0.3F && calm[1] == 0.4F, "Calm air leaves Particle Rain's wind alone");
+        float[] still = ParticleRain.alignWind(0.0F, 0.0F, 0.1F, 0.2F);
+        helper.assertTrue(still[0] == 0.0F && still[1] == 0.0F, "No wind in Particle Rain stays no wind");
         helper.succeed();
     }
 

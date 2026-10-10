@@ -102,7 +102,7 @@ Nothing to craft: the mod changes the weather.
 ## Configuration
 
 Client options (*Mods -> Petrichor: Rain & Storms -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
-splashes, fog, rainy atmosphere, steam on hot blocks, rainbows, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
+splashes, fog, rainy atmosphere, steam on hot blocks, rainbows, Particle Rain integration, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
 a strike, flash glare and afterimage, deafening close strikes) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type and of sun showers, how fast the rain
 changes, how fast the ground gets wet and dries, extra lightning strikes, and with Serene Seasons installed the
 "Serene Seasons integration" switch, the strength of the seasons and seasonal lightning.
@@ -118,6 +118,10 @@ Muffling is turned off automatically when
   pack draws with its own water (reflections, waves). The mod's sky haze and the wet sheen of the ground step aside -
   packs bring their own fog and wet surfaces. Sounds, lightning and the cinematic storm work as usual.
 - [Sodium](https://modrinth.com/mod/sodium) works.
+- [Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain) (optional): the two mods share the sky.
+  The rain - drops, splashes, puddles, sounds, the rainy air - comes from Petrichor; snow, sandstorms, dust, fog and the
+  rest of Particle Rain's particles from Particle Rain, blown by the same wind. Turn off "Particle Rain integration" to
+  let Particle Rain draw its own rain instead. Particle Rain's other settings are never changed.
 
 ## Installation
 
