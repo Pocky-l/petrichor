@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.LightTexture;
 import org.joml.Vector3f;
 
 import com.pockyl.petrichor.client.WeatherClient;
+import com.pockyl.petrichor.compat.ParticleRain;
 
 /**
  * Overworld sky effects with this mod's rain: replaces the vanilla rain drawing (vanilla keeps drawing the snow) and the
@@ -26,8 +27,9 @@ public final class PetrichorEffects extends DimensionSpecialEffects.OverworldEff
 
     @Override
     public boolean tickRain(ClientLevel level, int ticks, Camera camera) {
-        // Vanilla ticking is only splashes and sounds of rain (nothing for snow); the mod's replace them.
-        return WeatherClient.ownsRain();
+        // Vanilla ticking is only splashes and sounds of rain (nothing for snow); the mod's replace them. Particle Rain
+        // plays its snow and sandstorm sounds from there, so with it vanilla ticks on and LevelRendererMixin mutes the rain.
+        return WeatherClient.ownsRain() && !ParticleRain.active();
     }
 
     @Override
