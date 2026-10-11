@@ -11,7 +11,6 @@ public final class FxAtlas {
     public static final ResourceLocation TEXTURE = Petrichor.id("textures/fx/rain_fx.png");
     public static final int SPLASH = 0;
     public static final int SPLASH_FRAMES = 4;
-    public static final int RIPPLE = 4;
     public static final int DROPLET = 5;
     public static final int MIST = 6;
     public static final int GLOW = 7;
@@ -19,6 +18,8 @@ public final class FxAtlas {
     public static final int STREAK = 9;
     public static final int DRIP = 10;
     public static final int SPARK = 11;
+    /** Plain white: effects drawn as whole game pixels. */
+    public static final int PIXEL = 12;
     /** Half a texel of inset so linear filtering never samples the neighbouring tile. */
     private static final float INSET = 0.5F / 128.0F;
 

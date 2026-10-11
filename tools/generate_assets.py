@@ -125,9 +125,14 @@ def spark():
     return np.clip(blob(x, y, 0.5, 0.5, 0.07) * 1.5 + blob(x, y, 0.5, 0.5, 0.22) * 0.35, 0, 1)
 
 
+def solid():
+    """Plain white, for effects drawn as whole game pixels (the rings on water)."""
+    return np.ones((TILE * SS, TILE * SS))
+
+
 def build_atlas():
     tiles = [splash_frame(0), splash_frame(1), splash_frame(2), splash_frame(3), ripple(), droplet(), mist(), glow(),
-             flake(), streak(), drip(), spark()]
+             flake(), streak(), drip(), spark(), solid()]
     atlas = np.zeros((TILE * 4, TILE * 4), dtype=np.float64)
     for i, t in enumerate(tiles):
         tx, ty = i % 4, i // 4

@@ -1,6 +1,7 @@
 package com.pockyl.petrichor.client.fx;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import org.joml.Vector3f;
@@ -33,6 +34,10 @@ public final class RainFx {
     public static final byte LAND_HOT = 3;
 
     private static final float[] WATER_COLOR = {0.7F, 0.76F, 0.84F};
+    /** Texture pixels per block: rings on water are drawn in them. */
+    private static final int PX_PER_BLOCK = 16;
+    /** Offsets in blocks (x, z pairs) of the pixels of a one-pixel-wide ring of each radius in pixels. */
+    private static final float[][] RING_PIXELS = ringPixels(12);
     /** Steam is whiter than the water it came from. */
     private static final float[] STEAM_COLOR = {0.95F, 0.95F, 0.95F};
     private static final float DRIP_GRAVITY = 0.05F;
@@ -220,8 +225,15 @@ public final class RainFx {
         }
     }
 
+    /**
+     * Rings on water where a drop lands, in the game's pixels: the drop lands on the centre of a texture pixel (16 to a
+     * block) and its ring, one pixel wide, grows a whole pixel at a time like an animated sprite - the same rings that
+     * shader packs draw on water. A smooth ring sprite looked out of place among the pixel textures.
+     */
     public void ripple(double wx, double wy, double wz, float scale, int packedLight) {
-        add(RIPPLE, wx, wy, wz, 0.0F, 0.0F, 0.0F, scale * (0.7F + random.nextFloat() * 0.6F), 0.5F, 10 + random.nextInt(5), packedLight);
+        double sx = (Math.floor(wx * PX_PER_BLOCK) + 0.5) / PX_PER_BLOCK;
+        double sz = (Math.floor(wz * PX_PER_BLOCK) + 0.5) / PX_PER_BLOCK;
+        add(RIPPLE, sx, wy, sz, 0.0F, 0.0F, 0.0F, scale * (0.7F + random.nextFloat() * 0.6F), 0.3F, 12 + random.nextInt(6), packedLight);
     }
 
     /** A small white puff where a drop boiled away on a hot block. */
@@ -380,9 +392,16 @@ public final class RainFx {
                     upright(out, cx, cy, cz, 0.11F * size[i], 0.17F * size[i], FxAtlas.SPLASH + frame, a, light[i]);
                 }
                 case RIPPLE -> {
-                    float r = (0.06F + t * 0.38F) * size[i];
                     float a = alpha[i] * (1.0F - t) * (1.0F - t);
-                    flat(out, cx, cy + 0.012F, cz, r, FxAtlas.RIPPLE, a, light[i]);
+                    if (t < 0.12F) {
+                        // The splash: the pixel the drop hit.
+                        flat(out, cx, cy + 0.012F, cz, 0.5F / PX_PER_BLOCK, FxAtlas.PIXEL, alpha[i] * 1.4F, light[i]);
+                    }
+                    int radius = Math.min(RING_PIXELS.length - 1, 1 + (int) (t * 8.0F * Math.min(size[i], 1.3F)));
+                    float[] ring = RING_PIXELS[radius];
+                    for (int p = 0; p < ring.length; p += 2) {
+                        flat(out, cx + ring[p], cy + 0.012F, cz + ring[p + 1], 0.5F / PX_PER_BLOCK, FxAtlas.PIXEL, a, light[i]);
+                    }
                 }
                 case DROPLET -> billboard(glow, cx, cy, cz, 0.016F * size[i], FxAtlas.DROPLET, alpha[i] * 0.7F, light[i], left, up);
                 case SPARK -> billboard(glow, cx, cy, cz, 0.04F * size[i] * (1.0F - t * 0.7F), FxAtlas.SPARK, alpha[i] * (1.0F - t * t),
@@ -461,6 +480,23 @@ public final class RainFx {
         vertex(out, cx + rx, cy, cz + rz, u1, v1, a, packedLight);
         vertex(out, cx + rx, cy + height, cz + rz, u1, v0, a, packedLight);
         vertex(out, cx - rx, cy + height, cz - rz, u0, v0, a, packedLight);
+    }
+
+    private static float[][] ringPixels(int maxRadius) {
+        float[][] rings = new float[maxRadius + 1][];
+        for (int r = 0; r <= maxRadius; r++) {
+            FloatArrayList pixels = new FloatArrayList();
+            for (int x = -r - 1; x <= r + 1; x++) {
+                for (int z = -r - 1; z <= r + 1; z++) {
+                    if (Math.abs(Math.sqrt(x * x + z * z) - r) < 0.5) {
+                        pixels.add((float) x / PX_PER_BLOCK);
+                        pixels.add((float) z / PX_PER_BLOCK);
+                    }
+                }
+            }
+            rings[r] = pixels.toFloatArray();
+        }
+        return rings;
     }
 
     private static void flat(VertexConsumer out, float cx, float cy, float cz, float half, int tile, float a, int packedLight) {

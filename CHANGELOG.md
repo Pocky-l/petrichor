@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   apart from real water (for example to draw rain rings only on puddles instead of guessing from the shape of the
   ground, which sometimes took part of a waterfall for a puddle). Other packs keep drawing puddles as their water.
   For pack authors: puddle vertices carry `mc_Entity.y == 2` and the pack's water id in `mc_Entity.x`.
+- Rain rings on water are drawn in the game's pixels: each ring is one texture pixel wide and grows a pixel at a time
+  from the pixel the drop hit, like an animated sprite, instead of a smooth ring that stood out among the textures.
 
 ## [1.3.1] - 2026-10-11
 ### Changed
