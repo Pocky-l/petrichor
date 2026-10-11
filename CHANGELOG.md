@@ -4,7 +4,7 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.1] - Unreleased
+## [1.3.1] - 2026-10-11
 ### Changed
 - Puddles are still water now: the surface no longer drifts as if it were flowing. Rain drops hitting a puddle leave a
   small dimple and a ring that spreads to about half a block - clearly visible in the reflection, a few rings in a
