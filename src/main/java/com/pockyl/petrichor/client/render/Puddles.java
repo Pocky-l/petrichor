@@ -489,7 +489,7 @@ public final class Puddles implements AutoCloseable {
     /**
      * Puddles for a shader pack, which cannot run the puddle shader: water cells of a quarter block, cut out with the same
      * field, threshold and ragged edges the shader uses, tagged as water so the pack draws them with its own water
-     * (reflections, ripples). Built while the pack is active, so Iris lays the vertices out in its terrain format.
+     * (reflections, ripples), and marked as puddles for packs that draw puddles differently from real water. Built while the pack is active, so Iris lays the vertices out in its terrain format.
      */
     private void buildWater(ClientLevel level, ChunkPuddles chunk, int key) {
         chunk.waterKey = key;
@@ -541,7 +541,7 @@ public final class Puddles implements AutoCloseable {
                         continue;
                     }
                     if (!tagged) {
-                        ShaderPacks.beginFluid(builder, waterId, pos.getX(), pos.getY(), pos.getZ());
+                        ShaderPacks.beginPuddle(builder, waterId, pos.getX(), pos.getY(), pos.getZ());
                         tagged = true;
                     }
                     float x0 = lx + sx * step;

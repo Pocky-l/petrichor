@@ -4,6 +4,13 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - Unreleased
+### Changed
+- With a shader pack, puddles are now marked as puddles, not just as water, so a pack that supports it can tell them
+  apart from real water (for example to draw rain rings only on puddles instead of guessing from the shape of the
+  ground, which sometimes took part of a waterfall for a puddle). Other packs keep drawing puddles as their water.
+  For pack authors: puddle vertices carry `mc_Entity.y == 2` and the pack's water id in `mc_Entity.x`.
+
 ## [1.3.1] - 2026-10-11
 ### Changed
 - Puddles are still water now: the surface no longer drifts as if it were flowing. Rain drops hitting a puddle leave a

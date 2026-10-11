@@ -20,6 +20,12 @@ import java.lang.invoke.MethodType;
  * of chunk meshes, so the pack renders them with its own water.
  */
 public final class ShaderPacks {
+    /**
+     * Render type the puddles carry instead of Iris' fluid type 1, so a pack can tell them from real water: they arrive
+     * as {@code mc_Entity.y == 2} with the pack's water id in {@code mc_Entity.x}. Packs that ignore it draw them as water.
+     */
+    public static final byte PUDDLE_RENDER_TYPE = 2;
+
     private static final MethodHandle IN_USE;
     private static final MethodHandle BLOCK_IDS;
     private static final MethodHandle BEGIN_BLOCK;
@@ -126,14 +132,15 @@ public final class ShaderPacks {
 
     /**
      * Tags the vertices added to {@code builder} until {@link #endBlock} as the block with pack id {@code id} at the
-     * given position, as a fluid. The builder must have been created while the pack was active.
+     * given position, as a puddle ({@link #PUDDLE_RENDER_TYPE}). The builder must have been created while the pack was
+     * active.
      */
-    public static void beginFluid(BufferBuilder builder, int id, int x, int y, int z) {
+    public static void beginPuddle(BufferBuilder builder, int id, int x, int y, int z) {
         if (BEGIN_BLOCK == null || id < 0) {
             return;
         }
         try {
-            BEGIN_BLOCK.invokeExact((Object) builder, id, (byte) 1, (byte) 0, x, y, z);
+            BEGIN_BLOCK.invokeExact((Object) builder, id, PUDDLE_RENDER_TYPE, (byte) 0, x, y, z);
         } catch (Throwable ignored) {
             // Untagged vertices are drawn as a plain translucent surface.
         }
