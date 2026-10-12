@@ -160,8 +160,7 @@ public final class RainSounds {
         if (h > eye.y + 5.0 || h < eye.y - 5.0) {
             return;
         }
-        BlockPos top = new BlockPos(bx, h - 1, bz);
-        BlockState state = level.getBlockState(top);
+        BlockState state = columns.surface(bx, bz);
         if (HotSurface.of(state) != null && ClientConfig.HOT_SURFACES.get()) {
             sizzle(x, h - 0.1, z, eye.distanceToSqr(x, h - 0.1, z), 1.0F);
             return;

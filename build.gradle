@@ -28,6 +28,13 @@ repositories {
             includeGroup 'com.github.glitchfiend'
         }
     }
+    maven {
+        name = 'Sable'
+        url = 'https://maven.ryanhcode.dev/releases'
+        content {
+            includeGroup 'dev.ryanhcode.sable-companion'
+        }
+    }
 }
 
 neoForge {
@@ -86,6 +93,9 @@ dependencies {
     // Optional: only reached through com.pockyl.petrichor.compat.SereneSeasonsCompat when the mod is installed.
     compileOnly "com.github.glitchfiend:SereneSeasons-neoforge:${minecraft_version}-${serene_seasons_version}"
     localRuntime "com.github.glitchfiend:SereneSeasons-neoforge:${minecraft_version}-${serene_seasons_version}"
+    // Optional: Sable's companion API, only reached through com.pockyl.petrichor.compat.SableRoofs when Sable (which
+    // bundles it) is installed.
+    compileOnly "dev.ryanhcode.sable-companion:sable-companion-common-${minecraft_version}:${sable_companion_version}"
 }
 
 var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {

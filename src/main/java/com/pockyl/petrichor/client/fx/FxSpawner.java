@@ -22,6 +22,7 @@ import com.pockyl.petrichor.client.ClientWeather;
 import com.pockyl.petrichor.client.Columns;
 import com.pockyl.petrichor.client.render.Puddles;
 import com.pockyl.petrichor.client.sound.RainSounds;
+import com.pockyl.petrichor.compat.SubLevelRoofs;
 import com.pockyl.petrichor.weather.Noise;
 import com.pockyl.petrichor.world.HotSurface;
 import com.pockyl.petrichor.world.SurfaceKind;
@@ -55,7 +56,7 @@ public final class FxSpawner {
         if (rain > 0.0F && ClientConfig.SPLASHES.get()) {
             groundSplashes(level, columns, puddles, fx, cam, intensity);
             mist(level, columns, fx, cam, intensity);
-            entitySplashes(level, fx, cam, intensity);
+            entitySplashes(level, columns, fx, cam, intensity);
         }
         if (rain > 0.0F && ClientConfig.HOT_SURFACES.get()) {
             lavaSteam(level, columns, fx, cam, rain, intensity);
@@ -95,7 +96,22 @@ public final class FxSpawner {
             if (Math.abs(h - cam.y) > 20) {
                 continue;
             }
+            SubLevelRoofs.Roof roof = columns.roof(bx, bz);
+            if (roof != null) {
+                landOnStructure(fx, roof, x, z, scale, columns.light(bx, bz), random.nextInt(3));
+                continue;
+            }
             landOnTop(level, puddles, fx, cam, x, z, bx, h, bz, scale, columns.light(bx, bz), random.nextInt(3));
+        }
+    }
+
+    /** A drop on a moving structure (Sable): a plain splash, its decks hold no puddles. */
+    private void landOnStructure(RainFx fx, SubLevelRoofs.Roof roof, double x, double z, float scale, int light, int droplets) {
+        SurfaceKind.Shape shape = SurfaceKind.classify(roof.state());
+        switch (shape.kind()) {
+            case WATER -> fx.ripple(x, roof.top(), z, scale, light);
+            case LEAVES -> shatterOnLeaves(fx, x, roof.top() + 0.02, z, light);
+            default -> fx.splash(x, roof.top(), z, scale, RainFx.LAND_GROUND, light, droplets);
         }
     }
 
@@ -214,7 +230,7 @@ public final class FxSpawner {
         }
     }
 
-    private void entitySplashes(ClientLevel level, RainFx fx, Vec3 cam, float intensity) {
+    private void entitySplashes(ClientLevel level, Columns columns, RainFx fx, Vec3 cam, float intensity) {
         Minecraft minecraft = Minecraft.getInstance();
         boolean firstPerson = minecraft.options.getCameraType().isFirstPerson();
         AABB area = new AABB(cam.x - 12, cam.y - 8, cam.z - 12, cam.x + 12, cam.y + 8, cam.z + 12);
@@ -229,7 +245,7 @@ public final class FxSpawner {
             }
             AABB box = entity.getBoundingBox();
             pos.set(entity.getX(), box.maxY, entity.getZ());
-            if (!level.isRainingAt(pos)) {
+            if (!level.isRainingAt(pos) || columns.roof(pos.getX(), pos.getZ()) != null && columns.height(pos.getX(), pos.getZ()) > box.maxY) {
                 continue;
             }
             double x = Mth.lerp(random.nextDouble(), box.minX, box.maxX);

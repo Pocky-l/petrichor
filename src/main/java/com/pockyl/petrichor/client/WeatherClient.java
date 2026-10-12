@@ -196,7 +196,7 @@ public final class WeatherClient {
         Camera camera = minecraft.gameRenderer.getMainCamera();
         Vec3 cam = camera.getPosition();
         tickSkyView(level, camera);
-        COLUMNS.begin(level, ticks);
+        COLUMNS.begin(level, ticks, cam.x, cam.z);
         FX.setCapacity(ClientConfig.quality().maxEffects);
         FX.recenter(cam.x, cam.z);
         FX.tick(ClientWeather.windX(), ClientWeather.windZ(), cam.x, cam.y, cam.z);
@@ -271,7 +271,7 @@ public final class WeatherClient {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vector3f left = camera.getLeftVector();
         Vector3f up = camera.getUpVector();
-        COLUMNS.begin(level, ticks);
+        COLUMNS.begin(level, ticks, camX, camZ);
         AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(FxAtlas.TEXTURE);
         texture.setFilter(true, false);
 

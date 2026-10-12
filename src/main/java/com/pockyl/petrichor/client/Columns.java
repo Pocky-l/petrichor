@@ -8,15 +8,19 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import com.pockyl.petrichor.compat.Seasons;
+import com.pockyl.petrichor.compat.SubLevelRoofs;
 import com.pockyl.petrichor.world.DropPath;
 import com.pockyl.petrichor.world.SurfaceKind;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 
 /**
  * Per-column facts the rain needs thousands of times a frame - where the rain stops (block and exact height), whether
  * it falls as rain or snow, and the light there - cached in a world-anchored ring of 128x128 columns. Entries expire
- * after a couple of seconds (spread out, so they are not all recomputed in the same tick).
+ * after a couple of seconds (spread out, so they are not all recomputed in the same tick). Roofs of moving structures
+ * (Sable) are laid over the cached columns every tick.
  */
 public final class Columns implements DropPath.Tops {
     public static final byte NONE = 0;
@@ -31,9 +35,11 @@ public final class Columns implements DropPath.Tops {
     private final int[] stamps = new int[SIZE * SIZE];
     private final int[] heights = new int[SIZE * SIZE];
     private final float[] tops = new float[SIZE * SIZE];
+    private final BlockState[] surfaces = new BlockState[SIZE * SIZE];
     private final byte[] precipitation = new byte[SIZE * SIZE];
     private final int[] lights = new int[SIZE * SIZE];
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+    private final SubLevelRoofs roofs = new SubLevelRoofs();
     private ClientLevel level;
     private int now;
 
@@ -41,12 +47,13 @@ public final class Columns implements DropPath.Tops {
         Arrays.fill(keys, Long.MIN_VALUE);
     }
 
-    public void begin(ClientLevel level, int tick) {
+    public void begin(ClientLevel level, int tick, double camX, double camZ) {
         if (this.level != level) {
             this.level = level;
             Arrays.fill(keys, Long.MIN_VALUE);
         }
         now = tick;
+        roofs.update(level, camX, camZ, SIZE / 2, tick);
     }
 
     private int slot(int x, int z) {
@@ -65,6 +72,7 @@ public final class Columns implements DropPath.Tops {
         heights[s] = h;
         pos.set(x, h - 1, z);
         BlockState state = level.getBlockState(pos);
+        surfaces[s] = state;
         if (state.getFluidState().is(FluidTags.WATER)) {
             tops[s] = h - 1 + state.getFluidState().getHeight(level, pos);
         } else {
@@ -81,13 +89,28 @@ public final class Columns implements DropPath.Tops {
 
     /** The first y the rain cannot fall into. */
     public int height(int x, int z) {
-        return heights[slot(x, z)];
+        SubLevelRoofs.Roof roof = roof(x, z);
+        return roof != null ? roof.height() : heights[slot(x, z)];
     }
 
     /** Exact height where the rain meets the column's surface: the top of a slab, of the water, of the block. */
     @Override
     public float top(int x, int z) {
-        return tops[slot(x, z)];
+        SubLevelRoofs.Roof roof = roof(x, z);
+        return roof != null ? roof.top() : tops[slot(x, z)];
+    }
+
+    /** The block the rain lands on: the one under {@link #height}, or a moving structure's. */
+    public BlockState surface(int x, int z) {
+        SubLevelRoofs.Roof roof = roof(x, z);
+        return roof != null ? roof.state() : surfaces[slot(x, z)];
+    }
+
+    /** The roof of a moving structure (Sable) when the rain lands on one in this column, otherwise null. */
+    @Nullable
+    public SubLevelRoofs.Roof roof(int x, int z) {
+        SubLevelRoofs.Roof roof = roofs.at(x, z);
+        return roof != null && roof.top() > tops[slot(x, z)] ? roof : null;
     }
 
     public byte precipitation(int x, int z) {

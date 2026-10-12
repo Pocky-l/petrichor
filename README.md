@@ -78,6 +78,8 @@ Muffling is turned off automatically when
 
 [![Sound Physics Remastered](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/sound-physics-remastered.png)](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered) ✅ **[Sound Physics Remastered](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered)** (optional) - the mod's own muffling steps aside for Sound Physics.
 
+[![Sable](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/sable.png)](https://www.curseforge.com/minecraft/mc-mods/sable) ✅ **[Sable](https://www.curseforge.com/minecraft/mc-mods/sable)** (optional) - rain and splashes land on the roofs of flying houses and airships and drums on them like on a building's roof.
+
 ## Installation
 
 1. Install [NeoForge](https://neoforged.net) for Minecraft 1.21.1.

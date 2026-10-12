@@ -4,6 +4,12 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-10-12
+### Fixed
+- Compatibility with [Sable](https://www.curseforge.com/minecraft/mc-mods/sable): rain no longer falls inside flying houses, airships and other moving
+  structures. Drops and splashes land on their roofs and decks, and the rain drums on a structure's roof the way it does
+  on a building's.
+
 ## [1.3.2] - 2026-10-12
 ### Changed
 - With a shader pack, puddles are now marked as puddles, not just as water, so a pack that supports it can tell them
