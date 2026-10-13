@@ -4,7 +4,7 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - Unreleased
+## [1.4.0] - 2026-10-13
 ### Added
 - Rain fills cauldrons as fast as it falls: a drizzle fills them slower than vanilla rain, normal rain as in vanilla,
   a downpour about two and a half times and a thunderstorm three and a half times faster. Needs the mod on the server.
