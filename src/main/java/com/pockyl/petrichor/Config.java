@@ -43,6 +43,11 @@ public final class Config {
             .comment("How fast rain soaks the ground and fills puddles.")
             .translation(key("fillSpeed"))
             .defineInRange("fillSpeed", 1.0, 0.1, 10.0);
+    public static final ModConfigSpec.DoubleValue CAULDRON_FILLING = BUILDER
+            .comment("How fast rain fills cauldrons, as a multiple of vanilla at normal rain: a drizzle fills them slower, a "
+                    + "downpour or a thunderstorm faster. 0 = vanilla speed in every rain.")
+            .translation(key("cauldronFilling"))
+            .defineInRange("cauldronFilling", 1.0, 0.0, 10.0);
     public static final ModConfigSpec.DoubleValue DRYING_SPEED = BUILDER
             .comment("How fast the ground dries and puddles shrink after rain.")
             .translation(key("dryingSpeed"))

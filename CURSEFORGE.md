@@ -15,7 +15,8 @@ player sees the same weather
 - 🌫️ **Rainy air** - haze that settles in valleys and fades ridges in layers, drifting showers, a cloud deck with rain
   shafts on the horizon; rain never passes through walls.
 - 💧 **Water on the ground** - puddles in hollows that reflect the world and ripple with rings, wet shining ground,
-  water running off edges and dripping from roofs, cliffs and leaves after the rain.
+  water running off edges and dripping from roofs, cliffs and leaves after the rain; cauldrons fill as fast as it
+  rains.
 - 🔥 **Splashes everywhere** - rings on water, spray from leaves and mobs, drops hissing into steam on lava, magma and
   campfires.
 - 🔊 **A soundscape in the world** - rain heard from where it falls, every surface with its own recordings, roofs that

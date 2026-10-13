@@ -4,6 +4,12 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - Unreleased
+### Added
+- Rain fills cauldrons as fast as it falls: a drizzle fills them slower than vanilla rain, normal rain as in vanilla,
+  a downpour about two and a half times and a thunderstorm three and a half times faster. Needs the mod on the server.
+- New option `weather.cauldronFilling` (1 by default) to make it faster or slower; 0 keeps the vanilla speed.
+
 ## [1.3.3] - 2026-10-12
 ### Fixed
 - Compatibility with [Sable](https://www.curseforge.com/minecraft/mc-mods/sable): rain no longer falls inside flying houses, airships and other moving

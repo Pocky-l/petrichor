@@ -60,6 +60,7 @@
   "petrichor.configuration.transitionMinutes": "Minutes per change of rain",
   "petrichor.configuration.sunShowerChance": "Sun shower chance",
   "petrichor.configuration.fillSpeed": "Soaking speed",
+  "petrichor.configuration.cauldronFilling": "Cauldron filling",
   "petrichor.configuration.dryingSpeed": "Drying speed",
   "petrichor.configuration.lightning": "Lightning",
   "petrichor.configuration.extraStrikesPerMinute": "Extra strikes per minute",

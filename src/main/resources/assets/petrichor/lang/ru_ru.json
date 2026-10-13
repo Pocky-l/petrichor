@@ -60,6 +60,7 @@
   "petrichor.configuration.transitionMinutes": "Минут на смену силы дождя",
   "petrichor.configuration.sunShowerChance": "Шанс грибного дождя",
   "petrichor.configuration.fillSpeed": "Скорость намокания",
+  "petrichor.configuration.cauldronFilling": "Наполнение котлов",
   "petrichor.configuration.dryingSpeed": "Скорость высыхания",
   "petrichor.configuration.lightning": "Молнии",
   "petrichor.configuration.extraStrikesPerMinute": "Доп. ударов в минуту",

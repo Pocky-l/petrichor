@@ -28,6 +28,7 @@ import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.DropPath;
 import com.pockyl.petrichor.world.HotSurface;
 import com.pockyl.petrichor.world.PuddleField;
+import com.pockyl.petrichor.world.RainCauldrons;
 import com.pockyl.petrichor.world.RunoffSolver;
 import com.pockyl.petrichor.world.SoundMaterial;
 import com.pockyl.petrichor.world.StrikeTargeting;
@@ -109,6 +110,19 @@ public final class ModGameTests {
     private static void assertShare(GameTestHelper helper, int count, int total, double expected, String name) {
         double share = (double) count / total;
         helper.assertTrue(Math.abs(share - expected) < 0.03, "Share of " + name + " was " + share + ", expected about " + expected);
+    }
+
+    @GameTest(template = "empty")
+    public static void rainFillsCauldronsByItsStrength(GameTestHelper helper) {
+        float vanilla = RainCauldrons.VANILLA_CHANCE;
+        float drizzle = RainCauldrons.chance(RainType.DRIZZLE.level(), 1.0F);
+        float rain = RainCauldrons.chance(RainType.RAIN.level(), 1.0F);
+        float downpour = RainCauldrons.chance(RainType.DOWNPOUR.level(), 1.0F);
+        helper.assertTrue(drizzle < vanilla, "a drizzle fills cauldrons slower than vanilla rain");
+        helper.assertTrue(Math.abs(rain - vanilla) < 1.0E-6, "normal rain fills them like vanilla");
+        helper.assertTrue(downpour > 2 * vanilla, "a downpour fills them much faster");
+        helper.assertTrue(RainCauldrons.chance(RainType.DOWNPOUR.level(), 0.0F) == vanilla, "0 keeps the vanilla speed");
+        helper.succeed();
     }
 
     @GameTest(template = "empty")
