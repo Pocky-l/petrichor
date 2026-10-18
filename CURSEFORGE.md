@@ -65,7 +65,7 @@ Made by **Pocky** · [source code](https://github.com/Pocky-l/petrichor) · soun
 
 [![Hoarfrost: Snow & Blizzards](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/more-mods/hoarfrost.png)](https://www.curseforge.com/minecraft/mc-mods/hoarfrost-snow-blizzards) **[Hoarfrost: Snow & Blizzards](https://www.curseforge.com/minecraft/mc-mods/hoarfrost-snow-blizzards)** - seven kinds of snowfall, a living wind and soft snow on the land
 
-[![Rustling Leaves](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/more-mods/rustling_leaves.png)](https://www.curseforge.com/minecraft/mc-mods/rustling-leaves) **[Rustling Leaves](https://www.curseforge.com/minecraft/mc-mods/rustling-leaves)** - falling leaves and leaf piles you can wade through, rake and blow away
+[![Rustling Leaves](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/more-mods/rustling_leaves.png)](https://www.curseforge.com/minecraft/mc-mods/rustling-leaves) **[Rustling Leaves](https://www.curseforge.com/minecraft/mc-mods/rustling-leaves)** - falling leaves and leaf piles you can wade through and rake, client-side
 
 **💡 Light**
 
