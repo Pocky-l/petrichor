@@ -53,8 +53,11 @@ import com.pockyl.petrichor.client.render.Cinematics;
 import com.pockyl.petrichor.client.render.PetrichorEffects;
 import com.pockyl.petrichor.client.render.PetrichorShaders;
 import com.pockyl.petrichor.client.render.Puddles;
+import com.pockyl.petrichor.client.render.Rainbow;
 import com.pockyl.petrichor.client.render.SceneCopy;
 import com.pockyl.petrichor.client.sound.RainSounds;
+import com.pockyl.petrichor.compat.ParticleRain;
+import com.pockyl.petrichor.weather.MistModel;
 
 /**
  * The client's weather systems and the game events that drive them.
@@ -73,6 +76,8 @@ public final class WeatherClient {
     /** How much of the sky the camera sees, 0 (deep indoors, underground) .. 1 (outdoors), eased. */
     private static float skyView = 1.0F;
     private static float previousSkyView = 1.0F;
+    /** Whether the weather was drawn in the vanilla weather pass this frame. */
+    private static boolean weatherDrawn;
 
     private WeatherClient() {
     }
@@ -142,12 +147,25 @@ public final class WeatherClient {
         // Sky light drops by one per block into a cave: the sky's light fades in over the last 14 blocks to the exit.
         float target = Mth.clamp((light - 1) / 14.0F, 0.0F, 1.0F);
         target *= target;
+        // Leaves dim the sky light too, but under the trees one is still out in the rain.
+        if (Mist.outdoors()) {
+            target = 1.0F;
+        }
         skyView += (target - skyView) * 0.15F;
     }
 
-    /** How overcast the light is: follows the rain, heavier rain is gloomier. */
+    /** How overcast the light is: follows the rain, heavier rain is gloomier; a sun shower is not overcast. */
     public static float gloom() {
-        return ClientWeather.rain() * Math.min(1.0F, 0.45F + ClientWeather.density * 0.25F) * (float) Math.min(1.0, ClientConfig.FOG.get());
+        return ClientWeather.rain() * Math.min(1.0F, 0.45F + ClientWeather.density * 0.25F) * (float) Math.min(1.0, ClientConfig.FOG.get())
+                * ClientWeather.shade();
+    }
+
+    /**
+     * Vanilla's rain level where it darkens the sky, clouds, fog and daylight and hides the sun: the sun shines
+     * through a sun shower.
+     */
+    public static float rainShade(float rain) {
+        return ourSky(Minecraft.getInstance().level) ? rain * ClientWeather.shade() : rain;
     }
 
     /** Debug description of the puddle data at a column. */
@@ -182,10 +200,12 @@ public final class WeatherClient {
         }
         ticks++;
         ClientWeather.tick(level);
+        ParticleRain.refresh();
         Camera camera = minecraft.gameRenderer.getMainCamera();
         Vec3 cam = camera.getPosition();
+        Mist.tick(level, cam, ticks);
         tickSkyView(level, camera);
-        COLUMNS.begin(level, ticks);
+        COLUMNS.begin(level, ticks, cam.x, cam.z);
         FX.setCapacity(ClientConfig.quality().maxEffects);
         FX.recenter(cam.x, cam.z);
         FX.tick(ClientWeather.windX(), ClientWeather.windZ(), cam.x, cam.y, cam.z);
@@ -199,6 +219,7 @@ public final class WeatherClient {
             RainSounds.stopAll();
         }
         LIGHTNING.tick(level, cam, FX, ClientWeather.thunder(), skyView);
+        Rainbow.tick(level);
         Cinematics.tick();
         if (ClientConfig.BOLTS.get()) {
             // Vanilla bolts set a full-white sky flash; the graded flash of the lightning system replaces it.
@@ -229,9 +250,11 @@ public final class WeatherClient {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientWeather.reset();
+        Mist.reset();
         FX.clear();
         LIGHTNING.clear();
         Cinematics.clear();
+        Rainbow.clear();
         RainSounds.stopAll();
         if (puddles != null) {
             puddles.clear();
@@ -245,6 +268,7 @@ public final class WeatherClient {
     /** Draws the rain and its effects in place of the vanilla rain. */
     public static boolean renderWeather(ClientLevel level, float partialTick, LightTexture lightTexture, double camX, double camY,
             double camZ) {
+        weatherDrawn = true;
         // With a shader pack the vanilla particle shader is used: Oculus swaps it for the pack's weather program, while
         // the mod's own shaders would not be drawn at all.
         boolean shaderPack = ShaderPacks.inUse();
@@ -257,7 +281,7 @@ public final class WeatherClient {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vector3f left = camera.getLeftVector();
         Vector3f up = camera.getUpVector();
-        COLUMNS.begin(level, ticks);
+        COLUMNS.begin(level, ticks, camX, camZ);
         AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(FxAtlas.TEXTURE);
         texture.setFilter(true, false);
 
@@ -314,6 +338,7 @@ public final class WeatherClient {
         RenderLevelStageEvent.Stage stage = event.getStage();
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY) {
             SceneCopy.newFrame();
+            Rainbow.render(level, modelView, partialTick);
             LIGHTNING.renderSky(modelView, event.getCamera(), partialTick);
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
             if (puddles != null) {
@@ -324,7 +349,26 @@ public final class WeatherClient {
                 puddles.renderWater(modelView, event.getProjectionMatrix(), event.getCamera().getPosition(), event.getFrustum());
             }
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
+            if (!weatherDrawn && ParticleRain.active() && ownsRain()) {
+                renderSkippedWeather(level, event.getCamera(), partialTick);
+            }
+            weatherDrawn = false;
             LIGHTNING.renderBolts(modelView, event.getCamera(), partialTick);
+        }
+    }
+
+    /**
+     * Particle Rain cancels the whole vanilla weather pass, and with it the rain this mod draws there. The weather is
+     * then drawn right after that pass instead: same render target, matrices and fog. A shader pack is put into its
+     * weather pass for it, which Iris only does around the vanilla call.
+     */
+    private static void renderSkippedWeather(ClientLevel level, Camera camera, float partialTick) {
+        Vec3 cam = camera.getPosition();
+        Object phase = ShaderPacks.beginWeatherPhase();
+        try {
+            renderWeather(level, partialTick, Minecraft.getInstance().gameRenderer.lightTexture(), cam.x, cam.y, cam.z);
+        } finally {
+            ShaderPacks.endWeatherPhase(phase);
         }
     }
 
@@ -349,19 +393,31 @@ public final class WeatherClient {
         if (!ourSky(level) || event.getMode() != FogRenderer.FogMode.FOG_TERRAIN || event.getType() != FogType.NONE) {
             return;
         }
-        float rain = ClientWeather.rain() * skyView((float) event.getPartialTick());
+        float view = skyView((float) event.getPartialTick());
+        float rain = ClientWeather.rain() * view;
         double strength = ClientConfig.FOG.get();
+        float mist = Mist.density() * view;
         // The atmosphere draws the haze itself; the vanilla fog only hides the edge of the world as usual.
-        if (rain <= 0.0F || strength <= 0.0 || Atmosphere.active()) {
+        if ((rain <= 0.0F || strength <= 0.0) && mist <= 1.0E-4F || Atmosphere.active()) {
             return;
         }
         float far = event.getFarPlaneDistance();
-        // Without the atmosphere a plain fog stands in for the haze, about half as far as one can see.
+        // Without the atmosphere a plain fog stands in for the haze, about half as far as one can see; the mist
+        // closes in further, to where it hides most things.
         float target = ClientWeather.visibility * 0.5F;
-        if (target >= far) {
+        float k = strength <= 0.0 ? 0.0F
+                : (float) Math.min(1.0, rain * Math.sqrt(Math.max(ClientWeather.intensity(), 0.0F)) * strength) * ClientWeather.shade();
+        if (mist > 1.0E-4F) {
+            float mistTarget = 2.5F / mist;
+            float mistK = Math.min(1.0F, mist / MistModel.DENSITY);
+            if (k <= 0.0F || mistTarget < target) {
+                target = mistTarget;
+                k = Math.max(k, mistK);
+            }
+        }
+        if (target >= far || k <= 0.0F) {
             return;
         }
-        float k = (float) Math.min(1.0, rain * Math.sqrt(Math.max(ClientWeather.intensity(), 0.0F)) * strength);
         float newFar = far + (target - far) * k;
         float near = event.getNearPlaneDistance();
         // The haze starts a little in front of the camera instead of a clear zone with a wall of fog.
@@ -384,7 +440,7 @@ public final class WeatherClient {
         if (rain > 0.0F) {
             // Rain washes the colour out towards a deep, neutral grey.
             float luma = r * 0.3F + g * 0.59F + b * 0.11F;
-            float k = rain * 0.55F;
+            float k = rain * 0.55F * ClientWeather.shade();
             r += (luma * 0.84F - r) * k;
             g += (luma * 0.9F - g) * k;
             b += (luma * 0.97F - b) * k;
@@ -411,9 +467,11 @@ public final class WeatherClient {
             return;
         }
         event.getRight().add("");
-        event.getRight().add(String.format("Petrichor: %s%s, rain %.2f, intensity %.2f, wetness %.2f",
-                ClientWeather.type().id(), ClientWeather.syncedWithServer() ? " (server)" : "", ClientWeather.rain(),
-                ClientWeather.intensity(), ClientWeather.wetness()));
+        event.getRight().add(String.format("Petrichor: %s (level %.2f)%s, rain %.2f, intensity %.2f, wetness %.2f",
+                ClientWeather.type().id(), ClientWeather.level(), ClientWeather.syncedWithServer() ? " (server)" : "",
+                ClientWeather.rain(), ClientWeather.intensity(), ClientWeather.wetness()));
+        event.getRight().add(Mist.describe());
+        event.getRight().add(String.format("Sunshine %.2f, rainbow %.2f", ClientWeather.sunshine(), Rainbow.strength()));
         event.getRight().add(String.format("Drops %d, effects %d, puddle chunks %d (%d quads), strikes %d",
                 PRECIPITATION.lastDrops(), FX.count(), puddles == null ? 0 : puddles.chunkCount(),
                 puddles == null ? 0 : puddles.lastQuads(), LIGHTNING.strikeCount()));

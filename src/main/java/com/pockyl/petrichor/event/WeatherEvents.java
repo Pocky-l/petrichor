@@ -1,5 +1,6 @@
 package com.pockyl.petrichor.event;
 
+import net.minecraft.util.Mth;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,6 +17,7 @@ import net.minecraftforge.fml.common.Mod;
 import com.pockyl.petrichor.Config;
 import com.pockyl.petrichor.Petrichor;
 import com.pockyl.petrichor.network.ModNetwork;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
 import com.pockyl.petrichor.weather.RainType;
 import com.pockyl.petrichor.weather.StormData;
@@ -51,7 +53,7 @@ public final class WeatherEvents {
             sync(level, data, type);
         }
         if (level.isThundering()) {
-            extraStrikes(level);
+            extraStrikes(level, data.rainLevel());
         }
     }
 
@@ -74,7 +76,7 @@ public final class WeatherEvents {
     public static void sendTo(Player player) {
         if (player instanceof ServerPlayer serverPlayer && serverPlayer.level() instanceof ServerLevel level) {
             if (!StormData.hasWeather(level)) {
-                ModNetwork.sendToPlayer(serverPlayer, new WeatherSyncPayload(-1, 0.0F));
+                ModNetwork.sendToPlayer(serverPlayer, new WeatherSyncPayload(-1, 0.0F, false, 0.0F));
                 return;
             }
             StormData data = StormData.get(level);
@@ -94,15 +96,17 @@ public final class WeatherEvents {
     }
 
     private static WeatherSyncPayload payload(ServerLevel level, StormData data, RainType type) {
-        return new WeatherSyncPayload(type == null ? -1 : type.ordinal(), data.wetness());
+        return new WeatherSyncPayload(type == null ? -1 : type.ordinal(), data.rainLevel(), data.sunShower(level), data.wetness());
     }
 
-    private static void extraStrikes(ServerLevel level) {
-        double perMinute = Config.EXTRA_STRIKES.get();
+    private static void extraStrikes(ServerLevel level, float rainLevel) {
+        double perMinute = Config.EXTRA_STRIKES.get() * Seasons.strikeMultiplier(level);
         if (perMinute <= 0.0) {
             return;
         }
-        double chance = perMinute / 1200.0 * level.getThunderLevel(1.0F);
+        // The extra strikes come as the storm builds up from a downpour.
+        float storm = Mth.clamp(rainLevel - RainType.DOWNPOUR.level(), 0.0F, 1.0F);
+        double chance = perMinute / 1200.0 * level.getThunderLevel(1.0F) * storm;
         for (ServerPlayer player : level.players()) {
             if (player.isSpectator() || level.random.nextDouble() >= chance) {
                 continue;

@@ -1,6 +1,11 @@
 package com.pockyl.petrichor;
 
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeConfigSpec;
+
+import com.pockyl.petrichor.compat.Seasons;
+import com.pockyl.petrichor.weather.RainSchedule;
+import com.pockyl.petrichor.weather.SeasonalWeather;
 
 /**
  * Weather rules. On a server with this mod the server's values are used for everybody; a client on a server without
@@ -25,10 +30,24 @@ public final class Config {
             .comment("Relative chance of a downpour. Thunderstorms follow vanilla thunder.")
             .translation(key("downpourWeight"))
             .defineInRange("downpourWeight", 25, 0, 100);
+    public static final ForgeConfigSpec.DoubleValue TRANSITION_MINUTES = BUILDER
+            .comment("Minutes for the rain to change by one step (drizzle -> rain -> downpour -> thunderstorm). Rain starts as a "
+                    + "drizzle, builds up and eases off again before it stops.")
+            .translation(key("transitionMinutes"))
+            .defineInRange("transitionMinutes", 0.5, 0.05, 10.0);
+    public static final ForgeConfigSpec.IntValue SUN_SHOWER_CHANCE = BUILDER
+            .comment("Percent of light rains in daytime that are sun showers: the sun keeps shining through the rain.")
+            .translation(key("sunShowerChance"))
+            .defineInRange("sunShowerChance", 20, 0, 100);
     public static final ForgeConfigSpec.DoubleValue FILL_SPEED = BUILDER
             .comment("How fast rain soaks the ground and fills puddles.")
             .translation(key("fillSpeed"))
             .defineInRange("fillSpeed", 1.0, 0.1, 10.0);
+    public static final ForgeConfigSpec.DoubleValue CAULDRON_FILLING = BUILDER
+            .comment("How fast rain fills cauldrons, as a multiple of vanilla at normal rain: a drizzle fills them slower, a "
+                    + "downpour or a thunderstorm faster. 0 = vanilla speed in every rain.")
+            .translation(key("cauldronFilling"))
+            .defineInRange("cauldronFilling", 1.0, 0.0, 10.0);
     public static final ForgeConfigSpec.DoubleValue DRYING_SPEED = BUILDER
             .comment("How fast the ground dries and puddles shrink after rain.")
             .translation(key("dryingSpeed"))
@@ -54,11 +73,52 @@ public final class Config {
 
     static {
         BUILDER.pop();
+        BUILDER.translation(key("seasons")).push("seasons");
+    }
+
+    public static final ForgeConfigSpec.BooleanValue SERENE_SEASONS = BUILDER
+            .comment("Serene Seasons integration, when Serene Seasons is installed: the season shapes the rain (drizzles and sun "
+                    + "showers in spring, downpours and storms in summer, steady rain in autumn), and no rain is drawn or heard "
+                    + "in winter outside the tropics or where the season turns it into snow.")
+            .translation(key("sereneSeasons"))
+            .define("sereneSeasons", true);
+    public static final ForgeConfigSpec.DoubleValue SEASON_STRENGTH = BUILDER
+            .comment("How strongly the seasons change the rain: the chances of each rain type and of sun showers, how steady it "
+                    + "falls and the seasonal lightning. 0 keeps the rain as set above all year, 2 doubles the seasonal differences.")
+            .translation(key("seasonStrength"))
+            .defineInRange("seasonStrength", 1.0, 0.0, 2.0);
+    public static final ForgeConfigSpec.BooleanValue SEASONAL_LIGHTNING = BUILDER
+            .comment("Summer thunderstorms bring more extra strikes, winter ones fewer.")
+            .translation(key("seasonalLightning"))
+            .define("seasonalLightning", true);
+
+    static {
+        BUILDER.pop();
     }
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private Config() {
+    }
+
+    /** Ticks for the rain to change by one step. */
+    public static float stepTicks() {
+        return (float) (TRANSITION_MINUTES.get() * 1200.0);
+    }
+
+    /** Whether the rain in this level now is a sun shower by the natural schedule (and the season, if any). */
+    public static boolean naturalSunShower(Level level) {
+        SeasonalWeather.Profile season = Seasons.profile(level);
+        return RainSchedule.sunShower(level.getGameTime(), season.sunShowerChance(SUN_SHOWER_CHANCE.get()),
+                season.drizzleWeight(DRIZZLE_WEIGHT.get()), season.rainWeight(RAIN_WEIGHT.get()),
+                season.downpourWeight(DOWNPOUR_WEIGHT.get()));
+    }
+
+    /** The natural rain level in this level now (with the season, if any). */
+    public static float naturalLevel(Level level, boolean thundering) {
+        SeasonalWeather.Profile season = Seasons.profile(level);
+        return RainSchedule.naturalLevel(level.getGameTime(), thundering, season.drizzleWeight(DRIZZLE_WEIGHT.get()),
+                season.rainWeight(RAIN_WEIGHT.get()), season.downpourWeight(DOWNPOUR_WEIGHT.get()), season.wander());
     }
 
     private static String key(String name) {

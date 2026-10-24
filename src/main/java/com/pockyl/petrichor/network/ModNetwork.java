@@ -16,7 +16,7 @@ import com.pockyl.petrichor.client.ClientWeather;
 import java.util.function.Supplier;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
     // Optional both ways: the client works on servers without the mod and vanilla clients can join a modded server.
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(Petrichor.id("main"), () -> PROTOCOL_VERSION,
             NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION), NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION));
@@ -34,7 +34,8 @@ public final class ModNetwork {
 
     private static void handle(WeatherSyncPayload payload, Supplier<NetworkEvent.Context> context) {
         // The client class is only resolved when a packet arrives on a client.
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientWeather.onServerSync(payload.rainType(), payload.wetness()));
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientWeather.onServerSync(payload.rainType(), payload.rainLevel(),
+                payload.sunShower(), payload.wetness()));
         context.get().setPacketHandled(true);
     }
 

@@ -35,6 +35,7 @@ import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
 import com.pockyl.petrichor.client.compat.ShaderPacks;
 import com.pockyl.petrichor.client.fx.RainFx;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.PuddleField;
 import com.pockyl.petrichor.world.RunoffSolver;
@@ -310,8 +311,7 @@ public final class Puddles implements AutoCloseable {
                     continue;
                 }
                 pos.set(originX + lx, grid.height[i], originZ + lz);
-                Biome biome = level.getBiome(pos).value();
-                rains[c] = biome.hasPrecipitation() && biome.getPrecipitationAt(pos) == Biome.Precipitation.RAIN;
+                rains[c] = Seasons.precipitationAt(level, pos) == Biome.Precipitation.RAIN;
                 chunk.ground[c] = rains[c] && grid.kind[i] == SurfaceKind.GROUND;
                 chunk.field[c] = field[i];
                 chunk.top[c] = grid.top[i];
@@ -486,7 +486,7 @@ public final class Puddles implements AutoCloseable {
     /**
      * Puddles for a shader pack, which cannot run the puddle shader: water cells of a quarter block, cut out with the same
      * field, threshold and ragged edges the shader uses, tagged as water so the pack draws them with its own water
-     * (reflections, ripples). Built while the pack is active, so Oculus lays the vertices out in its terrain format.
+     * (reflections, ripples), and marked as puddles for packs that draw puddles differently from real water. Built while the pack is active, so Oculus lays the vertices out in its terrain format.
      */
     private void buildWater(ClientLevel level, ChunkPuddles chunk, int key) {
         chunk.waterKey = key;
@@ -538,7 +538,7 @@ public final class Puddles implements AutoCloseable {
                         continue;
                     }
                     if (!tagged) {
-                        ShaderPacks.beginFluid(builder, waterId, pos.getX(), pos.getY(), pos.getZ());
+                        ShaderPacks.beginPuddle(builder, waterId, pos.getX(), pos.getY(), pos.getZ());
                         tagged = true;
                     }
                     float x0 = lx + sx * step;
@@ -991,7 +991,11 @@ public final class Puddles implements AutoCloseable {
                 }
                 float dirX = (j % grid.size) - gx;
                 float dirZ = (j / grid.size) - gz;
-                byte surface = grid.kind[j] == SurfaceKind.WATER ? RainFx.LAND_WATER : RainFx.LAND_GROUND;
+                byte surface = switch (grid.kind[j]) {
+                    case WATER -> RainFx.LAND_WATER;
+                    case HOT -> RainFx.LAND_HOT;
+                    default -> RainFx.LAND_GROUND;
+                };
                 // Under an overhang water creeps round the lip and drips from its underside; off a wall it falls from the top.
                 pos.set(originX + lx + (int) dirX, grid.height[i] - 2, originZ + lz + (int) dirZ);
                 boolean overhang = level.getBlockState(pos).isAir();

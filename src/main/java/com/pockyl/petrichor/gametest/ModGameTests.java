@@ -7,18 +7,29 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CampfireBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 import com.pockyl.petrichor.Petrichor;
+import com.pockyl.petrichor.client.lightning.BoltShape;
+import com.pockyl.petrichor.compat.ParticleRain;
+import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
+import com.pockyl.petrichor.weather.MistModel;
 import com.pockyl.petrichor.weather.RainSchedule;
 import com.pockyl.petrichor.weather.RainType;
+import com.pockyl.petrichor.weather.SeasonalWeather;
 import com.pockyl.petrichor.weather.StormData;
 import com.pockyl.petrichor.weather.Wetness;
 import com.pockyl.petrichor.world.DropPath;
+import com.pockyl.petrichor.world.HotSurface;
 import com.pockyl.petrichor.world.PuddleField;
+import com.pockyl.petrichor.world.RainCauldrons;
 import com.pockyl.petrichor.world.RunoffSolver;
 import com.pockyl.petrichor.world.SoundMaterial;
 import com.pockyl.petrichor.world.StrikeTargeting;
@@ -39,6 +50,26 @@ public final class ModGameTests {
 
     @GameTest(template = "empty")
     public static void modLoads(GameTestHelper helper) {
+        helper.succeed();
+    }
+
+    /** The leader must reach the ground: the kinked channel is longer than the straight line it was timed on. */
+    @GameTest(template = "empty")
+    public static void boltReachesGround(GameTestHelper helper) {
+        for (long seed = 0; seed < 200; seed++) {
+            BoltShape shape = BoltShape.groundStrike(seed, 12.0F, 110.0F, -8.0F);
+            float[] d = shape.data();
+            boolean grounded = false;
+            for (int s = 0; s < shape.count(); s++) {
+                int o = s * BoltShape.STRIDE;
+                helper.assertTrue(d[o + 8] <= 1.0F && d[o + 9] <= 1.0F, "Every segment must be reached by the leader");
+                if (d[o + 10] > 0.5F && d[o + 4] == 0.0F) {
+                    grounded = true;
+                    helper.assertTrue(d[o + 9] >= 0.999F, "The channel must reach the ground as the leader ends");
+                }
+            }
+            helper.assertTrue(grounded, "The main channel must end on the ground");
+        }
         helper.succeed();
     }
 
@@ -83,6 +114,110 @@ public final class ModGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void rainFillsCauldronsByItsStrength(GameTestHelper helper) {
+        float vanilla = RainCauldrons.VANILLA_CHANCE;
+        float drizzle = RainCauldrons.chance(RainType.DRIZZLE.level(), 1.0F);
+        float rain = RainCauldrons.chance(RainType.RAIN.level(), 1.0F);
+        float downpour = RainCauldrons.chance(RainType.DOWNPOUR.level(), 1.0F);
+        helper.assertTrue(drizzle < vanilla, "a drizzle fills cauldrons slower than vanilla rain");
+        helper.assertTrue(Math.abs(rain - vanilla) < 1.0E-6, "normal rain fills them like vanilla");
+        helper.assertTrue(downpour > 2 * vanilla, "a downpour fills them much faster");
+        helper.assertTrue(RainCauldrons.chance(RainType.DOWNPOUR.level(), 0.0F) == vanilla, "0 keeps the vanilla speed");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void mistGathersWhereItDoesInRealLife(GameTestHelper helper) {
+        float noon = 1.0F;
+        float dawn = 0.1F;
+        float drizzleForest = MistModel.density(1.0F, RainType.DRIZZLE.level(), 0.3F, noon, 1.0F, 1.0F);
+        float drizzleField = MistModel.density(1.0F, RainType.DRIZZLE.level(), 0.3F, noon, 0.0F, 1.0F);
+        float storm = MistModel.density(1.0F, RainType.THUNDERSTORM.level(), 1.0F, noon, 1.0F, 1.0F);
+        helper.assertTrue(drizzleForest > 2.5F * drizzleField, "a forest holds the mist, open land much less");
+        helper.assertTrue(drizzleForest > storm, "a drizzle is mistier than a windy thunderstorm");
+        float afterDawn = MistModel.density(0.0F, 0.0F, 0.8F, dawn, 1.0F, 1.0F);
+        float afterNoon = MistModel.density(0.0F, 0.0F, 0.8F, noon, 1.0F, 1.0F);
+        helper.assertTrue(afterDawn > 2.5F * afterNoon, "after the rain the mist lingers at dawn, the sun burns it off by midday");
+        helper.assertTrue(MistModel.density(0.0F, 0.0F, 0.0F, dawn, 1.0F, 1.0F) == 0.0F, "no rain and dry ground: no mist");
+        helper.assertTrue(MistModel.density(1.0F, 0.0F, 1.0F, dawn, 1.0F, 0.0F) == 0.0F, "0 in the config turns it off");
+        helper.assertTrue(MistModel.height(1.0F, 14.0F) > 2.0F * MistModel.height(0.0F, 0.0F), "in a forest it reaches into the crowns");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void rainLevelBlendsTypes(GameTestHelper helper) {
+        helper.assertTrue(RainType.mix(0.0F, t -> t.heaviness) == RainType.DRIZZLE.heaviness, "Level 0 is a drizzle");
+        helper.assertTrue(RainType.mix(3.0F, t -> t.heaviness) == RainType.THUNDERSTORM.heaviness, "Level 3 is a thunderstorm");
+        float half = RainType.mix(0.5F, t -> t.heaviness);
+        helper.assertTrue(Math.abs(half - (RainType.DRIZZLE.heaviness + RainType.RAIN.heaviness) / 2.0F) < 1.0E-5F,
+                "Half way between a drizzle and rain, got " + half);
+        helper.assertTrue(RainType.at(1.4F) == RainType.RAIN && RainType.at(1.6F) == RainType.DOWNPOUR, "Nearest type");
+        helper.assertTrue(RainType.mix(-1.0F, t -> t.density) == RainType.DRIZZLE.density, "Clamped below");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void rainBuildsUpStepByStep(GameTestHelper helper) {
+        float step = 1800.0F;
+        float level = 0.0F;
+        int ticks = 0;
+        float previous = level;
+        while (level < RainType.MAX_LEVEL && ticks < 100_000) {
+            level = RainSchedule.approach(level, RainType.MAX_LEVEL, step);
+            helper.assertTrue(level - previous <= 1.0F / step + 1.0E-6F, "The rain never jumps");
+            previous = level;
+            ticks++;
+        }
+        helper.assertTrue(ticks >= 3 * step - 1, "From a drizzle to a storm takes three steps, took " + ticks);
+        int down = 0;
+        while (level > 0.0F && down < 100_000) {
+            level = RainSchedule.approach(level, 0.0F, step);
+            down++;
+        }
+        helper.assertTrue(down < ticks && down > ticks / 2, "Easing off is a little faster, took " + down);
+        // The cap before the rain stops always leaves time to ease off to a drizzle.
+        for (int left = 0; left < 20_000; left += 250) {
+            float cap = RainSchedule.easeOffCap(left, step);
+            helper.assertTrue(cap * step / 1.35F <= left + 1.0E-3F, "Ease-off cap too high with " + left + " ticks left");
+        }
+        helper.assertTrue(RainSchedule.easeOffCap(0, step) == 0.0F, "The last tick of rain is a drizzle");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void naturalLevelStaysInRange(GameTestHelper helper) {
+        for (long t = 0; t < 400_000; t += 377) {
+            float level = RainSchedule.naturalLevel(t, false, 30, 45, 25);
+            helper.assertTrue(level >= 0.0F && level <= RainType.DOWNPOUR.level(), "No thunderstorm without thunder: " + level);
+            float type = RainSchedule.naturalType(t, false, 30, 45, 25).level();
+            helper.assertTrue(Math.abs(level - type) <= 0.35F + 1.0E-5F, "The level wanders near its type");
+        }
+        helper.assertTrue(RainSchedule.naturalLevel(1000, true, 30, 45, 25) == RainType.MAX_LEVEL, "Thunder aims for a storm");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void sunShowersAreLightAndRare(GameTestHelper helper) {
+        int sunny = 0;
+        int light = 0;
+        for (int w = 0; w < 20_000; w++) {
+            long t = (long) w * RainSchedule.WINDOW;
+            RainType type = RainSchedule.naturalType(t, false, 30, 45, 25);
+            boolean sun = RainSchedule.sunShower(t, 20, 30, 45, 25);
+            if (type != RainType.DOWNPOUR) {
+                light++;
+                sunny += sun ? 1 : 0;
+            } else {
+                helper.assertTrue(!sun, "A downpour is never a sun shower");
+            }
+            helper.assertTrue(sun == RainSchedule.sunShower(t + RainSchedule.WINDOW - 1, 20, 30, 45, 25), "Sun showers hold for a window");
+        }
+        assertShare(helper, sunny, light, 0.20, "sun showers");
+        helper.assertTrue(!RainSchedule.sunShower(0, 0, 30, 45, 25), "Chance 0 disables sun showers");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void gustsAndWindStayInRange(GameTestHelper helper) {
         for (int t = 0; t < 100_000; t += 97) {
             float gust = RainSchedule.gust(t, 0.9F);
@@ -97,17 +232,17 @@ public final class ModGameTests {
     public static void wetnessSoaksAndDries(GameTestHelper helper) {
         float wet = 0.0F;
         for (int t = 0; t < 20 * 60; t++) {
-            wet = Wetness.step(wet, 1.0F, RainType.DOWNPOUR, true, 1.0, 1.0);
+            wet = Wetness.step(wet, 1.0F, RainType.DOWNPOUR.level(), true, 1.0, 1.0);
         }
         helper.assertTrue(wet > 0.6F, "A minute of downpour soaks the ground, got " + wet);
         float drizzle = 0.0F;
         for (int t = 0; t < 20 * 600; t++) {
-            drizzle = Wetness.step(drizzle, 1.0F, RainType.DRIZZLE, true, 1.0, 1.0);
+            drizzle = Wetness.step(drizzle, 1.0F, RainType.DRIZZLE.level(), true, 1.0, 1.0);
         }
         helper.assertTrue(drizzle <= RainType.DRIZZLE.wetnessCap + 1.0E-4F, "Drizzle stays below its cap, got " + drizzle);
         float dry = 1.0F;
         for (int t = 0; t < 20 * 60; t++) {
-            dry = Wetness.step(dry, 0.0F, null, true, 1.0, 1.0);
+            dry = Wetness.step(dry, 0.0F, -1.0F, true, 1.0, 1.0);
         }
         helper.assertTrue(dry < 1.0F && dry > 0.6F, "The ground dries slowly, got " + dry);
         helper.assertTrue(Wetness.runoff(0.2F, 1.0F) == 0.0F, "No runoff on dry ground");
@@ -297,10 +432,14 @@ public final class ModGameTests {
         ServerLevel level = helper.getLevel();
         var server = level.getServer();
         var source = server.createCommandSourceStack().withLevel(level).withPermission(4).withSuppressedOutput();
-        server.getCommands().performPrefixedCommand(source, "petrichor weather downpour 60");
+        server.getCommands().performPrefixedCommand(source, "petrichor weather downpour 600");
         StormData data = StormData.get(level);
         helper.assertTrue(level.getLevelData().isRaining(), "The command starts the rain");
-        helper.assertTrue(data.currentType(level) == RainType.DOWNPOUR, "The forced type is used");
+        helper.assertTrue(data.targetLevel(level) == RainType.DOWNPOUR.level(), "The forced type is the target");
+        helper.assertTrue(data.currentType(level) == RainType.DRIZZLE, "The rain starts as a drizzle");
+        server.getCommands().performPrefixedCommand(source, "petrichor weather sun_shower 600");
+        helper.assertTrue(data.sunShower(level), "A sun shower can be forced");
+        helper.assertTrue(data.targetLevel(level) <= RainSchedule.SUN_SHOWER_LEVEL, "A sun shower stays light");
         server.getCommands().performPrefixedCommand(source, "petrichor wetness 0.7");
         helper.assertTrue(Math.abs(data.wetness() - 0.7F) < 1.0E-4F, "Wetness is set");
         server.getCommands().performPrefixedCommand(source, "petrichor weather clear");
@@ -331,6 +470,28 @@ public final class ModGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void hotSurfacesSizzle(GameTestHelper helper) {
+        helper.assertTrue(HotSurface.of(Blocks.LAVA.defaultBlockState()) == HotSurface.LAVA, "Lava is hot");
+        helper.assertTrue(HotSurface.of(Fluids.FLOWING_LAVA.getFlowing(3, false).createLegacyBlock()) == HotSurface.LAVA,
+                "Flowing lava is hot");
+        helper.assertTrue(HotSurface.of(Blocks.MAGMA_BLOCK.defaultBlockState()) == HotSurface.MAGMA, "Magma is hot");
+        BlockState campfire = Blocks.CAMPFIRE.defaultBlockState();
+        helper.assertTrue(HotSurface.of(campfire.setValue(CampfireBlock.LIT, true)) == HotSurface.CAMPFIRE, "A lit campfire is hot");
+        helper.assertTrue(HotSurface.of(Blocks.SOUL_CAMPFIRE.defaultBlockState().setValue(CampfireBlock.LIT, true)) == HotSurface.CAMPFIRE,
+                "A lit soul campfire is hot");
+        helper.assertTrue(HotSurface.of(campfire.setValue(CampfireBlock.LIT, false)) == null, "A doused campfire is cold");
+        helper.assertTrue(HotSurface.of(Blocks.WATER.defaultBlockState()) == null, "Water is cold");
+        helper.assertTrue(HotSurface.of(Blocks.STONE.defaultBlockState()) == null, "Stone is cold");
+        helper.assertTrue(HotSurface.of(Blocks.NETHERRACK.defaultBlockState()) == null, "Netherrack is cold");
+        helper.assertTrue(SurfaceKind.classify(campfire.setValue(CampfireBlock.LIT, true)).kind() == SurfaceKind.HOT,
+                "Rain sizzles on a lit campfire");
+        helper.assertTrue(SurfaceKind.classify(campfire.setValue(CampfireBlock.LIT, false)).kind() != SurfaceKind.HOT,
+                "Rain does not sizzle on a doused campfire");
+        helper.assertTrue(SurfaceKind.classify(Blocks.LAVA.defaultBlockState()).kind() == SurfaceKind.HOT, "Rain sizzles on lava");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void rainTypesGrowHeavier(GameTestHelper helper) {
         helper.assertTrue(RainType.DRIZZLE.heaviness < RainType.RAIN.heaviness, "A drizzle is lighter than rain");
         helper.assertTrue(RainType.RAIN.heaviness < RainType.DOWNPOUR.heaviness, "Rain is lighter than a downpour");
@@ -339,9 +500,114 @@ public final class ModGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void seasonsTiltTheRain(GameTestHelper helper) {
+        SeasonalWeather.Profile spring = SeasonalWeather.profile(1, 1.0F);
+        SeasonalWeather.Profile summer = SeasonalWeather.profile(4, 1.0F);
+        SeasonalWeather.Profile autumn = SeasonalWeather.profile(7, 1.0F);
+        SeasonalWeather.Profile winter = SeasonalWeather.profile(10, 1.0F);
+        helper.assertTrue(spring.equals(SeasonalWeather.Season.SPRING.profile), "Mid spring is pure spring");
+        helper.assertTrue(spring.drizzle() > summer.drizzle() && spring.sunShowers() > autumn.sunShowers(),
+                "Spring brings drizzles and sun showers");
+        helper.assertTrue(summer.downpour() > spring.downpour() && summer.strikes() > 1.0F, "Summer brings downpours and storms");
+        helper.assertTrue(autumn.rain() > 1.0F && autumn.wander() < 1.0F, "Autumn rain is steady");
+        helper.assertTrue(winter.downpour() < 1.0F && winter.strikes() < 1.0F, "Winter rain is light");
+        float earlySummer = SeasonalWeather.profile(3, 1.0F).downpour();
+        helper.assertTrue(earlySummer > spring.downpour() && earlySummer < summer.downpour(), "Early summer leans towards spring");
+        helper.assertTrue(SeasonalWeather.profile(0, 1.0F).downpour() < spring.downpour(), "Early spring leans towards winter");
+        helper.assertTrue(SeasonalWeather.profile(12, 1.0F).equals(SeasonalWeather.profile(0, 1.0F)), "The year wraps around");
+        for (int subSeason = 0; subSeason < SeasonalWeather.SUB_SEASONS; subSeason++) {
+            boolean inWinter = subSeason >= 9;
+            helper.assertTrue(SeasonalWeather.rainsIn(subSeason, false) != inWinter, "No rain in winter outside the tropics: " + subSeason);
+            helper.assertTrue(SeasonalWeather.rainsIn(subSeason, true), "The tropics rain in every season: " + subSeason);
+        }
+        for (int sub = 0; sub < SeasonalWeather.SUB_SEASONS; sub++) {
+            helper.assertTrue(SeasonalWeather.profile(sub, 0.0F).equals(SeasonalWeather.Profile.NEUTRAL), "Strength 0 is no season");
+            SeasonalWeather.Profile strong = SeasonalWeather.profile(sub, 2.0F);
+            helper.assertTrue(strong.drizzleWeight(30) >= 0 && strong.downpourWeight(25) >= 0 && strong.sunShowerChance(80) <= 100,
+                    "Strong seasons keep chances in range");
+        }
+        helper.assertTrue(SeasonalWeather.subSeasonId(0).equals("early_spring") && SeasonalWeather.subSeasonId(7).equals("mid_autumn")
+                && SeasonalWeather.subSeasonId(11).equals("late_winter"), "Sub-season ids follow the year");
+        // Over many windows a summer rains more downpours and fewer drizzles than the plain weights.
+        int[] plain = new int[RainType.values().length];
+        int[] hot = new int[RainType.values().length];
+        for (int w = 0; w < 10_000; w++) {
+            long t = (long) w * RainSchedule.WINDOW;
+            plain[RainSchedule.naturalType(t, false, 30, 45, 25).ordinal()]++;
+            hot[RainSchedule.naturalType(t, false, summer.drizzleWeight(30), summer.rainWeight(45), summer.downpourWeight(25)).ordinal()]++;
+        }
+        helper.assertTrue(hot[RainType.DOWNPOUR.ordinal()] > plain[RainType.DOWNPOUR.ordinal()] * 1.4, "Summer pours more often");
+        helper.assertTrue(hot[RainType.DRIZZLE.ordinal()] < plain[RainType.DRIZZLE.ordinal()], "Summer drizzles less");
+        for (long t = 0; t < 200_000; t += 377) {
+            float steady = RainSchedule.naturalLevel(t, false, 30, 45, 25, autumn.wander());
+            float type = RainSchedule.naturalType(t, false, 30, 45, 25).level();
+            helper.assertTrue(Math.abs(steady - type) <= 0.35F * autumn.wander() + 1.0E-5F, "Autumn rain wanders less");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void seasonsFollowSereneSeasons(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        Biome.Precipitation plain = level.getBiome(pos).value().getPrecipitationAt(pos);
+        if (!Seasons.loaded()) {
+            helper.assertTrue(!Seasons.active(), "Without Serene Seasons the integration is inactive");
+            helper.assertTrue(Seasons.subSeason(level) == -1, "No season without Serene Seasons");
+            helper.assertTrue(Seasons.profile(level).equals(SeasonalWeather.Profile.NEUTRAL), "The weather is as configured");
+            helper.assertTrue(Seasons.strikeMultiplier(level) == 1.0F, "Lightning is as configured");
+            helper.assertTrue(Seasons.describe(level, pos).isEmpty(), "The status shows no season");
+            helper.assertTrue(Seasons.precipitationAt(level, pos) == plain, "Rain and snow follow the biome");
+            helper.succeed();
+            return;
+        }
+        // The test world is plains: Serene Seasons makes them snowy in winter.
+        helper.assertTrue(Seasons.active(), "With Serene Seasons the integration is active by default");
+        int before = Seasons.subSeason(level);
+        helper.assertTrue(before >= 0, "The overworld has seasons");
+        var server = level.getServer();
+        var source = server.createCommandSourceStack().withLevel(level).withPermission(4).withSuppressedOutput();
+        try {
+            server.getCommands().performPrefixedCommand(source, "season set mid_winter");
+            helper.assertTrue(Seasons.subSeason(level) == 10, "Mid winter is sub-season 10, got " + Seasons.subSeason(level));
+            helper.assertTrue(Seasons.precipitationAt(level, pos) == Biome.Precipitation.SNOW, "Winter turns the rain into snow");
+            helper.assertTrue(Seasons.profile(level).equals(SeasonalWeather.profile(10, 1.0F)), "Winter tilts the rain");
+            helper.assertTrue(Seasons.describe(level, pos).isPresent(), "The status shows the season");
+            server.getCommands().performPrefixedCommand(source, "season set mid_summer");
+            helper.assertTrue(Seasons.precipitationAt(level, pos) == Biome.Precipitation.RAIN, "Summer rains");
+            helper.assertTrue(Seasons.strikeMultiplier(level) > 1.0F, "Summer storms strike more often");
+        } finally {
+            server.getCommands().performPrefixedCommand(source, "season set " + SeasonalWeather.subSeasonId(before));
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void particleRainKeepsAllButTheRain(GameTestHelper helper) {
+        // Particle Rain's presets by their weather condition: only those bound to falling rain are taken over.
+        for (String weather : List.of("DURING_WEATHER", "ONLY_DURING_NORMAL_WEATHER", "ONLY_DURING_STORMY_WEATHER")) {
+            helper.assertTrue(ParticleRain.rainPreset(weather), weather + " presets are rain");
+        }
+        for (String weather : List.of("AFTER_WEATHER", "CLEAR", "ALWAYS", "SOMETHING_NEW")) {
+            helper.assertTrue(!ParticleRain.rainPreset(weather), weather + " presets are not rain");
+        }
+        // Nothing read from Particle Rain (it is a client mod): nothing is skipped.
+        helper.assertTrue(!ParticleRain.yieldsRain(List.of(Biome.Precipitation.RAIN), true), "Unknown presets spawn");
+
+        float[] wind = ParticleRain.alignWind(0.3F, 0.4F, -2.0F, 0.0F);
+        helper.assertTrue(Math.abs(wind[0] + 0.5F) < 1.0E-5F && Math.abs(wind[1]) < 1.0E-5F,
+                "Particle Rain's wind keeps its strength and takes the mod's direction");
+        float[] calm = ParticleRain.alignWind(0.3F, 0.4F, 0.0F, 0.0F);
+        helper.assertTrue(calm[0] == 0.3F && calm[1] == 0.4F, "Calm air leaves Particle Rain's wind alone");
+        float[] still = ParticleRain.alignWind(0.0F, 0.0F, 0.1F, 0.2F);
+        helper.assertTrue(still[0] == 0.0F && still[1] == 0.0F, "No wind in Particle Rain stays no wind");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void syncPayloadRoundTrip(GameTestHelper helper) {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        WeatherSyncPayload payload = new WeatherSyncPayload(RainType.THUNDERSTORM.ordinal(), 0.625F);
+        WeatherSyncPayload payload = new WeatherSyncPayload(RainType.THUNDERSTORM.ordinal(), 2.75F, true, 0.625F);
         payload.encode(buffer);
         WeatherSyncPayload decoded = WeatherSyncPayload.decode(buffer);
         helper.assertTrue(decoded.equals(payload), "Payload survives encoding");

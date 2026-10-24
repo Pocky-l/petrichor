@@ -4,6 +4,109 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0+1.20.1] - 2026-10-25
+### Changed
+- The Minecraft 1.20.1 version catches up with 1.5.0 for Minecraft 1.21.1: low mist in and after rain, rain filling
+  cauldrons, sun showers and rainbows, rain that builds up and eases off, real thunderclaps for close strikes, steam on
+  hot blocks, still puddles with pixel rain rings, puddles marked for shader packs, and support for
+  [Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) and
+  [Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain). Everything below up to 1.5.0 is
+  included, except the [Sable](https://www.curseforge.com/minecraft/mc-mods/sable) support: Sable has no Minecraft
+  1.20.1 version.
+
+## [1.5.0] - 2026-10-24
+### Added
+- Low mist, as it forms in real life. Rain falling into the cool air near the ground fills it with mist: thickest in a
+  drizzle or a steady rain, thinner in a downpour, mostly swept away by a thunderstorm's wind. It gathers where the air
+  stands still and damp - between the trees and up into the crowns of a forest, over water and swamps, in hollows and
+  valleys - drifts in slow wisps and stays thin over open, high ground.
+- After the rain the wet ground keeps breathing mist out: it lingers in the evening, at night and in the morning, and
+  the sun burns it off by midday.
+- New option `rain.mist` (1 by default, 0 turns the mist off).
+
+### Fixed
+- The rain's haze no longer fades out under trees: a forest canopy dims the sky light, and the mod took it for a roof.
+
+## [1.4.0] - 2026-10-13
+### Added
+- Rain fills cauldrons as fast as it falls: a drizzle fills them slower than vanilla rain, normal rain as in vanilla,
+  a downpour about two and a half times and a thunderstorm three and a half times faster. Needs the mod on the server.
+- New option `weather.cauldronFilling` (1 by default) to make it faster or slower; 0 keeps the vanilla speed.
+
+## [1.3.3] - 2026-10-12
+### Fixed
+- Compatibility with [Sable](https://www.curseforge.com/minecraft/mc-mods/sable): rain no longer falls inside flying houses, airships and other moving
+  structures. Drops and splashes land on their roofs and decks, and the rain drums on a structure's roof the way it does
+  on a building's.
+
+## [1.3.2] - 2026-10-12
+### Changed
+- With a shader pack, puddles are now marked as puddles, not just as water, so a pack that supports it can tell them
+  apart from real water (for example to draw rain rings only on puddles instead of guessing from the shape of the
+  ground, which sometimes took part of a waterfall for a puddle). Other packs keep drawing puddles as their water.
+  For pack authors: puddle vertices carry `mc_Entity.y == 2` and the pack's water id in `mc_Entity.x`.
+- Rain rings on water are drawn in the game's pixels: each ring is one texture pixel wide and grows a pixel at a time
+  from the pixel the drop hit, like an animated sprite, instead of a smooth ring that stood out among the textures.
+
+## [1.3.1] - 2026-10-11
+### Changed
+- Puddles are still water now: the surface no longer drifts as if it were flowing. Rain drops hitting a puddle leave a
+  small dimple and a ring that spreads to about half a block - clearly visible in the reflection, a few rings in a
+  drizzle and the whole puddle alive in a downpour.
+
+## [1.3.0] - 2026-10-10
+### Added
+- Optional support for [Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons): the rain follows
+  the season. Spring brings drizzles and sun showers, summer heavy downpours and thunderstorms with more lightning,
+  autumn long, steady rain, and in winter it does not rain at all: where the season turns the rain into snow there is
+  just the snow, and where it is not cold enough for snow only a grey sky - no drops, splashes, puddles, runoff or rain
+  sounds. In tropical biomes the rain comes and goes with the wet and dry seasons. `/petrichor status` shows the
+  current season. New options in the "Seasons" section: "Serene Seasons integration" turns it all off, "Strength of the
+  seasons" sets how much the seasons change the rain, and "Seasonal lightning" how much they change the number of
+  extra strikes.
+- Works together with [Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain): the rain, its
+  splashes, puddles, sounds and the rainy air come from this mod, the snow, sandstorms, dust, fog and the rest of
+  Particle Rain's particles from Particle Rain, and both drift with the same wind. Particle Rain's snow and sandstorm
+  sounds play too. Can be turned off with the new "Particle Rain integration" option in the "Rain" section.
+### Fixed
+- With Particle Rain installed, the mod's falling rain and rainy air disappeared while Particle Rain's rain fell on top
+  of the mod's puddles and splashes, doubling the splashes and ripples on the ground.
+
+## [1.2.0] - 2026-10-10
+### Added
+- Sun showers: some light rains in daytime fall while the sun keeps shining - the sky stays blue, the light bright and
+  the drops glint. Their chance can be set with the new "Sun shower chance" option.
+- Rainbows: a rainbow with a fainter second bow appears opposite the sun in every sun shower and sometimes when a
+  rain clears up in daylight. Can be turned off with the new "Rainbows" option.
+- `/petrichor weather sun_shower` starts a sun shower.
+- A lightning strike right next to you leaves you half deaf for a moment: the rain goes faint and dull and comes back
+  over a few seconds. Can be turned off with the new "Deafening close strikes" option.
+### Changed
+- The rain builds up and eases off gradually: every rain starts as a light drizzle, grows step by step into rain, a
+  downpour or a thunderstorm over about a minute, and dies down to a drizzle again before it stops. Changes of the rain
+  type during a long rain pass through the steps in between too, and the extra lightning strikes come as the
+  thunderstorm builds up. How fast the rain changes is set by the new "Minutes per change of rain" option.
+- `/petrichor status` shows how far the rain has built up.
+- Each kind of rain now matches real rain: the number of drops, their size and how fast they fall follow measurements of
+  real light rain, rain, downpours and thunderstorms. Light rain no longer drifts down slowly with more drops than
+  normal rain; a thunderstorm is the heaviest rain. Puddles fill as fast as the rain looks: slowly in a drizzle,
+  quickly in a downpour or a storm.
+### Fixed
+- Lightning bolts stopped in mid-air and never reached the ground, so a strike right next to the player showed no
+  bolt at all. The whole channel is drawn now, down to the ground.
+- A lightning strike close to the player had no thunderclap, only a distant-sounding rumble: the crack of the
+  vanilla strike was replaced with a recording of a far one. A strike nearby now sounds like the real thing - a
+  deafening bang the moment the sound arrives, a long tearing crash and then the roll of the rest of the bolt, as loud
+  as the vanilla strike (built on recordings made within 100 metres of real strikes).
+
+## [1.1.0] - 2026-10-09
+### Added
+- Rain hisses on hot blocks: drops falling on lava, magma blocks and lit campfires boil away in small puffs of steam
+  with a quiet sizzle, and a lava lake steams faintly in the rain. Can be turned off with the new "Steam on hot blocks"
+  option.
+### Fixed
+- The rainy haze and sky work correctly with [Veil](https://www.curseforge.com/minecraft/mc-mods/veil-lib) installed.
+
 ## [1.0.1+1.20.1] - 2026-10-08
 ### Changed
 - Ported to Minecraft 1.20.1 (Forge). Everything of 1.0.1 for Minecraft 1.21.1 is included.

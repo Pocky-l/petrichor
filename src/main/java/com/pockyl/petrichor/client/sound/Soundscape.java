@@ -379,8 +379,7 @@ final class Soundscape {
                 if (dy > 8.0 || dy < -14.0) {
                     continue;
                 }
-                pos.set(x, h - 1, z);
-                SoundMaterial material = SoundMaterial.of(level.getBlockState(pos));
+                SoundMaterial material = SoundMaterial.of(columns.surface(x, z));
                 if (material == SoundMaterial.LEAVES || material == SoundMaterial.SILENT) {
                     continue;
                 }
@@ -532,8 +531,7 @@ final class Soundscape {
                 if (h < eye.y - 6.0 || h > eye.y + 24.0) {
                     continue;
                 }
-                pos.set(x, h - 1, z);
-                if (SoundMaterial.of(level.getBlockState(pos)) != SoundMaterial.LEAVES) {
+                if (SoundMaterial.of(columns.surface(x, z)) != SoundMaterial.LEAVES) {
                     continue;
                 }
                 double angle = Math.atan2(oz, ox) + Math.PI;
@@ -575,8 +573,7 @@ final class Soundscape {
         if (columns.precipitation(ex, ez) != Columns.RAIN || distance < 0.5 || distance > 20.0) {
             return;
         }
-        pos.set(ex, h - 1, ez);
-        SoundMaterial top = SoundMaterial.of(level.getBlockState(pos));
+        SoundMaterial top = SoundMaterial.of(columns.surface(ex, ez));
         if (top == SoundMaterial.LEAVES) {
             return;
         }

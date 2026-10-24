@@ -4,12 +4,19 @@
   "package": "com.pockyl.petrichor.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "petrichor.refmap.json",
+  "mixins": [
+    "CauldronBlockMixin"
+  ],
   "client": [
     "ChannelAccessor",
+    "ClientLevelMixin",
+    "FogRendererMixin",
     "LeavesBlockMixin",
     "LevelRendererMixin",
     "SoundEngineAccessor",
-    "SoundManagerAccessor"
+    "SoundManagerAccessor",
+    "compat.ParticleRainSpawnerMixin",
+    "compat.ParticleRainWindMixin"
   ],
   "injectors": {
     "defaultRequire": 1

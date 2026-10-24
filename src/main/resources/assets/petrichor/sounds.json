@@ -394,6 +394,15 @@
     ],
     "subtitle": "subtitles.petrichor.puddle_step"
   },
+  "weather.thunder.strike": {
+    "sounds": [
+      "petrichor:thunder/strike1",
+      "petrichor:thunder/strike2",
+      "petrichor:thunder/strike3",
+      "petrichor:thunder/strike4"
+    ],
+    "subtitle": "subtitles.entity.lightning_bolt.impact"
+  },
   "weather.thunder.close": {
     "sounds": [
       "petrichor:thunder/close1",

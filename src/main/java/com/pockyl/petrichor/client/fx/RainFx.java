@@ -1,10 +1,12 @@
 package com.pockyl.petrichor.client.fx;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import org.joml.Vector3f;
 
+import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.sound.RainSounds;
 
 import java.util.Arrays;
@@ -21,15 +23,28 @@ public final class RainFx {
     public static final byte DRIP = 3;
     public static final byte MIST = 4;
     public static final byte SPARK = 5;
+    /** Rain boiled off a hot block: a white puff, or a slow haze over a lava lake. */
+    public static final byte STEAM = 6;
 
     /** What a falling drip hits. */
     public static final byte LAND_GROUND = 0;
     public static final byte LAND_WATER = 1;
     public static final byte LAND_PUDDLE = 2;
+    /** Lava, magma, a lit campfire: see {@link com.pockyl.petrichor.world.HotSurface}. */
+    public static final byte LAND_HOT = 3;
 
+    private static final float[] WATER_COLOR = {0.7F, 0.76F, 0.84F};
+    /** Texture pixels per block: rings on water are drawn in them. */
+    private static final int PX_PER_BLOCK = 16;
+    /** Offsets in blocks (x, z pairs) of the pixels of a one-pixel-wide ring of each radius in pixels. */
+    private static final float[][] RING_PIXELS = ringPixels(12);
+    /** Steam is whiter than the water it came from. */
+    private static final float[] STEAM_COLOR = {0.95F, 0.95F, 0.95F};
     private static final float DRIP_GRAVITY = 0.05F;
     private static final float DROPLET_GRAVITY = 0.035F;
     private static final int FULL_BRIGHT = 0xF000F0;
+    /** Share of the pool steam may take: it is a garnish, splashes and drips around it matter more. */
+    private static final float STEAM_SHARE = 0.05F;
 
     private final RandomSource random = RandomSource.create();
     private int capacity;
@@ -51,6 +66,7 @@ public final class RainFx {
     private int[] light = new int[0];
     private byte[] landing = new byte[0];
     private int count;
+    private int steam;
     private double originX;
     private double originZ;
     private static final int MAX_BEADS = 768;
@@ -85,10 +101,17 @@ public final class RainFx {
         life = Arrays.copyOf(life, capacity);
         light = Arrays.copyOf(light, capacity);
         landing = Arrays.copyOf(landing, capacity);
+        steam = 0;
+        for (int i = 0; i < count; i++) {
+            if (kind[i] == STEAM) {
+                steam++;
+            }
+        }
     }
 
     public void clear() {
         count = 0;
+        steam = 0;
         beads = 0;
     }
 
@@ -122,6 +145,11 @@ public final class RainFx {
         return count >= capacity * share;
     }
 
+    /** Whether steam has used up its own small share of the pool. */
+    public boolean steamFull() {
+        return steam >= capacity * STEAM_SHARE;
+    }
+
     /** Keeps the float positions precise: re-bases them when the camera wanders more than 512 blocks away. */
     public void recenter(double camX, double camZ) {
         if (Math.abs(camX - originX) < 512 && Math.abs(camZ - originZ) < 512) {
@@ -149,6 +177,9 @@ public final class RainFx {
             return -1;
         }
         int i = count++;
+        if (type == STEAM) {
+            steam++;
+        }
         kind[i] = type;
         x[i] = px[i] = (float) (wx - originX);
         y[i] = py[i] = (float) wy;
@@ -194,8 +225,34 @@ public final class RainFx {
         }
     }
 
+    /**
+     * Rings on water where a drop lands, in the game's pixels: the drop lands on the centre of a texture pixel (16 to a
+     * block) and its ring, one pixel wide, grows a whole pixel at a time like an animated sprite - the same rings that
+     * shader packs draw on water. A smooth ring sprite looked out of place among the pixel textures.
+     */
     public void ripple(double wx, double wy, double wz, float scale, int packedLight) {
-        add(RIPPLE, wx, wy, wz, 0.0F, 0.0F, 0.0F, scale * (0.7F + random.nextFloat() * 0.6F), 0.5F, 10 + random.nextInt(5), packedLight);
+        double sx = (Math.floor(wx * PX_PER_BLOCK) + 0.5) / PX_PER_BLOCK;
+        double sz = (Math.floor(wz * PX_PER_BLOCK) + 0.5) / PX_PER_BLOCK;
+        add(RIPPLE, sx, wy, sz, 0.0F, 0.0F, 0.0F, scale * (0.7F + random.nextFloat() * 0.6F), 0.3F, 12 + random.nextInt(6), packedLight);
+    }
+
+    /** A small white puff where a drop boiled away on a hot block. */
+    public void steamPuff(double wx, double wy, double wz, int packedLight) {
+        if (steamFull()) {
+            return;
+        }
+        add(STEAM, wx, wy + 0.05, wz, 0.0F, 0.025F + random.nextFloat() * 0.02F, 0.0F, 0.18F + random.nextFloat() * 0.14F,
+                0.3F + random.nextFloat() * 0.15F, 9 + random.nextInt(6), packedLight);
+    }
+
+    /** A slow, faint wisp rising off a lava lake in the rain. */
+    public void steamHaze(double wx, double wy, double wz, int packedLight) {
+        // Half of the steam budget at most, so the haze never takes the puffs' place.
+        if (steam >= capacity * STEAM_SHARE * 0.5F) {
+            return;
+        }
+        add(STEAM, wx, wy + 0.2, wz, 0.0F, 0.03F + random.nextFloat() * 0.02F, 0.0F, 0.9F + random.nextFloat() * 0.8F,
+                0.06F + random.nextFloat() * 0.04F, 40 + random.nextInt(25), packedLight);
     }
 
     public void sparks(double wx, double wy, double wz, int amount) {
@@ -247,6 +304,13 @@ public final class RainFx {
                     y[i] += vy[i];
                     z[i] += vz[i] + windZ * 0.7F;
                 }
+                case STEAM -> {
+                    // Rises quickly off the heat, then slows and drifts away with the wind.
+                    vy[i] *= 0.97F;
+                    x[i] += windX * 0.5F;
+                    y[i] += vy[i];
+                    z[i] += windZ * 0.5F;
+                }
                 default -> {
                 }
             }
@@ -261,16 +325,26 @@ public final class RainFx {
         double wx = x[i] + originX;
         double wz = z[i] + originZ;
         float scale = size[i];
-        int droplets = 1 + random.nextInt(3);
-        // Landed effects append to the pool; the swap-remove of the drip itself happens after.
-        splash(wx, y[i], wz, scale * 0.9F, landing[i], light[i], droplets);
         double dx = wx - camX;
         double dy = y[i] - camY;
         double dz = wz - camZ;
-        RainSounds.drip(wx, y[i], wz, dx * dx + dy * dy + dz * dz, landing[i]);
+        double distanceSq = dx * dx + dy * dy + dz * dz;
+        if (landing[i] == LAND_HOT && ClientConfig.HOT_SURFACES.get()) {
+            steamPuff(wx, y[i], wz, light[i]);
+            RainSounds.sizzle(wx, y[i], wz, distanceSq, 1.0F);
+            return;
+        }
+        byte surface = landing[i] == LAND_HOT ? LAND_GROUND : landing[i];
+        int droplets = 1 + random.nextInt(3);
+        // Landed effects append to the pool; the swap-remove of the drip itself happens after.
+        splash(wx, y[i], wz, scale * 0.9F, surface, light[i], droplets);
+        RainSounds.drip(wx, y[i], wz, distanceSq, surface);
     }
 
     private void remove(int i) {
+        if (kind[i] == STEAM) {
+            steam--;
+        }
         int last = --count;
         if (i == last) {
             return;
@@ -318,9 +392,16 @@ public final class RainFx {
                     upright(out, cx, cy, cz, 0.11F * size[i], 0.17F * size[i], FxAtlas.SPLASH + frame, a, light[i]);
                 }
                 case RIPPLE -> {
-                    float r = (0.06F + t * 0.38F) * size[i];
                     float a = alpha[i] * (1.0F - t) * (1.0F - t);
-                    flat(out, cx, cy + 0.012F, cz, r, FxAtlas.RIPPLE, a, light[i]);
+                    if (t < 0.12F) {
+                        // The splash: the pixel the drop hit.
+                        flat(out, cx, cy + 0.012F, cz, 0.5F / PX_PER_BLOCK, FxAtlas.PIXEL, alpha[i] * 1.4F, light[i]);
+                    }
+                    int radius = Math.min(RING_PIXELS.length - 1, 1 + (int) (t * 8.0F * Math.min(size[i], 1.3F)));
+                    float[] ring = RING_PIXELS[radius];
+                    for (int p = 0; p < ring.length; p += 2) {
+                        flat(out, cx + ring[p], cy + 0.012F, cz + ring[p + 1], 0.5F / PX_PER_BLOCK, FxAtlas.PIXEL, a, light[i]);
+                    }
                 }
                 case DROPLET -> billboard(glow, cx, cy, cz, 0.016F * size[i], FxAtlas.DROPLET, alpha[i] * 0.7F, light[i], left, up);
                 case SPARK -> billboard(glow, cx, cy, cz, 0.04F * size[i] * (1.0F - t * 0.7F), FxAtlas.SPARK, alpha[i] * (1.0F - t * t),
@@ -328,6 +409,11 @@ public final class RainFx {
                 case MIST -> {
                     float a = alpha[i] * Mth.sin(t * Mth.PI);
                     billboard(out, cx, cy, cz, size[i] * (0.7F + t * 0.6F), FxAtlas.MIST, a, light[i], left, up);
+                }
+                case STEAM -> {
+                    // Thick as it leaves the heat, thinning out as it spreads.
+                    float a = alpha[i] * Math.min(1.0F, t * 6.0F) * (1.0F - t) * (1.0F - t);
+                    billboard(out, cx, cy, cz, size[i] * (0.6F + t * 1.2F), FxAtlas.MIST, a, light[i], left, up, STEAM_COLOR);
                 }
                 case DRIP -> {
                     // A falling drop: round while slow, then drawn out by its speed, with a bright head.
@@ -357,6 +443,11 @@ public final class RainFx {
 
     private static void billboard(VertexConsumer out, float cx, float cy, float cz, float half, int tile, float a, int packedLight,
             Vector3f left, Vector3f up) {
+        billboard(out, cx, cy, cz, half, tile, a, packedLight, left, up, WATER_COLOR);
+    }
+
+    private static void billboard(VertexConsumer out, float cx, float cy, float cz, float half, int tile, float a, int packedLight,
+            Vector3f left, Vector3f up, float[] color) {
         float lx = left.x() * half;
         float ly = left.y() * half;
         float lz = left.z() * half;
@@ -367,10 +458,10 @@ public final class RainFx {
         float v0 = FxAtlas.v0(tile);
         float u1 = FxAtlas.u1(tile);
         float v1 = FxAtlas.v1(tile);
-        vertex(out, cx + lx - ux, cy + ly - uy, cz + lz - uz, u0, v1, a, packedLight);
-        vertex(out, cx - lx - ux, cy - ly - uy, cz - lz - uz, u1, v1, a, packedLight);
-        vertex(out, cx - lx + ux, cy - ly + uy, cz - lz + uz, u1, v0, a, packedLight);
-        vertex(out, cx + lx + ux, cy + ly + uy, cz + lz + uz, u0, v0, a, packedLight);
+        vertex(out, cx + lx - ux, cy + ly - uy, cz + lz - uz, u0, v1, a, packedLight, color);
+        vertex(out, cx - lx - ux, cy - ly - uy, cz - lz - uz, u1, v1, a, packedLight, color);
+        vertex(out, cx - lx + ux, cy - ly + uy, cz - lz + uz, u1, v0, a, packedLight, color);
+        vertex(out, cx + lx + ux, cy + ly + uy, cz + lz + uz, u0, v0, a, packedLight, color);
     }
 
     /** A quad standing on the ground and turned around the vertical axis to face the camera. */
@@ -391,6 +482,23 @@ public final class RainFx {
         vertex(out, cx - rx, cy + height, cz - rz, u0, v0, a, packedLight);
     }
 
+    private static float[][] ringPixels(int maxRadius) {
+        float[][] rings = new float[maxRadius + 1][];
+        for (int r = 0; r <= maxRadius; r++) {
+            FloatArrayList pixels = new FloatArrayList();
+            for (int x = -r - 1; x <= r + 1; x++) {
+                for (int z = -r - 1; z <= r + 1; z++) {
+                    if (Math.abs(Math.sqrt(x * x + z * z) - r) < 0.5) {
+                        pixels.add((float) x / PX_PER_BLOCK);
+                        pixels.add((float) z / PX_PER_BLOCK);
+                    }
+                }
+            }
+            rings[r] = pixels.toFloatArray();
+        }
+        return rings;
+    }
+
     private static void flat(VertexConsumer out, float cx, float cy, float cz, float half, int tile, float a, int packedLight) {
         float u0 = FxAtlas.u0(tile);
         float v0 = FxAtlas.v0(tile);
@@ -403,6 +511,11 @@ public final class RainFx {
     }
 
     private static void vertex(VertexConsumer out, float vx, float vy, float vz, float u, float v, float a, int packedLight) {
-        out.vertex(vx, vy, vz).uv(u, v).color(0.7F, 0.76F, 0.84F, a).uv2(packedLight).endVertex();
+        vertex(out, vx, vy, vz, u, v, a, packedLight, WATER_COLOR);
+    }
+
+    private static void vertex(VertexConsumer out, float vx, float vy, float vz, float u, float v, float a, int packedLight,
+            float[] color) {
+        out.vertex(vx, vy, vz).uv(u, v).color(color[0], color[1], color[2], a).uv2(packedLight).endVertex();
     }
 }

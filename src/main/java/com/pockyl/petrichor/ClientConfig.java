@@ -9,10 +9,10 @@ public final class ClientConfig {
     /** Budgets that scale with the hardware. Individual options below multiply on top of these. */
     public enum Quality {
         // rainRadius, maxDrops, puddleRadius, maxEffects, splashBudget, rivulets, reflectionSteps
-        LOW(14, 2200, 32, 1000, 25, false, 0),
-        MEDIUM(20, 5000, 48, 2000, 50, true, 16),
-        HIGH(28, 9000, 64, 3500, 90, true, 28),
-        ULTRA(36, 15000, 96, 5000, 140, true, 48);
+        LOW(14, 2900, 32, 1000, 25, false, 0),
+        MEDIUM(20, 6600, 48, 2000, 50, true, 16),
+        HIGH(28, 11800, 64, 3500, 90, true, 28),
+        ULTRA(36, 19700, 96, 5000, 140, true, 48);
 
         public final int rainRadius;
         public final int maxDrops;
@@ -70,11 +70,33 @@ public final class ClientConfig {
             .comment("How much rain closes in the view distance. 0 = vanilla fog.")
             .translation(key("fog"))
             .defineInRange("fog", 1.0, 0.0, 2.0);
+    public static final ForgeConfigSpec.DoubleValue MIST = BUILDER
+            .comment("Low mist in and after rain: thickest in drizzle, in forests, over water and in hollows, lingering at night "
+                    + "and in the morning after the rain. 0 = none.")
+            .translation(key("mist"))
+            .defineInRange("mist", 1.0, 0.0, 2.0);
     public static final ForgeConfigSpec.BooleanValue ATMOSPHERE = BUILDER
             .comment("Rainy air: haze that deepens with distance and in valleys, showers drifting through it, an overcast sky "
                     + "with rain shafts on the horizon. Off: a plain fog.")
             .translation(key("atmosphere"))
             .define("atmosphere", true);
+    public static final ForgeConfigSpec.BooleanValue HOT_SURFACES = BUILDER
+            .comment("Rain hisses and steams where it falls on lava, magma blocks and lit campfires, and lava lakes steam in the rain.")
+            .translation(key("hotSurfaces"))
+            .define("hotSurfaces", true);
+    public static final ForgeConfigSpec.BooleanValue RAINBOWS = BUILDER
+            .comment("Rainbows opposite the sun in every sun shower and sometimes when a rain clears up in daylight.")
+            .translation(key("rainbows"))
+            .define("rainbows", true);
+    public static final ForgeConfigSpec.IntValue RAINBOW_CHANCE = BUILDER
+            .comment("Percent of rains ending in daylight that leave a rainbow for a while.")
+            .translation(key("rainbowChance"))
+            .defineInRange("rainbowChance", 50, 0, 100);
+    public static final ForgeConfigSpec.BooleanValue PARTICLE_RAIN = BUILDER
+            .comment("Particle Rain integration, when Particle Rain is installed: this mod draws the rain and Particle Rain the "
+                    + "snow, dust, fog and the rest of its particles, blown by the same wind. Off: Particle Rain draws its own rain and hides this mod's falling rain and rainy air.")
+            .translation(key("particleRain"))
+            .define("particleRain", true);
 
     static {
         BUILDER.pop();
@@ -153,6 +175,11 @@ public final class ClientConfig {
                     + "and the bolt lingers as a fading afterimage.")
             .translation(key("exposure"))
             .define("flashExposure", true);
+    public static final ForgeConfigSpec.BooleanValue DEAFENING = BUILDER
+            .comment("A strike right next to you leaves you half deaf for a moment: the rain goes faint and dull and comes back "
+                    + "over a few seconds.")
+            .translation(key("deafening"))
+            .define("deafeningStrikes", true);
 
     static {
         BUILDER.pop();

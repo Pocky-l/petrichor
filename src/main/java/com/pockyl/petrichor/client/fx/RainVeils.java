@@ -46,7 +46,8 @@ public final class RainVeils {
             return;
         }
         // Every rain fills the middle distance: faintly in a drizzle, as a grey veil in rain, in dense sheets in a downpour.
-        float strength = Math.min(1.2F, ClientWeather.intensity()) * (0.12F + 0.88F * ClientWeather.heaviness) * 1.15F;
+        float strength = Math.min(1.2F, ClientWeather.intensity()) * (0.12F + 0.88F * ClientWeather.heaviness) * 1.15F
+                * (0.5F + 0.5F * ClientWeather.shade());
         // The rings stand around the camera wherever it is: in a cave larger than the nearest ring they would hang in
         // the air inside it, so they are only drawn where the sky can be seen.
         strength *= WeatherClient.skyView((float) (time - Math.floor(time)));

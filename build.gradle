@@ -21,6 +21,13 @@ sourceSets.main.resources {
 }
 
 repositories {
+    maven {
+        name = 'Glitchfiend'
+        url = 'https://maven.minecraftforge.net/'
+        content {
+            includeGroup 'com.github.glitchfiend'
+        }
+    }
 }
 
 legacyForge {
@@ -47,6 +54,8 @@ legacyForge {
 
         gameTestServer {
             type = 'gameTestServer'
+            // Own directory: in run/ it would test inside the dev client's world instead of a fresh flat one.
+            gameDirectory = project.file('run/gametest')
             systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
         }
 
@@ -83,7 +92,27 @@ configurations {
 
 dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    // MixinExtras ships inside the jar, so the mixins work on every Forge 47 and on NeoForge for 1.20.1.
+    compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:${mixinextras_version}"))
+    implementation(jarJar("io.github.llamalad7:mixinextras-forge:${mixinextras_version}"))
+    // Optional: only reached through com.pockyl.petrichor.compat.SereneSeasonsCompat when the mod is installed.
+    modCompileOnly "com.github.glitchfiend:SereneSeasons-forge:${minecraft_version}-${serene_seasons_version}"
+    modCompileOnly "com.github.glitchfiend:GlitchCore-forge:${minecraft_version}-${glitchcore_version}"
 }
+
+// Forge 1.20.1 runs the game tests on a dedicated server, in a world made from server.properties: a flat one, so the
+// tests do not meet hills, oceans and caves around their small areas.
+var prepareGameTestServer = tasks.register('prepareGameTestServer') {
+    var dir = project.file('run/gametest')
+    outputs.file(new File(dir, 'server.properties'))
+    doLast {
+        dir.mkdirs()
+        new File(dir, 'server.properties').text = [
+                'level-type=minecraft:flat', 'generate-structures=false', 'spawn-protection=0'
+        ].join(System.lineSeparator()) + System.lineSeparator()
+    }
+}
+tasks.named('runGameTestServer') { dependsOn prepareGameTestServer }
 
 var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     var replaceProperties = [
@@ -99,6 +128,8 @@ var generateModMetadata = tasks.register('generateModMetadata', ProcessResources
             mod_authors            : mod_authors,
             mod_description        : mod_description,
             mod_url                : mod_url,
+            serene_seasons_version_range: serene_seasons_version_range,
+            particle_rain_version_range: particle_rain_version_range,
     ]
     inputs.properties replaceProperties
     expand replaceProperties

@@ -47,6 +47,7 @@ public final class PetrichorSounds {
     public static final SoundEvent DROP_METAL = event("drop.metal");
     public static final SoundEvent DROP_LEAVES = event("drop.leaves");
     public static final SoundEvent PUDDLE_STEP = event("step.puddle");
+    public static final SoundEvent THUNDER_STRIKE = event("weather.thunder.strike");
     public static final SoundEvent THUNDER_CLOSE = event("weather.thunder.close");
     public static final SoundEvent THUNDER_MID = event("weather.thunder.mid");
     public static final SoundEvent THUNDER_FAR = event("weather.thunder.far");

@@ -22,7 +22,7 @@ import com.pockyl.petrichor.world.DropPath;
  */
 public final class Precipitation {
     private static final int CYCLE = 48;
-    private static final float MAX_TYPE_DENSITY = 2.6F;
+    private static final float MAX_TYPE_DENSITY = 3.42F;
     private static final int SEED_PHASE = 0x0D20_0001;
     private static final int SEED_X = 0x0D20_0002;
     private static final int SEED_Z = 0x0D20_0003;

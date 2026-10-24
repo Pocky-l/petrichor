@@ -21,7 +21,13 @@ import java.lang.invoke.MethodType;
  * of chunk meshes, so the pack renders them with its own water.
  */
 public final class ShaderPacks {
-    /** Pack material id of the block whose vertices follow, the render type of fluids (1) and the block position. */
+    /**
+     * Render type the puddles carry instead of Iris' fluid type 1, so a pack can tell them from real water: they arrive
+     * as {@code mc_Entity.y == 2} with the pack's water id in {@code mc_Entity.x}. Packs that ignore it draw them as water.
+     */
+    public static final byte PUDDLE_RENDER_TYPE = 2;
+
+    /** Pack material id of the block whose vertices follow, the render type ({@link #PUDDLE_RENDER_TYPE}) and the block position. */
     @FunctionalInterface
     private interface BlockTagger {
         void begin(Object builder, int id, int x, int y, int z) throws Throwable;
@@ -38,12 +44,20 @@ public final class ShaderPacks {
     private static final MethodHandle BLOCK_IDS;
     private static final BlockTagger BEGIN_BLOCK;
     private static final MethodHandle END_BLOCK;
+    private static final MethodHandle PIPELINE;
+    private static final MethodHandle GET_PHASE;
+    private static final MethodHandle SET_PHASE;
+    private static final Object WEATHER_PHASE;
 
     static {
         MethodHandle inUse = null;
         MethodHandle blockIds = null;
         BlockTagger beginBlock = null;
         MethodHandle endBlock = null;
+        MethodHandle pipeline = null;
+        MethodHandle getPhase = null;
+        MethodHandle setPhase = null;
+        Object weatherPhase = null;
         if (ModList.get().isLoaded("iris") || ModList.get().isLoaded("oculus")) {
             MethodHandles.Lookup lookup = MethodHandles.publicLookup();
             try {
@@ -72,11 +86,35 @@ public final class ShaderPacks {
                     // Not this layout; try the next one.
                 }
             }
+            // Internals too: without them weather drawn outside the vanilla weather pass uses the pack's particle program.
+            try {
+                Class<?> manager = Class.forName("net.irisshaders.iris.pipeline.PipelineManager");
+                Class<?> worldPipeline = Class.forName("net.irisshaders.iris.pipeline.WorldRenderingPipeline");
+                Class<?> phase = Class.forName("net.irisshaders.iris.pipeline.WorldRenderingPhase");
+                pipeline = MethodHandles.filterReturnValue(
+                        lookup.findStatic(Class.forName("net.irisshaders.iris.Iris"), "getPipelineManager", MethodType.methodType(manager)),
+                        lookup.findVirtual(manager, "getPipelineNullable", MethodType.methodType(worldPipeline)))
+                        .asType(MethodType.methodType(Object.class));
+                getPhase = lookup.findVirtual(worldPipeline, "getPhase", MethodType.methodType(phase))
+                        .asType(MethodType.methodType(Object.class, Object.class));
+                setPhase = lookup.findVirtual(worldPipeline, "setPhase", MethodType.methodType(void.class, phase))
+                        .asType(MethodType.methodType(void.class, Object.class, Object.class));
+                weatherPhase = phase.getField("RAIN_SNOW").get(null);
+            } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+                pipeline = null;
+                getPhase = null;
+                setPhase = null;
+                weatherPhase = null;
+            }
         }
         IN_USE = inUse;
         BLOCK_IDS = blockIds;
         BEGIN_BLOCK = beginBlock;
         END_BLOCK = endBlock;
+        PIPELINE = pipeline;
+        GET_PHASE = getPhase;
+        SET_PHASE = setPhase;
+        WEATHER_PHASE = weatherPhase;
     }
 
     private ShaderPacks() {
@@ -88,12 +126,12 @@ public final class ShaderPacks {
             MethodHandle begin = lookup.findVirtual(sensitive, "beginBlock", MethodType.methodType(void.class, short.class, short.class,
                     int.class, int.class, int.class)).asType(MethodType.methodType(void.class, Object.class, short.class, short.class,
                     int.class, int.class, int.class));
-            return (builder, id, x, y, z) -> begin.invokeExact(builder, (short) id, (short) 1, x, y, z);
+            return (builder, id, x, y, z) -> begin.invokeExact(builder, (short) id, (short) PUDDLE_RENDER_TYPE, x, y, z);
         } catch (NoSuchMethodException e) {
             MethodHandle begin = lookup.findVirtual(sensitive, "beginBlock", MethodType.methodType(void.class, int.class, byte.class,
                     byte.class, int.class, int.class, int.class)).asType(MethodType.methodType(void.class, Object.class, int.class,
                     byte.class, byte.class, int.class, int.class, int.class));
-            return (builder, id, x, y, z) -> begin.invokeExact(builder, id, (byte) 1, (byte) 0, x, y, z);
+            return (builder, id, x, y, z) -> begin.invokeExact(builder, id, PUDDLE_RENDER_TYPE, (byte) 0, x, y, z);
         }
     }
 
@@ -125,9 +163,10 @@ public final class ShaderPacks {
 
     /**
      * Tags the vertices added to {@code builder} until {@link #endBlock} as the block with pack id {@code id} at the
-     * given position, as a fluid. The builder must have been begun while the pack was active.
+     * given position, as a puddle ({@link #PUDDLE_RENDER_TYPE}). The builder must have been created while the pack was
+     * active.
      */
-    public static void beginFluid(BufferBuilder builder, int id, int x, int y, int z) {
+    public static void beginPuddle(BufferBuilder builder, int id, int x, int y, int z) {
         if (BEGIN_BLOCK == null || id < 0) {
             return;
         }
@@ -146,6 +185,41 @@ public final class ShaderPacks {
             END_BLOCK.invokeExact((Object) builder);
         } catch (Throwable ignored) {
             // Nothing to undo.
+        }
+    }
+
+    /**
+     * Puts the pack into its weather pass, as if the vanilla weather were being drawn: Iris only does that around the
+     * vanilla call, so weather drawn after it would otherwise get the pack's particle program.
+     *
+     * @return what to give {@link #endWeatherPhase} afterwards; null when nothing was changed
+     */
+    public static Object beginWeatherPhase() {
+        if (PIPELINE == null || !inUse()) {
+            return null;
+        }
+        try {
+            Object pipeline = (Object) PIPELINE.invokeExact();
+            if (pipeline == null) {
+                return null;
+            }
+            Object previous = (Object) GET_PHASE.invokeExact(pipeline);
+            SET_PHASE.invokeExact(pipeline, WEATHER_PHASE);
+            return new Object[] {pipeline, previous};
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    /** Puts the pack back into the pass it was in before {@link #beginWeatherPhase}. */
+    public static void endWeatherPhase(Object token) {
+        if (!(token instanceof Object[] saved) || SET_PHASE == null) {
+            return;
+        }
+        try {
+            SET_PHASE.invokeExact(saved[0], saved[1]);
+        } catch (Throwable ignored) {
+            // The pack resets its pass for the next frame itself.
         }
     }
 }

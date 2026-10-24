@@ -23,6 +23,7 @@ import org.lwjgl.opengl.GL30;
 
 import com.pockyl.petrichor.ClientConfig;
 import com.pockyl.petrichor.client.ClientWeather;
+import com.pockyl.petrichor.client.Mist;
 import com.pockyl.petrichor.client.WeatherClient;
 import com.pockyl.petrichor.client.compat.ShaderPacks;
 
@@ -30,7 +31,8 @@ import com.pockyl.petrichor.client.compat.ShaderPacks;
  * The air of a rainy day, drawn over the world from its depth buffer before the rain itself (shader
  * {@code petrichor_atmosphere}). Replaces the flat wall of fog: the haze deepens with distance and in low ground, so
  * hills behind hills fade in layers; heavier showers drift through it with the wind; the sky becomes a cloud deck with
- * rain shafts at the horizon, lit by lightning.
+ * rain shafts at the horizon, lit by lightning. Low mist lies in front of it all: on the ground, up into the crowns of a
+ * forest, in wisps (see {@link Mist}).
  */
 public final class Atmosphere {
     /** Optical depth that counts as "can no longer see": 95% haze. */
@@ -45,8 +47,10 @@ public final class Atmosphere {
         Minecraft minecraft = Minecraft.getInstance();
         // A shader pack draws its own sky and fog (and would hide this pass anyway).
         // Underground or deep indoors the rain's haze is outside, behind the walls.
-        if (!ClientConfig.ATMOSPHERE.get() || PetrichorShaders.atmosphere() == null || ClientWeather.rain() * WeatherClient.skyView(1.0F) <= 0.001F
-                || ClientConfig.FOG.get() <= 0.0 || ShaderPacks.inUse()) {
+        float view = WeatherClient.skyView(1.0F);
+        boolean rain = ClientWeather.rain() * view > 0.001F && ClientConfig.FOG.get() > 0.0;
+        boolean mist = Mist.density() * view > 1.0E-4F;
+        if (!ClientConfig.ATMOSPHERE.get() || PetrichorShaders.atmosphere() == null || !rain && !mist || ShaderPacks.inUse()) {
             return false;
         }
         Camera camera = minecraft.gameRenderer.getMainCamera();
@@ -74,6 +78,8 @@ public final class Atmosphere {
 
         float rain = ClientWeather.rain();
         float heaviness = ClientWeather.heaviness;
+        // In a sun shower the air stays clear and the sky blue.
+        float shade = ClientWeather.shade();
         float fog = (float) Math.min(1.0, ClientConfig.FOG.get());
         float sunAngle = level.getSunAngle(partialTick);
         float sunX = -Mth.sin(sunAngle);
@@ -89,13 +95,16 @@ public final class Atmosphere {
         shader.safeGetUniform("Haze").set(haze());
         shader.safeGetUniform("Falloff").set(1.0F / 40.0F);
         shader.safeGetUniform("BaseY").set((float) level.getSeaLevel());
-        shader.safeGetUniform("Strength").set(rain * WeatherClient.skyView(partialTick));
+        shader.safeGetUniform("Strength").set(rain * WeatherClient.skyView(partialTick) * (0.4F + 0.6F * shade));
         // A drizzle only greys the sky; a downpour hides it behind a heavy deck.
-        shader.safeGetUniform("Overcast").set(Math.min(1.0F, 0.55F + 0.45F * heaviness) * fog);
+        shader.safeGetUniform("Overcast").set(Math.min(1.0F, 0.55F + 0.45F * heaviness) * fog * shade);
         shader.safeGetUniform("Gloom").set(Math.max(Mth.clamp((heaviness - 0.4F) / 0.6F, 0.0F, 1.0F), ClientWeather.thunder() * 0.9F));
-        shader.safeGetUniform("Shafts").set(Mth.clamp((heaviness - 0.3F) / 0.7F, 0.0F, 1.0F));
-        shader.safeGetUniform("Glow").set(Math.max(0.0F, sunY + 0.2F) * (1.0F - 0.6F * heaviness) * 0.6F);
+        shader.safeGetUniform("Shafts").set(Mth.clamp((heaviness - 0.3F) / 0.7F, 0.0F, 1.0F) * shade);
+        shader.safeGetUniform("Glow").set(Math.max(0.0F, sunY + 0.2F) * (1.0F - 0.6F * heaviness) * (1.6F - 0.6F * shade) * 0.6F);
         shader.safeGetUniform("Flash").set(WeatherClient.flash(partialTick));
+        shader.safeGetUniform("Mist").set(Mist.density() * WeatherClient.skyView(partialTick));
+        shader.safeGetUniform("MistY").set(Float.isNaN(Mist.baseY()) ? (float) camY : Mist.baseY());
+        shader.safeGetUniform("MistHeight").set(Mist.height());
         shader.safeGetUniform("SunDir").set(sunX, sunY, 0.0F);
 
         RenderSystem.setShader(() -> shader);

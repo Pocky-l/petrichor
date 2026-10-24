@@ -6,7 +6,6 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -27,7 +26,7 @@ public enum SurfaceKind {
     OTHER,
     WATER,
     LEAVES,
-    /** Lava, magma, lit campfires: rain sizzles. */
+    /** Lava, magma, lit campfires: rain sizzles (see {@link HotSurface}). */
     HOT;
 
     private static final Map<BlockState, Shape> CACHE = new ConcurrentHashMap<>();
@@ -49,7 +48,7 @@ public enum SurfaceKind {
         if (state.getFluidState().is(FluidTags.WATER)) {
             return new Shape(WATER, 0.9F, false);
         }
-        if (state.getFluidState().is(FluidTags.LAVA) || state.is(Blocks.MAGMA_BLOCK) || CampfireBlock.isLitCampfire(state)) {
+        if (HotSurface.of(state) != null) {
             return new Shape(HOT, 1.0F, false);
         }
         if (state.is(BlockTags.LEAVES)) {
