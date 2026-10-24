@@ -4,6 +4,19 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - Unreleased
+### Added
+- Low mist, as it forms in real life. Rain falling into the cool air near the ground fills it with mist: thickest in a
+  drizzle or a steady rain, thinner in a downpour, mostly swept away by a thunderstorm's wind. It gathers where the air
+  stands still and damp - between the trees and up into the crowns of a forest, over water and swamps, in hollows and
+  valleys - drifts in slow wisps and stays thin over open, high ground.
+- After the rain the wet ground keeps breathing mist out: it lingers in the evening, at night and in the morning, and
+  the sun burns it off by midday.
+- New option `rain.mist` (1 by default, 0 turns the mist off).
+
+### Fixed
+- The rain's haze no longer fades out under trees: a forest canopy dims the sky light, and the mod took it for a roof.
+
 ## [1.4.0] - 2026-10-13
 ### Added
 - Rain fills cauldrons as fast as it falls: a drizzle fills them slower than vanilla rain, normal rain as in vanilla,

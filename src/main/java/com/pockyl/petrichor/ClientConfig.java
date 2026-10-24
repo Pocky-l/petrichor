@@ -70,6 +70,11 @@ public final class ClientConfig {
             .comment("How much rain closes in the view distance. 0 = vanilla fog.")
             .translation(key("fog"))
             .defineInRange("fog", 1.0, 0.0, 2.0);
+    public static final ModConfigSpec.DoubleValue MIST = BUILDER
+            .comment("Low mist in and after rain: thickest in drizzle, in forests, over water and in hollows, lingering at night "
+                    + "and in the morning after the rain. 0 = none.")
+            .translation(key("mist"))
+            .defineInRange("mist", 1.0, 0.0, 2.0);
     public static final ModConfigSpec.BooleanValue ATMOSPHERE = BUILDER
             .comment("Rainy air: haze that deepens with distance and in valleys, showers drifting through it, an overcast sky "
                     + "with rain shafts on the horizon. Off: a plain fog.")

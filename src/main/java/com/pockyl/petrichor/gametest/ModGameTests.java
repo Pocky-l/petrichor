@@ -20,6 +20,7 @@ import com.pockyl.petrichor.client.lightning.BoltShape;
 import com.pockyl.petrichor.compat.ParticleRain;
 import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.network.WeatherSyncPayload;
+import com.pockyl.petrichor.weather.MistModel;
 import com.pockyl.petrichor.weather.RainSchedule;
 import com.pockyl.petrichor.weather.RainType;
 import com.pockyl.petrichor.weather.SeasonalWeather;
@@ -122,6 +123,24 @@ public final class ModGameTests {
         helper.assertTrue(Math.abs(rain - vanilla) < 1.0E-6, "normal rain fills them like vanilla");
         helper.assertTrue(downpour > 2 * vanilla, "a downpour fills them much faster");
         helper.assertTrue(RainCauldrons.chance(RainType.DOWNPOUR.level(), 0.0F) == vanilla, "0 keeps the vanilla speed");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void mistGathersWhereItDoesInRealLife(GameTestHelper helper) {
+        float noon = 1.0F;
+        float dawn = 0.1F;
+        float drizzleForest = MistModel.density(1.0F, RainType.DRIZZLE.level(), 0.3F, noon, 1.0F, 1.0F);
+        float drizzleField = MistModel.density(1.0F, RainType.DRIZZLE.level(), 0.3F, noon, 0.0F, 1.0F);
+        float storm = MistModel.density(1.0F, RainType.THUNDERSTORM.level(), 1.0F, noon, 1.0F, 1.0F);
+        helper.assertTrue(drizzleForest > 2.5F * drizzleField, "a forest holds the mist, open land much less");
+        helper.assertTrue(drizzleForest > storm, "a drizzle is mistier than a windy thunderstorm");
+        float afterDawn = MistModel.density(0.0F, 0.0F, 0.8F, dawn, 1.0F, 1.0F);
+        float afterNoon = MistModel.density(0.0F, 0.0F, 0.8F, noon, 1.0F, 1.0F);
+        helper.assertTrue(afterDawn > 2.5F * afterNoon, "after the rain the mist lingers at dawn, the sun burns it off by midday");
+        helper.assertTrue(MistModel.density(0.0F, 0.0F, 0.0F, dawn, 1.0F, 1.0F) == 0.0F, "no rain and dry ground: no mist");
+        helper.assertTrue(MistModel.density(1.0F, 0.0F, 1.0F, dawn, 1.0F, 0.0F) == 0.0F, "0 in the config turns it off");
+        helper.assertTrue(MistModel.height(1.0F, 14.0F) > 2.0F * MistModel.height(0.0F, 0.0F), "in a forest it reaches into the crowns");
         helper.succeed();
     }
 

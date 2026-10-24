@@ -301,6 +301,11 @@ public final class ClientWeather {
         return windZ;
     }
 
+    /** Share of the land around the listener where it rains rather than snows or stays dry, 0..1. */
+    public static float rainyLand() {
+        return presence;
+    }
+
     public static float wetness() {
         return wetness;
     }

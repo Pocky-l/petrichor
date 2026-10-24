@@ -13,7 +13,7 @@ player sees the same weather
 - 🌧️ **Rain that changes** - drizzle, rain, downpour and thunderstorm, swelling and dying down over a minute, slanted by
   a slowly turning wind; sun showers with rainbows.
 - 🌫️ **Rainy air** - haze that settles in valleys and fades ridges in layers, drifting showers, a cloud deck with rain
-  shafts on the horizon; rain never passes through walls.
+  shafts on the horizon, low mist among the trees; rain never passes through walls.
 - 💧 **Water on the ground** - puddles in hollows that reflect the world and ripple with rings, wet shining ground,
   water running off edges and dripping from roofs, cliffs and leaves after the rain; cauldrons fill as fast as it
   rains.

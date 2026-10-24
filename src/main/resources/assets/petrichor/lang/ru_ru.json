@@ -78,6 +78,7 @@
   "petrichor.configuration.splashes": "Брызги",
   "petrichor.configuration.splashDensity": "Количество брызг",
   "petrichor.configuration.fog": "Дымка от дождя",
+  "petrichor.configuration.mist": "Туман",
   "petrichor.configuration.atmosphere": "Дождевая атмосфера",
   "petrichor.configuration.hotSurfaces": "Шипение и пар на раскалённых блоках",
   "petrichor.configuration.rainbows": "Радуга",
