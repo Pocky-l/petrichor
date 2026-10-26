@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
+import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.gametest.GameTestHolder;
@@ -294,6 +295,43 @@ public final class ModGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void grassSoaksUpTheRain(GameTestHelper helper) {
+        int size = 24;
+        SurfaceGrid bare = flatGrid(size, 64);
+        SurfaceGrid grass = flatGrid(size, 64);
+        for (int i = 0; i < size * size; i++) {
+            grass.absorbent[i] = true;
+        }
+        // A step up across the middle (a terrace) and a pit in the grass.
+        for (int z = 0; z < size; z++) {
+            for (int x = 12; x < size; x++) {
+                bare.set(x, z, 65, 65.0F, SurfaceKind.GROUND, true);
+                grass.set(x, z, 65, 65.0F, SurfaceKind.GROUND, true);
+                grass.absorbent[grass.index(x, z)] = true;
+            }
+        }
+        grass.set(5, 5, 63, 63.0F, SurfaceKind.GROUND, true);
+        grass.absorbent[grass.index(5, 5)] = true;
+        float[] bareField = PuddleField.compute(bare, RunoffSolver.solve(bare));
+        float[] grassField = PuddleField.compute(grass, RunoffSolver.solve(grass));
+        float bareCover = 0.0F;
+        float grassCover = 0.0F;
+        for (int i = 0; i < size * size; i++) {
+            if (i != grass.index(5, 5)) {
+                bareCover += PuddleField.cover(bareField[i], 1.0F, 1.0F);
+                grassCover += PuddleField.cover(grassField[i], 1.0F, 1.0F);
+            }
+        }
+        helper.assertTrue(bareCover > 20.0F, "Soaked bare earth has scattered puddles, " + bareCover);
+        helper.assertTrue(grassCover == 0.0F, "Flat grass and the foot of a grassy step hold no puddles, " + grassCover);
+        helper.assertTrue(PuddleField.cover(grassField[grass.index(5, 5)], 0.8F, 1.0F) > 0.9F, "A pit in the grass still fills");
+        helper.assertTrue(SurfaceKind.classify(Blocks.GRASS_BLOCK.defaultBlockState()).absorbent()
+                && !SurfaceKind.classify(Blocks.DIRT_PATH.defaultBlockState()).absorbent()
+                && !SurfaceKind.classify(Blocks.STONE.defaultBlockState()).absorbent(), "Grass soaks the rain up, paths and stone do not");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void wideHollowFills(GameTestHelper helper) {
         SurfaceGrid grid = flatGrid(13, 64);
         for (int z = 4; z <= 8; z++) {
@@ -400,6 +438,72 @@ public final class ModGameTests {
         helper.assertTrue(SurfaceKind.classify(Blocks.MAGMA_BLOCK.defaultBlockState()).kind() == SurfaceKind.HOT, "Magma sizzles");
         SurfaceKind.Shape slab = SurfaceKind.classify(Blocks.STONE_SLAB.defaultBlockState());
         helper.assertTrue(slab.kind() == SurfaceKind.GROUND && Math.abs(slab.top() - 0.5F) < 1.0E-4F, "A bottom slab is flat at half height");
+        helper.succeed();
+    }
+
+    /** Ground at the edge of a lake drains into it: no closed hollow and no puddle right beside the real water. */
+    @GameTest(template = "empty")
+    public static void banksDrainIntoWater(GameTestHelper helper) {
+        // A sunken flat (64) inside a rim (65): a closed hollow, until a pond fills its west part at the same level.
+        SurfaceGrid dry = flatGrid(9, 65);
+        SurfaceGrid pond = flatGrid(9, 65);
+        for (int z = 1; z <= 7; z++) {
+            for (int x = 1; x <= 7; x++) {
+                dry.set(x, z, 64, 64.0F, SurfaceKind.GROUND, true);
+                boolean water = x <= 2;
+                pond.set(x, z, 64, water ? 63.9F : 64.0F, water ? SurfaceKind.WATER : SurfaceKind.GROUND, !water);
+            }
+        }
+        RunoffSolver dryRunoff = RunoffSolver.solve(dry);
+        RunoffSolver pondRunoff = RunoffSolver.solve(pond);
+        float[] dryField = PuddleField.compute(dry, dryRunoff);
+        float[] pondField = PuddleField.compute(pond, pondRunoff);
+        int bank = pond.index(3, 4);
+        int inland = pond.index(6, 4);
+        helper.assertTrue(dryRunoff.closed[inland], "Without the pond the flat is a closed hollow");
+        helper.assertTrue(pondRunoff.downstream[bank] == pond.index(2, 4) && pondRunoff.drop[bank] == 0, "The bank drains into the pond");
+        helper.assertTrue(!pondRunoff.closed[inland], "A flat that drains into water is no hollow");
+        helper.assertTrue(PuddleField.bank(pond, bank) && pondField[bank] == 0.0F, "No puddle on the bank, field " + pondField[bank]);
+        helper.assertTrue(pondField[inland] < dryField[inland], "Ground draining into the pond pools less, "
+                + pondField[inland] + " vs " + dryField[inland]);
+        helper.assertTrue(PuddleField.cover(pondField[bank], 1.0F, 1.6F) == 0.0F,
+                "Soaked ground at the highest coverage keeps the bank free");
+        // Ground a step above the water is a shore, not a bank: its puddles stay.
+        SurfaceGrid cliff = flatGrid(5, 66);
+        cliff.set(0, 2, 64, 63.9F, SurfaceKind.WATER, false);
+        helper.assertTrue(!PuddleField.bank(cliff, cliff.index(1, 2)), "Ground above the water level holds puddles");
+        helper.succeed();
+    }
+
+    /** Puddles lie only on dry flat ground: never in, under or over a fluid. */
+    @GameTest(template = "empty")
+    public static void puddlesStayOffWater(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos ground = new BlockPos(0, 1, 0);
+        BlockPos abs = helper.absolutePos(ground);
+        BlockState water = Blocks.WATER.defaultBlockState();
+        BlockState slab = Blocks.STONE_SLAB.defaultBlockState();
+
+        helper.setBlock(ground, Blocks.STONE);
+        helper.assertTrue(SurfaceKind.holdsPuddle(level, abs), "Dry stone holds a puddle");
+        helper.setBlock(ground.above(), water);
+        helper.assertTrue(!SurfaceKind.holdsPuddle(level, abs), "No puddle under water standing on the ground");
+        helper.setBlock(ground.above(), Blocks.AIR);
+        helper.setBlock(ground, water);
+        helper.assertTrue(!SurfaceKind.holdsPuddle(level, abs), "No puddle on water");
+        helper.setBlock(ground, slab.setValue(SlabBlock.WATERLOGGED, true));
+        helper.assertTrue(!SurfaceKind.holdsPuddle(level, abs), "No puddle on a waterlogged slab");
+        helper.setBlock(ground, slab);
+        helper.assertTrue(SurfaceKind.holdsPuddle(level, abs), "A dry slab holds a puddle");
+        helper.setBlock(ground.below(), water);
+        helper.assertTrue(!SurfaceKind.holdsPuddle(level, abs), "No puddle on a slab over water: it would lie over the water");
+        helper.setBlock(ground, Blocks.STONE);
+        helper.assertTrue(SurfaceKind.holdsPuddle(level, abs), "A full block hides the water below it");
+        helper.setBlock(ground, Blocks.KELP);
+        helper.assertTrue(!SurfaceKind.holdsPuddle(level, abs), "No puddle on kelp");
+
+        helper.setBlock(ground.below(), Blocks.AIR);
+        helper.setBlock(ground, Blocks.AIR);
         helper.succeed();
     }
 

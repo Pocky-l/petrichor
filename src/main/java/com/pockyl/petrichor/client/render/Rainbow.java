@@ -40,6 +40,8 @@ public final class Rainbow {
     /** The bow is placed as if the sun stood at most this high (degrees), so its top is at least 20 degrees up. */
     private static final float MAX_SUN = 22.0F;
     private static final int RINGS = 10;
+    /** Opacity of the coloured bows over the sky (relative to the rainbow's strength). */
+    private static final float BOW_TINT = 0.7F;
     /** Colours from the inner edge (violet) to the outer one (red). */
     private static final float[][] SPECTRUM = {
             {0.00F, 0.45F, 0.25F, 0.85F}, {0.18F, 0.20F, 0.35F, 1.00F}, {0.38F, 0.20F, 0.85F, 0.45F},
@@ -113,20 +115,24 @@ public final class Rainbow {
         stack.last().pose().set(modelView);
         RenderSystem.applyModelViewMatrix();
         RenderSystem.enableBlend();
-        // Light added to the sky, as a real rainbow is.
-        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
+        float alpha = 0.5F * shown;
+        // The sky inside the primary bow is a little brighter: light added to the sky.
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         BufferBuilder builder = Tesselator.getInstance().getBuilder();
         builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        float alpha = 0.5F * shown;
-        // The sky inside the primary bow is a little brighter.
         bow(builder, anti, across, up, 30.0F, 40.0F, alpha * 0.16F, Band.GLOW);
-        bow(builder, anti, across, up, 39.8F, 42.8F, alpha, Band.PRIMARY);
-        bow(builder, anti, across, up, 50.2F, 53.8F, alpha * 0.38F, Band.SECONDARY);
+        BufferUploader.drawWithShader(builder.end());
+        // The bows tint the sky with their colours. Added as light, they washed out on a bright day sky to white, cyan
+        // and pink: the red, orange and yellow were lost.
+        RenderSystem.defaultBlendFunc();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        bow(builder, anti, across, up, 39.8F, 42.8F, alpha * BOW_TINT, Band.PRIMARY);
+        bow(builder, anti, across, up, 50.2F, 53.8F, alpha * BOW_TINT * 0.4F, Band.SECONDARY);
         BufferUploader.drawWithShader(builder.end());
 
         RenderSystem.enableCull();

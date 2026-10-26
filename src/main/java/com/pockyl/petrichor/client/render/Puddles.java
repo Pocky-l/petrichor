@@ -273,28 +273,64 @@ public final class Puddles implements AutoCloseable {
         for (int c = 0; c < CHECKS_PER_TICK && c < entries.length; c++) {
             checkCursor = (checkCursor + 1) % entries.length;
             ChunkPuddles chunk = entries[checkCursor].getValue();
-            if (signature(level, chunk.chunkX, chunk.chunkZ) != chunk.signature) {
+            if (signature(level, chunk) != chunk.signature) {
                 build(level, chunk);
                 return;
             }
         }
     }
 
-    private static int signature(ClientLevel level, int cx, int cz) {
+    /**
+     * What the chunk's puddles were built on: the height and the kind of surface of every column, and whether fluid has
+     * reached the sheltered ground. Not just the heights - a shore block mined and flooded, or a slab filled with a
+     * bucket, keeps the column's height while the puddle on it would be left floating over the water.
+     */
+    private int signature(ClientLevel level, ChunkPuddles chunk) {
+        int originX = chunk.chunkX << 4;
+        int originZ = chunk.chunkZ << 4;
         int hash = 1;
         for (int z = 0; z < 16; z++) {
             for (int x = 0; x < 16; x++) {
-                hash = hash * 31 + level.getHeight(Heightmap.Types.MOTION_BLOCKING, (cx << 4) + x, (cz << 4) + z);
+                int height = level.getHeight(Heightmap.Types.MOTION_BLOCKING, originX + x, originZ + z);
+                pos.set(originX + x, height - 1, originZ + z);
+                hash = hash * 31 + height;
+                hash = hash * 31 + SurfaceKind.classify(level.getBlockState(pos)).hashCode();
+                float sheltered = chunk.lastTop[256 + z * 16 + x];
+                if (!Float.isNaN(sheltered)) {
+                    pos.setY(Mth.ceil(sheltered) - 1);
+                    boolean flooded = !level.getFluidState(pos).isEmpty() || !level.getFluidState(pos.move(0, 1, 0)).isEmpty();
+                    hash = hash * 31 + (flooded ? 1 : 2);
+                }
             }
         }
         return hash;
     }
 
     private void build(ClientLevel level, ChunkPuddles chunk) {
-        chunk.signature = signature(level, chunk.chunkX, chunk.chunkZ);
+        buildMeshes(level, chunk);
+        chunk.signature = signature(level, chunk);
+    }
+
+    /**
+     * Tops that look like flat ground but must not hold a puddle (see {@link SurfaceKind#holdsPuddle}) are treated as
+     * uneven ground: no puddle, no running film, but the rain still runs over them.
+     */
+    private void vetGround(ClientLevel level, SurfaceGrid grid) {
+        for (int i = 0; i < grid.size * grid.size; i++) {
+            if (grid.kind[i] == SurfaceKind.GROUND) {
+                pos.set(grid.x0 + i % grid.size, grid.height[i] - 1, grid.z0 + i / grid.size);
+                if (!SurfaceKind.holdsPuddle(level, pos)) {
+                    grid.kind[i] = SurfaceKind.OTHER;
+                }
+            }
+        }
+    }
+
+    private void buildMeshes(ClientLevel level, ChunkPuddles chunk) {
         int originX = chunk.chunkX << 4;
         int originZ = chunk.chunkZ << 4;
         SurfaceGrid grid = SurfaceGrid.sample(level, originX - MARGIN, originZ - MARGIN, GRID);
+        vetGround(level, grid);
         RunoffSolver runoff = RunoffSolver.solve(grid);
         float[] field = PuddleField.compute(grid, runoff);
         wetDripLines(grid, runoff, field);
@@ -335,7 +371,8 @@ public final class Puddles implements AutoCloseable {
     private static void wetDripLines(SurfaceGrid grid, RunoffSolver runoff, float[] field) {
         for (int i = 0; i < field.length; i++) {
             int j = runoff.downstream[i];
-            if (j < 0 || runoff.drop[i] < 2 || runoff.accumulation[i] < 3 || grid.kind[j] != SurfaceKind.GROUND) {
+            if (j < 0 || runoff.drop[i] < 2 || runoff.accumulation[i] < 3 || grid.kind[j] != SurfaceKind.GROUND
+                    || PuddleField.bank(grid, j)) {
                 continue;
             }
             SurfaceKind kind = grid.kind[i];
@@ -590,7 +627,9 @@ public final class Puddles implements AutoCloseable {
      * water program. Called after the translucent blocks, where the pack draws its own water.
      */
     public void renderWater(Matrix4f modelView, Matrix4f projection, Vec3 cam, Frustum frustum) {
-        if (chunks.isEmpty() || !ShaderPacks.inUse() || !ClientConfig.PUDDLES.get()) {
+        // Iris draws the translucent terrain in its shadow pass too, and NeoForge then fires this stage again with the
+        // shadow matrices: a film of water on the ground must not cast a shadow.
+        if (chunks.isEmpty() || !ShaderPacks.inUse() || !ClientConfig.PUDDLES.get() || ShaderPacks.renderingShadowPass()) {
             return;
         }
         RenderType type = RenderType.translucent();
@@ -798,7 +837,7 @@ public final class Puddles implements AutoCloseable {
                 continue;
             }
             SurfaceKind.Shape shape = SurfaceKind.classify(state);
-            if (gap && shape.kind() == SurfaceKind.GROUND) {
+            if (gap && shape.kind() == SurfaceKind.GROUND && SurfaceKind.holdsPuddle(level, pos)) {
                 surfaces.top[id] = y + shape.top();
                 surfaces.soil[id] = shape.soil();
             }

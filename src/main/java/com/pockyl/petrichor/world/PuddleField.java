@@ -9,7 +9,8 @@ import com.pockyl.petrichor.weather.Noise;
  * brim of a dip it lies in), at the foot of walls and in closed dips, low next to drops where water runs away, plus two
  * octaves of noise so open ground gets the scattered puddles of real uneven earth. A puddle covers the ground where the field exceeds a threshold that falls
  * as the ground gets wetter ({@link #threshold}), so puddles grow from the deepest spots outwards and shrink back the
- * same way while drying.
+ * same way while drying. Grass and other absorbent ground soak the rain up: neither the noise nor the foot of a step
+ * puddles them, only real hollows do.
  */
 public final class PuddleField {
     private static final int SEED_LARGE = 0x9D1E_0001;
@@ -17,22 +18,47 @@ public final class PuddleField {
     private static final float CLOSED_BONUS = 0.32F;
     /** Per block of water standing in a filled hollow. */
     private static final float DEPTH_BONUS = 0.45F;
+    /** Share of the noise and of the rise around that still puddles absorbent ground. */
+    private static final float ABSORBENT_NOISE = 0.35F;
+    private static final float ABSORBENT_RISE = 0.6F;
 
     private PuddleField() {
     }
 
-    /** The field of every cell of the grid (0 for anything that is not flat ground). */
+    /** The field of every cell of the grid (0 for anything that is not flat ground, and on the banks of water). */
     public static float[] compute(SurfaceGrid grid, RunoffSolver runoff) {
         float[] field = new float[grid.size * grid.size];
         for (int lz = 0; lz < grid.size; lz++) {
             for (int lx = 0; lx < grid.size; lx++) {
                 int i = grid.index(lx, lz);
-                if (grid.kind[i] == SurfaceKind.GROUND) {
+                if (grid.kind[i] == SurfaceKind.GROUND && !bank(grid, i)) {
                     field[i] = cell(grid, runoff, lx, lz);
                 }
             }
         }
         return field;
+    }
+
+    /**
+     * Ground at the edge of water at its own level or above (a lake shore, a river bank, a farm's water channel): the rain
+     * runs off into the water, and a puddle there would only lie as a second water surface right beside the real one.
+     */
+    public static boolean bank(SurfaceGrid grid, int i) {
+        int lx = i % grid.size;
+        int lz = i / grid.size;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int nx = lx + dx;
+                int nz = lz + dz;
+                if ((dx != 0 || dz != 0) && nx >= 0 && nz >= 0 && nx < grid.size && nz < grid.size) {
+                    int j = grid.index(nx, nz);
+                    if (grid.kind[j] == SurfaceKind.WATER && grid.height[j] >= grid.height[i]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static float cell(SurfaceGrid grid, RunoffSolver runoff, int lx, int lz) {
@@ -67,6 +93,12 @@ public final class PuddleField {
         }
         if (counted > 0) {
             concavity /= counted;
+        }
+        if (grid.absorbent[i]) {
+            noise *= ABSORBENT_NOISE;
+            if (concavity > 0.0F) {
+                concavity *= ABSORBENT_RISE;
+            }
         }
         float field = noise * 0.8F + concavity * 0.5F;
         if (runoff != null) {

@@ -4,6 +4,24 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1+1.20.1] - Unreleased
+### Fixed
+- Puddles no longer appear over or next to water. With a shader pack they are drawn as water, and at a lake shore, a
+  river bank or a farm's water channel they lay as a second water surface beside or above the real one, darkening it
+  like a shadow. Ground at the water's edge now drains into the water and stays free of puddles.
+- A puddle no longer stays behind floating over the water when the block under it is mined and water flows in, or
+  when a slab is filled with water; puddles are also no longer laid on thin blocks such as slabs or trapdoors right
+  above water.
+- With a shader pack, puddles no longer cast shadows.
+- The low mist no longer stands as a white wall a few dozen blocks away that moves along with you, and no longer
+  fills a far valley with one flat sheet: it is a veil around you that thins out with distance, soft near the ground.
+  It no longer jumps up and down when you walk over hills, is fainter on a sunny day after the rain, and with a
+  shader pack it is a light haze far out instead of a fog wall.
+- Grass, moss, podzol and mycelium soak the rain up: puddles no longer cover whole grassy slopes in dark sheets, only
+  real hollows in the grass fill. Bare earth, paths, farmland and stone keep their scattered puddles.
+- The rainbow shows its colours on a bright day sky: red, orange, yellow and green were washed out to white, cyan and
+  pink.
+
 ## [1.5.0+1.20.1] - 2026-10-25
 ### Changed
 - The Minecraft 1.20.1 version catches up with 1.5.0 for Minecraft 1.21.1: low mist in and after rain, rain filling

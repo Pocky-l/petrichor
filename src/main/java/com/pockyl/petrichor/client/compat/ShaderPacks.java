@@ -41,6 +41,7 @@ public final class ShaderPacks {
     };
 
     private static final MethodHandle IN_USE;
+    private static final MethodHandle SHADOW_PASS;
     private static final MethodHandle BLOCK_IDS;
     private static final BlockTagger BEGIN_BLOCK;
     private static final MethodHandle END_BLOCK;
@@ -51,6 +52,7 @@ public final class ShaderPacks {
 
     static {
         MethodHandle inUse = null;
+        MethodHandle shadowPass = null;
         MethodHandle blockIds = null;
         BlockTagger beginBlock = null;
         MethodHandle endBlock = null;
@@ -64,8 +66,9 @@ public final class ShaderPacks {
                 Class<?> api = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
                 Object instance = api.getMethod("getInstance").invoke(null);
                 inUse = lookup.findVirtual(api, "isShaderPackInUse", MethodType.methodType(boolean.class)).bindTo(instance);
+                shadowPass = lookup.findVirtual(api, "isRenderingShadowPass", MethodType.methodType(boolean.class)).bindTo(instance);
             } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
-                inUse = null;
+                shadowPass = null;
             }
             // Internals (not part of the API): without them puddles are drawn as plain translucent water film.
             for (String[] names : INTERNALS) {
@@ -108,6 +111,7 @@ public final class ShaderPacks {
             }
         }
         IN_USE = inUse;
+        SHADOW_PASS = shadowPass;
         BLOCK_IDS = blockIds;
         BEGIN_BLOCK = beginBlock;
         END_BLOCK = endBlock;
@@ -142,6 +146,18 @@ public final class ShaderPacks {
         }
         try {
             return (boolean) IN_USE.invokeExact();
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    /** Whether the pack is drawing its shadow map right now (it renders parts of the world a second time for it). */
+    public static boolean renderingShadowPass() {
+        if (SHADOW_PASS == null) {
+            return false;
+        }
+        try {
+            return (boolean) SHADOW_PASS.invokeExact();
         } catch (Throwable e) {
             return false;
         }
