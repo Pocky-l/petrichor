@@ -86,7 +86,7 @@ float showers(vec3 dir, float dist) {
 // filling the whole view. It softens the near land and never stands as a wall at a fixed distance that walks along
 // with the player, nor buries a far valley under one flat sheet. Optical depth from a few samples along the near part
 // of the ray: uniform below its base, thinning exponentially above it, fading out with distance.
-const float MIST_REACH = 48.0;
+const float MIST_REACH = 64.0;
 const int MIST_STEPS = 12;
 
 // Optical depth of the mist: it starts a step in front of the camera, and drifts in wisps sampled along the near

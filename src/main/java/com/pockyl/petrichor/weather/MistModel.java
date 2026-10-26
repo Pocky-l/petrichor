@@ -13,7 +13,7 @@ package com.pockyl.petrichor.weather;
  */
 public final class MistModel {
     /** Mist per block at its base at full strength: trees 30 blocks away in a misty forest are mostly hidden. */
-    public static final float DENSITY = 0.03F;
+    public static final float DENSITY = 0.05F;
     /** Mist while it rains, by rain level: drizzle, rain, downpour, thunderstorm. */
     private static final float[] DURING = {1.0F, 0.8F, 0.6F, 0.4F};
 
@@ -33,7 +33,7 @@ public final class MistModel {
     public static float density(float rain, float level, float wetness, float sunHeight, float place, float strength) {
         float during = rain * during(level) * (0.85F + 0.15F * night(sunHeight));
         // After the rain: the wet ground steams, more in the cool of the night and the morning.
-        float after = (float) Math.sqrt(Math.max(wetness, 0.0F)) * (1.0F - rain) * 0.8F * (0.1F + 0.9F * night(sunHeight));
+        float after = (float) Math.sqrt(Math.max(wetness, 0.0F)) * (1.0F - rain) * 0.8F * (0.2F + 0.8F * night(sunHeight));
         return DENSITY * strength * (during + after) * (0.3F + 0.7F * Math.clamp(place, 0.0F, 1.0F));
     }
 
