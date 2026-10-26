@@ -23,6 +23,8 @@ public final class SurfaceGrid {
     public final SurfaceKind[] kind;
     /** Dirt-like ground: puddles there are muddy. */
     public final boolean[] soil;
+    /** Grass-like ground that soaks the rain up: puddles only in its real hollows. */
+    public final boolean[] absorbent;
 
     public SurfaceGrid(int x0, int z0, int size) {
         this.x0 = x0;
@@ -33,6 +35,7 @@ public final class SurfaceGrid {
         top = new float[n];
         kind = new SurfaceKind[n];
         soil = new boolean[n];
+        absorbent = new boolean[n];
         Arrays.fill(height, UNKNOWN_HEIGHT);
         Arrays.fill(kind, SurfaceKind.UNKNOWN);
     }
@@ -72,6 +75,7 @@ public final class SurfaceGrid {
                 pos.set(x, h - 1, z);
                 SurfaceKind.Shape shape = SurfaceKind.classify(level.getBlockState(pos));
                 grid.set(lx, lz, h, h - 1 + shape.top(), shape.kind(), shape.soil());
+                grid.absorbent[grid.index(lx, lz)] = shape.absorbent();
             }
         }
         return grid;

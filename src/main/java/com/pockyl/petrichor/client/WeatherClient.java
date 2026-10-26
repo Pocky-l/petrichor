@@ -413,8 +413,9 @@ public final class WeatherClient {
         float k = strength <= 0.0 ? 0.0F
                 : (float) Math.min(1.0, rain * Math.sqrt(Math.max(ClientWeather.intensity(), 0.0F)) * strength) * ClientWeather.shade();
         if (mist > 1.0E-4F) {
-            float mistTarget = 2.5F / mist;
-            float mistK = Math.min(1.0F, mist / MistModel.DENSITY);
+            // A soft veil far out, not a wall of fog: the vanilla fog cannot fade the mist out with distance.
+            float mistTarget = 6.0F / mist;
+            float mistK = 0.7F * Math.min(1.0F, mist / MistModel.DENSITY);
             if (k <= 0.0F || mistTarget < target) {
                 target = mistTarget;
                 k = Math.max(k, mistK);

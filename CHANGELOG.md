@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when a slab is filled with water; puddles are also no longer laid on thin blocks such as slabs or trapdoors right
   above water.
 - With a shader pack, puddles no longer cast shadows.
+- The low mist no longer stands as a white wall a few dozen blocks away that moves along with you, and no longer
+  fills a far valley with one flat sheet: it is a veil around you that thins out with distance, soft near the ground.
+  It no longer jumps up and down when you walk over hills, is fainter on a sunny day after the rain, and with a
+  shader pack it is a light haze far out instead of a fog wall.
+- Grass, moss, podzol and mycelium soak the rain up: puddles no longer cover whole grassy slopes in dark sheets, only
+  real hollows in the grass fill. Bare earth, paths, farmland and stone keep their scattered puddles.
+- The rainbow shows its colours on a bright day sky: red, orange, yellow and green were washed out to white, cyan and
+  pink.
 
 ## [1.5.0] - 2026-10-24
 ### Added

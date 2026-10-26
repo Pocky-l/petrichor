@@ -28,6 +28,8 @@ public final class Mist {
 
     private static float density;
     private static float baseY = Float.NaN;
+    /** The ground the survey found; {@link #baseY} glides towards it every tick, so the layer never jumps. */
+    private static float targetY = Float.NaN;
     private static float height = 5.0F;
     private static float cover;
     private static float water;
@@ -40,7 +42,7 @@ public final class Mist {
 
     public static void reset() {
         density = 0.0F;
-        baseY = Float.NaN;
+        baseY = targetY = Float.NaN;
         cover = water = hollow = canopy = 0.0F;
         outdoors = false;
     }
@@ -48,6 +50,9 @@ public final class Mist {
     public static void tick(ClientLevel level, Vec3 cam, long ticks) {
         if (ticks % 10 == 0 || Float.isNaN(baseY)) {
             survey(level, cam);
+        }
+        if (!Float.isNaN(targetY)) {
+            baseY = Float.isNaN(baseY) ? targetY : baseY + (targetY - baseY) * 0.04F;
         }
         outdoors = openThroughCrowns(level, cam);
         float place = Math.max(cover, Math.max(0.7F * water, hollow));
@@ -131,7 +136,7 @@ public final class Mist {
         canopy = covered > 0 ? canopySum / covered : 0.0F;
         // Land around that rises above this spot: a hollow or a valley, where the cold damp air settles.
         hollow = ringColumns > 0 ? Math.clamp((ringSum / ringColumns - local - 2.0F) / 10.0F, 0.0F, 1.0F) : 0.0F;
-        baseY = Float.isNaN(baseY) ? local : baseY + (local - baseY) * 0.3F;
+        targetY = local;
     }
 
     /** The forest floor under a column: down from its top through crowns, trunks and air. */

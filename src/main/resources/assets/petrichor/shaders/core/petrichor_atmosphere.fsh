@@ -82,25 +82,12 @@ float showers(vec3 dir, float dist) {
     return mix(1.0, 0.45 + 1.2 * n, weight);
 }
 
-// Integral of exp(-max(h, 0) / MistHeight) along the ray from height h0 rising by dy per block, for d blocks: the
-// mist is uniform below its base and thins out exponentially above it. Exponents stay <= 0, so it never overflows.
-float mistIntegral(float h0, float dy, float d) {
-    float H = MistHeight;
-    if (abs(dy) < 1.0e-4) {
-        return d * exp(-max(h0, 0.0) / H);
-    }
-    float h1 = h0 + dy * d;
-    if (dy > 0.0) {
-        float below = h0 < 0.0 ? min(-h0 / dy, d) : 0.0;
-        float a = max(h0, 0.0);
-        float b = max(h1, 0.0);
-        return below + H / dy * (exp(-a / H) - exp(-b / H));
-    }
-    float above = h0 > 0.0 ? min(h0 / -dy, d) : 0.0;
-    float a = max(h0, 0.0);
-    float b = max(h0 + dy * above, 0.0);
-    return H / -dy * (exp(-b / H) - exp(-a / H)) + (d - above);
-}
+// The mist is a local veil: it is surveyed around the listener, so it thins out with distance (MIST_REACH) instead of
+// filling the whole view. It softens the near land and never stands as a wall at a fixed distance that walks along
+// with the player, nor buries a far valley under one flat sheet. Optical depth from a few samples along the near part
+// of the ray: uniform below its base, thinning exponentially above it, fading out with distance.
+const float MIST_REACH = 48.0;
+const int MIST_STEPS = 12;
 
 // Optical depth of the mist: it starts a step in front of the camera, and drifts in wisps sampled along the near
 // part of the ray, slower than the wind.
@@ -109,8 +96,19 @@ float mistDepth(vec3 dir, float dist) {
         return 0.0;
     }
     float start = 1.5;
-    float d = max(min(dist, 600.0) - start, 0.0);
-    float depth = Mist * mistIntegral(CameraPos.y + dir.y * start - MistY, dir.y, d);
+    float end = min(dist, MIST_REACH * 2.5);
+    if (end <= start) {
+        return 0.0;
+    }
+    float stride = (end - start) / float(MIST_STEPS);
+    float depth = 0.0;
+    for (int i = 0; i < MIST_STEPS; i++) {
+        float t = start + stride * (float(i) + 0.5);
+        float h = CameraPos.y + dir.y * t - MistY;
+        float r = t / MIST_REACH;
+        depth += exp(-max(h, 0.0) / MistHeight - r * r);
+    }
+    depth *= Mist * stride;
     float span = min(dist, 48.0);
     float w = 0.0;
     for (int i = 0; i < 3; i++) {
@@ -149,7 +147,7 @@ void main() {
     // The mist is lighter than the rain's haze: white-grey droplets catching the daylight.
     vec3 mistColor = mix(base, vec3(dot(base, vec3(0.3, 0.59, 0.11))) * 1.12 + 0.03, 0.5) * (1.0 + 0.25 * sun);
     mistColor += Flash * vec3(0.3, 0.32, 0.4);
-    float mist = min(1.0 - exp(-mistDepth(dir, dist)), 0.97);
+    float mist = min(1.0 - exp(-mistDepth(dir, dist)), 0.85);
 
     vec4 behind;
     if (!sky) {

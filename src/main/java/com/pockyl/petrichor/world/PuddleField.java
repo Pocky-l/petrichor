@@ -7,7 +7,8 @@ import com.pockyl.petrichor.weather.Noise;
  * brim of a dip it lies in), at the foot of walls and in closed dips, low next to drops where water runs away, plus two
  * octaves of noise so open ground gets the scattered puddles of real uneven earth. A puddle covers the ground where the field exceeds a threshold that falls
  * as the ground gets wetter ({@link #threshold}), so puddles grow from the deepest spots outwards and shrink back the
- * same way while drying.
+ * same way while drying. Grass and other absorbent ground soak the rain up: neither the noise nor the foot of a step
+ * puddles them, only real hollows do.
  */
 public final class PuddleField {
     private static final int SEED_LARGE = 0x9D1E_0001;
@@ -15,6 +16,9 @@ public final class PuddleField {
     private static final float CLOSED_BONUS = 0.32F;
     /** Per block of water standing in a filled hollow. */
     private static final float DEPTH_BONUS = 0.45F;
+    /** Share of the noise and of the rise around that still puddles absorbent ground. */
+    private static final float ABSORBENT_NOISE = 0.35F;
+    private static final float ABSORBENT_RISE = 0.6F;
 
     private PuddleField() {
     }
@@ -87,6 +91,12 @@ public final class PuddleField {
         }
         if (counted > 0) {
             concavity /= counted;
+        }
+        if (grid.absorbent[i]) {
+            noise *= ABSORBENT_NOISE;
+            if (concavity > 0.0F) {
+                concavity *= ABSORBENT_RISE;
+            }
         }
         float field = noise * 0.8F + concavity * 0.5F;
         if (runoff != null) {

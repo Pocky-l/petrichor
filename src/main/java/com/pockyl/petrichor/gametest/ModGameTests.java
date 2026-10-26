@@ -295,6 +295,43 @@ public final class ModGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void grassSoaksUpTheRain(GameTestHelper helper) {
+        int size = 24;
+        SurfaceGrid bare = flatGrid(size, 64);
+        SurfaceGrid grass = flatGrid(size, 64);
+        for (int i = 0; i < size * size; i++) {
+            grass.absorbent[i] = true;
+        }
+        // A step up across the middle (a terrace) and a pit in the grass.
+        for (int z = 0; z < size; z++) {
+            for (int x = 12; x < size; x++) {
+                bare.set(x, z, 65, 65.0F, SurfaceKind.GROUND, true);
+                grass.set(x, z, 65, 65.0F, SurfaceKind.GROUND, true);
+                grass.absorbent[grass.index(x, z)] = true;
+            }
+        }
+        grass.set(5, 5, 63, 63.0F, SurfaceKind.GROUND, true);
+        grass.absorbent[grass.index(5, 5)] = true;
+        float[] bareField = PuddleField.compute(bare, RunoffSolver.solve(bare));
+        float[] grassField = PuddleField.compute(grass, RunoffSolver.solve(grass));
+        float bareCover = 0.0F;
+        float grassCover = 0.0F;
+        for (int i = 0; i < size * size; i++) {
+            if (i != grass.index(5, 5)) {
+                bareCover += PuddleField.cover(bareField[i], 1.0F, 1.0F);
+                grassCover += PuddleField.cover(grassField[i], 1.0F, 1.0F);
+            }
+        }
+        helper.assertTrue(bareCover > 20.0F, "Soaked bare earth has scattered puddles, " + bareCover);
+        helper.assertTrue(grassCover == 0.0F, "Flat grass and the foot of a grassy step hold no puddles, " + grassCover);
+        helper.assertTrue(PuddleField.cover(grassField[grass.index(5, 5)], 0.8F, 1.0F) > 0.9F, "A pit in the grass still fills");
+        helper.assertTrue(SurfaceKind.classify(Blocks.GRASS_BLOCK.defaultBlockState()).absorbent()
+                && !SurfaceKind.classify(Blocks.DIRT_PATH.defaultBlockState()).absorbent()
+                && !SurfaceKind.classify(Blocks.STONE.defaultBlockState()).absorbent(), "Grass soaks the rain up, paths and stone do not");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void wideHollowFills(GameTestHelper helper) {
         SurfaceGrid grid = flatGrid(13, 64);
         for (int z = 4; z <= 8; z++) {
