@@ -19,18 +19,40 @@ public final class PuddleField {
     private PuddleField() {
     }
 
-    /** The field of every cell of the grid (0 for anything that is not flat ground). */
+    /** The field of every cell of the grid (0 for anything that is not flat ground, and on the banks of water). */
     public static float[] compute(SurfaceGrid grid, RunoffSolver runoff) {
         float[] field = new float[grid.size * grid.size];
         for (int lz = 0; lz < grid.size; lz++) {
             for (int lx = 0; lx < grid.size; lx++) {
                 int i = grid.index(lx, lz);
-                if (grid.kind[i] == SurfaceKind.GROUND) {
+                if (grid.kind[i] == SurfaceKind.GROUND && !bank(grid, i)) {
                     field[i] = cell(grid, runoff, lx, lz);
                 }
             }
         }
         return field;
+    }
+
+    /**
+     * Ground at the edge of water at its own level or above (a lake shore, a river bank, a farm's water channel): the rain
+     * runs off into the water, and a puddle there would only lie as a second water surface right beside the real one.
+     */
+    public static boolean bank(SurfaceGrid grid, int i) {
+        int lx = i % grid.size;
+        int lz = i / grid.size;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int nx = lx + dx;
+                int nz = lz + dz;
+                if ((dx != 0 || dz != 0) && nx >= 0 && nz >= 0 && nx < grid.size && nz < grid.size) {
+                    int j = grid.index(nx, nz);
+                    if (grid.kind[j] == SurfaceKind.WATER && grid.height[j] >= grid.height[i]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static float cell(SurfaceGrid grid, RunoffSolver runoff, int lx, int lz) {

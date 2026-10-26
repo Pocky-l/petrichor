@@ -10,7 +10,7 @@ import java.util.PriorityQueue;
  * Where rain water goes once it hits a {@link SurfaceGrid}: a small hydrology model on the block grid.
  *
  * <ul>
- *   <li>every column drains into its lowest lower neighbour (four directions);</li>
+ *   <li>every column drains into its lowest lower neighbour (four directions), or into water level with it;</li>
  *   <li>flat areas drain towards their nearest edge (a breadth-first search from the cells that have a way down), so
  *   a flat roof or a terrace sends its water to the rim like real ones do;</li>
  *   <li>flat areas without any way down are closed hollows;</li>
@@ -75,7 +75,7 @@ public final class RunoffSolver {
                 }
                 int h = grid.height[i];
                 int best = -1;
-                int bestDrop = 0;
+                int bestScore = 0;
                 int bestTie = 0;
                 for (int d = 0; d < 4; d++) {
                     int nx = lx + DX[d];
@@ -87,17 +87,19 @@ public final class RunoffSolver {
                     if (!grid.known(j)) {
                         continue;
                     }
-                    int dh = h - grid.height[j];
+                    // In half blocks: water at the same block height still lies a little lower and takes the rain in,
+                    // so a bank drains into the lake or river beside it instead of holding a puddle at its edge.
+                    int score = (h - grid.height[j]) * 2 + (grid.kind[j] == SurfaceKind.WATER ? 1 : 0);
                     int tie = Noise.hash(grid.x0 + nx, grid.z0 + nz, 0x0F10);
-                    if (dh > bestDrop || dh == bestDrop && dh > 0 && tie > bestTie) {
+                    if (score > bestScore || score == bestScore && score > 0 && tie > bestTie) {
                         best = j;
-                        bestDrop = dh;
+                        bestScore = score;
                         bestTie = tie;
                     }
                 }
                 if (best >= 0) {
                     downstream[i] = best;
-                    drop[i] = bestDrop;
+                    drop[i] = h - grid.height[best];
                     distanceToEdge[i] = 0;
                     queue.add(i);
                 }

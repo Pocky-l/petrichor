@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -37,6 +38,20 @@ public enum SurfaceKind {
 
     public static Shape classify(BlockState state) {
         return CACHE.computeIfAbsent(state, SurfaceKind::compute);
+    }
+
+    /**
+     * Whether a puddle may lie on the block at {@code ground}: flat ground with no fluid in it or on it, and, when the
+     * ground is lower than a full block (a slab, a trapdoor of a jetty), no fluid right under it either - a puddle
+     * must never be drawn as a second water surface over or under real water.
+     */
+    public static boolean holdsPuddle(BlockGetter level, BlockPos ground) {
+        BlockState state = level.getBlockState(ground);
+        Shape shape = classify(state);
+        if (shape.kind() != GROUND || !state.getFluidState().isEmpty() || !level.getFluidState(ground.above()).isEmpty()) {
+            return false;
+        }
+        return shape.top() >= 1.0F || level.getFluidState(ground.below()).isEmpty();
     }
 
     /** Tags decide some kinds, so the cache is dropped whenever tags are reloaded. */

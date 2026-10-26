@@ -4,6 +4,16 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - Unreleased
+### Fixed
+- Puddles no longer appear over or next to water. With a shader pack they are drawn as water, and at a lake shore, a
+  river bank or a farm's water channel they lay as a second water surface beside or above the real one, darkening it
+  like a shadow. Ground at the water's edge now drains into the water and stays free of puddles.
+- A puddle no longer stays behind floating over the water when the block under it is mined and water flows in, or
+  when a slab is filled with water; puddles are also no longer laid on thin blocks such as slabs or trapdoors right
+  above water.
+- With a shader pack, puddles no longer cast shadows.
+
 ## [1.5.0] - 2026-10-24
 ### Added
 - Low mist, as it forms in real life. Rain falling into the cool air near the ground fills it with mist: thickest in a
