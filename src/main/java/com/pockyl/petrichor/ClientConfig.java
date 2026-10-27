@@ -97,7 +97,7 @@ public final class ClientConfig {
                     + "snow, dust, fog and the rest of its particles, blown by the same wind. Off: Particle Rain draws its own rain and hides this mod's falling rain and rainy air.")
             .translation(key("particleRain"))
             .define("particleRain", true);
-    public static final ModConfigSpec.BooleanValue LIVING_WIND = BUILDER
+    public static final ForgeConfigSpec.BooleanValue LIVING_WIND = BUILDER
             .comment("Living Wind integration, when Living Wind is installed: the rain slants the way its wind blows, and blows "
                     + "harder or softer with it. Off: the rain keeps its own wind.")
             .translation(key("livingWind"))

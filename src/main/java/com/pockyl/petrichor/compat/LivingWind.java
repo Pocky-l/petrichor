@@ -2,7 +2,7 @@ package com.pockyl.petrichor.compat;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.util.Mth;
-import net.neoforged.fml.ModList;
+import net.minecraftforge.fml.ModList;
 import org.slf4j.Logger;
 
 import com.pockyl.petrichor.ClientConfig;
