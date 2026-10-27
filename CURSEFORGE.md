@@ -36,6 +36,8 @@ player sees the same weather
 
 [![Particle Rain](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/particle-rain.png)](https://www.curseforge.com/minecraft/mc-mods/particle-rain) ✅ **[Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain)** (optional) - Petrichor draws the rain, Particle Rain the snow, sand and fog, all in the same wind.
 
+[![Living Wind](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/living-wind.png)](https://www.curseforge.com/minecraft/mc-mods/living-wind) ✅ **[Living Wind](https://www.curseforge.com/minecraft/mc-mods/living-wind)** (optional) - the rain slants the way its wind vanes point, and a drizzle or a storm blows harder or softer with its wind.
+
 [![Serene Seasons](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/serene-seasons.png)](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) ✅ **[Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons)** (optional) - sun showers in spring, storms in summer, long rain in autumn, wet and dry tropical seasons.
 
 [![Sound Physics Remastered](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/sound-physics-remastered.png)](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered) ✅ **[Sound Physics Remastered](https://www.curseforge.com/minecraft/mc-mods/sound-physics-remastered)** (optional) - the mod's own muffling steps aside for Sound Physics.
