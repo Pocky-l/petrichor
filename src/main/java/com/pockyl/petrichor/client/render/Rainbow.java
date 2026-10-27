@@ -70,6 +70,11 @@ public final class Rainbow {
         return strength;
     }
 
+    /** The side of the sky the sun is on while this rainbow shows: 1 east, -1 west. */
+    public static float sunSide() {
+        return sunSide;
+    }
+
     public static void tick(ClientLevel level) {
         previous = strength;
         float rain = ClientWeather.rain();

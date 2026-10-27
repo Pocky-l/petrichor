@@ -4,6 +4,12 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - Unreleased
+### Added
+- Shader packs can show Petrichor's rain: while an [Iris](https://www.curseforge.com/minecraft/mc-mods/irisshaders) shader pack is on, the mod hands its rain type,
+  sun showers, wetness, rainbows, lightning flashes and wind to the pack every frame (`petrichor:shader_data`, a small
+  data texture any pack can read). [Pocky Shaders](https://github.com/Pocky-l/pocky-shaders) uses it for its overcast skies, rainbows, wet ground and storm light.
+
 ## [1.6.0] - 2026-10-27
 ### Added
 - Compatibility with [Living Wind](https://www.curseforge.com/minecraft/mc-mods/living-wind): the rain slants the way
