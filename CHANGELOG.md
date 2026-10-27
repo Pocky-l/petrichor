@@ -4,6 +4,13 @@ All notable changes to this mod are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0+1.20.1] - Unreleased
+### Added
+- Compatibility with [Living Wind](https://www.curseforge.com/minecraft/mc-mods/living-wind): the rain slants the way
+  its wind blows, so the drops, the rain curtains and the wind you hear all follow its wind vanes. Each rain type keeps
+  its character - a drizzle still drifts, a storm still drives the rain sideways - but blows harder in Living Wind's
+  gusty spells and softer when it calms down. Client option "Living Wind integration" lets the rain keep its own wind.
+
 ## [1.5.1+1.20.1] - 2026-10-26
 ### Fixed
 - Puddles no longer appear over or next to water. With a shader pack they are drawn as water, and at a lake shore, a

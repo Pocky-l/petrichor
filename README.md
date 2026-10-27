@@ -56,7 +56,7 @@ Nothing to craft: the mod changes the weather.
 ## Configuration
 
 Client options (*Mods -> Petrichor: Rain & Storms -> Config*): quality preset (Low / Medium / High / Ultra), rain density, wind,
-splashes, fog, mist, rainy atmosphere, steam on hot blocks, rainbows, Particle Rain integration, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
+splashes, fog, mist, rainy atmosphere, steam on hot blocks, rainbows, Particle Rain and Living Wind integration, puddles, runoff and drips, lightning and flashes, cinematic effects (darkening before
 a strike, flash glare and afterimage, deafening close strikes) and sound - rain, drip, wind and thunder volume, roof sounds, muffling behind walls. Server options: chances of each rain type and of sun showers, how fast the rain
 changes, how fast the ground gets wet and dries, extra lightning strikes, and with Serene Seasons installed the
 "Serene Seasons integration" switch, the strength of the seasons and seasonal lightning.
@@ -74,6 +74,8 @@ Muffling is turned off automatically when
 [![Sodium](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/sodium.png)](https://modrinth.com/mod/sodium) ✅ **[Sodium](https://modrinth.com/mod/sodium)** - works.
 
 [![Particle Rain](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/particle-rain.png)](https://www.curseforge.com/minecraft/mc-mods/particle-rain) ✅ **[Particle Rain](https://www.curseforge.com/minecraft/mc-mods/particle-rain)** (optional) - Petrichor draws the rain, Particle Rain the snow, sand and fog, all in the same wind.
+
+[![Living Wind](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/living-wind.png)](https://www.curseforge.com/minecraft/mc-mods/living-wind) ✅ **[Living Wind](https://www.curseforge.com/minecraft/mc-mods/living-wind)** (optional) - the rain slants the way its wind vanes point, and a drizzle or a storm blows harder or softer with its wind.
 
 [![Serene Seasons](https://raw.githubusercontent.com/Pocky-l/petrichor/main/docs/compat/serene-seasons.png)](https://www.curseforge.com/minecraft/mc-mods/serene-seasons) ✅ **[Serene Seasons](https://www.curseforge.com/minecraft/mc-mods/serene-seasons)** (optional) - sun showers in spring, storms in summer, long rain in autumn, wet and dry tropical seasons.
 

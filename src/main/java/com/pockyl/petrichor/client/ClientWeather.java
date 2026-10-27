@@ -9,6 +9,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 import com.pockyl.petrichor.Config;
+import com.pockyl.petrichor.compat.LivingWind;
 import com.pockyl.petrichor.compat.Seasons;
 import com.pockyl.petrichor.weather.RainSchedule;
 import com.pockyl.petrichor.weather.RainType;
@@ -57,6 +58,8 @@ public final class ClientWeather {
     private static boolean noRain;
     private static float thunder;
     private static float gust = 1.0F;
+    /** Living Wind's heading and how hard it blows (see {@link LivingWind#read}). */
+    private static final float[] OUTER_WIND = new float[3];
     private static float windX;
     private static float windZ;
     // Distances covered so far, summed tick by tick. Anything that moves with the wind or falls uses these, never
@@ -138,8 +141,15 @@ public final class ClientWeather {
         gust = RainSchedule.gust(time, gustiness);
         float angle = RainSchedule.windAngle(time);
         float speed = RainSchedule.windSpeed(time, windBase, gustiness) * (0.4F + 0.6F * rain);
-        windX = (float) Math.cos(angle) * speed;
-        windZ = (float) Math.sin(angle) * speed;
+        if (LivingWind.read(worldRain, level.getThunderLevel(1.0F), OUTER_WIND)) {
+            // Another mod rules the wind: the rain slants its way, as hard as this rain type blows in such a wind.
+            speed *= OUTER_WIND[2];
+            windX = OUTER_WIND[0] * speed;
+            windZ = OUTER_WIND[1] * speed;
+        } else {
+            windX = (float) Math.cos(angle) * speed;
+            windZ = (float) Math.sin(angle) * speed;
+        }
         driftX += windX;
         driftZ += windZ;
         travel += Math.max(speed, 0.075F);
